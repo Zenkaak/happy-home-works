@@ -347,9 +347,7 @@ const History = () => {
             </div>
 
             <div className="p-4 space-y-3">
-              <div className="rounded-xl bg-secondary/40 border border-border/60 px-3 py-2 text-xs text-muted-foreground">
-                Expected: <span className="font-mono font-semibold text-foreground">{retryTx.phone_number}</span>
-              </div>
+              
 
               <input
                 type="tel"
