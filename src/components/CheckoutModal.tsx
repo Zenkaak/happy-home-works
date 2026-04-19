@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, AlertTriangle, Loader2, CheckCircle, XCircle, Wallet, ShieldCheck, Zap, Lock, Phone, Smartphone } from "lucide-react";
 import ManualPaymentModal from "@/components/ManualPaymentModal";
 import type { Product, Transaction } from "@/lib/types";
@@ -22,11 +22,33 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   const [meterNumber, setMeterNumber] = useState("");
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [showManual, setShowManual] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
 
   const needsPaymentNumber =
     product.category === "data" && product.network !== "safaricom";
   const needsMeter = product.category === "kplc";
   const isLoan = product.category === "loans";
+  const modalMaxHeight = viewportHeight ? `${Math.max(viewportHeight - 12, 320)}px` : "calc(100dvh - 0.75rem)";
+
+  useEffect(() => {
+    const updateViewport = () => {
+      const nextHeight = window.visualViewport?.height || window.innerHeight;
+      setViewportHeight(nextHeight);
+    };
+
+    updateViewport();
+
+    const visualViewport = window.visualViewport;
+    visualViewport?.addEventListener("resize", updateViewport);
+    visualViewport?.addEventListener("scroll", updateViewport);
+    window.addEventListener("resize", updateViewport);
+
+    return () => {
+      visualViewport?.removeEventListener("resize", updateViewport);
+      visualViewport?.removeEventListener("scroll", updateViewport);
+      window.removeEventListener("resize", updateViewport);
+    };
+  }, []);
 
   const validate = () => {
     if (!isValidKenyanPhone(phoneNumber)) {
@@ -302,10 +324,13 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      className="fixed inset-x-0 top-0 z-50 flex items-center justify-center bg-background/85 backdrop-blur-md animate-in fade-in duration-200 px-2 py-2 sm:p-4"
+      style={{ height: viewportHeight ? `${viewportHeight}px` : "100dvh" }}
+    >
       <div
-        className="w-full max-w-md bg-card border border-border/60 rounded-t-3xl sm:rounded-3xl overflow-y-auto overscroll-contain shadow-2xl shadow-black/40 animate-in slide-in-from-bottom-4 duration-300"
-        style={{ maxHeight: "100svh", paddingBottom: "calc(env(safe-area-inset-bottom) + 1.5rem)" }}
+        className="w-full max-w-md bg-card border border-border/60 rounded-3xl overflow-y-auto overscroll-contain shadow-2xl shadow-black/40 animate-in slide-in-from-bottom-4 duration-300"
+        style={{ maxHeight: modalMaxHeight, paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}
       >
         {/* Welcoming gradient header */}
         <div className="relative overflow-hidden">

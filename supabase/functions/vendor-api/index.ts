@@ -389,7 +389,7 @@ serve(async (req) => {
                   await supabase.functions.invoke("send-sms", {
                     body: {
                       phone: v.phone,
-                      message: `DASNET: Withdrawal of KSH ${w.amount} failed (${result.ResultDesc}). Your balance has been refunded.`,
+                      message: `DASNET: Withdrawal of KSH ${w.amount} failed. Funds returned to wallet.`,
                     },
                   });
                 } catch (_) {}

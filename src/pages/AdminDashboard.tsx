@@ -17,6 +17,7 @@ import AdminChat from "@/components/admin/AdminChat";
 import AdminVendorManager from "@/components/admin/AdminVendorManager";
 import AdminWithdrawals from "@/components/admin/AdminWithdrawals";
 import AdminManualPayments from "@/components/admin/AdminManualPayments";
+import AdminPaybillTools from "@/components/admin/AdminPaybillTools";
 
 const getAdminToken = () => localStorage.getItem("dasnet_admin_token");
 
@@ -32,7 +33,7 @@ const adminApi = async (action: string, params: Record<string, any> = {}) => {
   return data;
 };
 
-type TabKey = "overview" | "charts" | "products" | "transactions" | "vendors" | "withdrawals" | "manual_pay" | "sms_logs" | "broadcast" | "stk" | "announcements" | "chat";
+type TabKey = "overview" | "charts" | "products" | "transactions" | "vendors" | "withdrawals" | "manual_pay" | "sms_logs" | "broadcast" | "stk" | "announcements" | "chat" | "paybill";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -191,6 +192,7 @@ const AdminDashboard = () => {
     { key: "transactions", label: "Orders" },
     { key: "vendors", label: "Vendors" },
     { key: "withdrawals", label: "Withdrawals" },
+    { key: "paybill", label: "Paybill" },
     { key: "manual_pay", label: "Manual Pay" },
     { key: "chat", label: "Chat" },
     { key: "announcements", label: "Announce" },
@@ -289,6 +291,7 @@ const AdminDashboard = () => {
         {tab === "announcements" && <AdminAnnouncements />}
         {tab === "chat" && <AdminChat />}
         {tab === "withdrawals" && <AdminWithdrawals />}
+        {tab === "paybill" && <AdminPaybillTools />}
         {tab === "manual_pay" && <AdminManualPayments />}
         {tab === "stk" && (
           <div className="space-y-4 max-w-lg">

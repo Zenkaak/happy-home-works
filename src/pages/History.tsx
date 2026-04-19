@@ -9,6 +9,7 @@ import type { Transaction } from "@/lib/types";
 import TransactionDetailModal from "@/components/TransactionDetailModal";
 import ManualPaymentModal from "@/components/ManualPaymentModal";
 import { useToast } from "@/hooks/use-toast";
+import { formatPhoneTo254 } from "@/lib/formatPhone";
 
 const History = () => {
   const navigate = useNavigate();
@@ -18,6 +19,8 @@ const History = () => {
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [manualTx, setManualTx] = useState<Transaction | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryTx, setRetryTx] = useState<Transaction | null>(null);
+  const [retryPhone, setRetryPhone] = useState("");
 
   const retryStk = async (tx: Transaction) => {
     setRetryingId(tx.id);
@@ -265,8 +268,11 @@ const History = () => {
                 {/* Action buttons by status */}
                 {tx.status === "failed" && (
                   <div className="grid grid-cols-2 gap-1.5 mt-2">
-                    <button
-                      onClick={() => retryStk(tx)}
+                     <button
+                       onClick={() => {
+                         setRetryTx(tx);
+                         setRetryPhone("");
+                       }}
                       disabled={retryingId === tx.id}
                       className="text-[11px] py-1.5 rounded-lg bg-primary/10 text-primary font-semibold flex items-center justify-center gap-1 disabled:opacity-50"
                     >
@@ -327,6 +333,61 @@ const History = () => {
           onClose={() => setManualTx(null)}
           onSubmitted={() => { setManualTx(null); queryClient.invalidateQueries({ queryKey: ["transactions"] }); }}
         />
+      )}
+
+      {retryTx && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/85 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl">
+            <div className="p-4 border-b border-border">
+              <p className="text-[10px] uppercase tracking-[0.15em] text-primary font-bold">Retry confirmation</p>
+              <h3 className="font-display font-bold text-lg mt-1">Enter full number</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                To resend the STK push, type the full phone number for this order.
+              </p>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <div className="rounded-xl bg-secondary/40 border border-border/60 px-3 py-2 text-xs text-muted-foreground">
+                Expected: <span className="font-mono font-semibold text-foreground">{retryTx.phone_number}</span>
+              </div>
+
+              <input
+                type="tel"
+                inputMode="numeric"
+                placeholder="Enter full number"
+                value={retryPhone}
+                onChange={(e) => setRetryPhone(e.target.value)}
+                className="w-full rounded-xl border border-border bg-secondary px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    setRetryTx(null);
+                    setRetryPhone("");
+                  }}
+                  className="py-2.5 rounded-xl bg-secondary text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (formatPhoneTo254(retryPhone) !== retryTx.phone_number) {
+                      return toast({ title: "Number mismatch", description: "Enter the full number exactly to continue.", variant: "destructive" });
+                    }
+                    await retryStk(retryTx);
+                    setRetryTx(null);
+                    setRetryPhone("");
+                  }}
+                  disabled={retryingId === retryTx.id}
+                  className="py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50"
+                >
+                  {retryingId === retryTx.id ? "Sending..." : "Confirm retry"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <Footer />

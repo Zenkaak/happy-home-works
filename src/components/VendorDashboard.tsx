@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getAppBaseUrl } from "@/lib/siteUrl";
 import { Copy, LogOut, TrendingUp, DollarSign, Users, Wallet, Loader2, Share2 } from "lucide-react";
 import VendorAnalytics from "@/components/VendorAnalytics";
+import VendorWithdrawalHistory from "@/components/vendor/VendorWithdrawalHistory";
 
 interface VendorSession {
   vendor_id: string;
@@ -24,6 +25,13 @@ interface Sale {
 interface DashboardData {
   vendor: any;
   sales: Sale[];
+  withdrawals: Array<{
+    id: string;
+    amount: number;
+    status: string;
+    mpesa_reference: string | null;
+    created_at: string;
+  }>;
   stats: {
     total_sales: number;
     total_revenue: number;
@@ -100,7 +108,7 @@ const VendorDashboard = ({ session, onLogout }: { session: VendorSession; onLogo
     } catch (err: any) {
       // REVERT on failure — refetch real balance from DB
       await fetchDashboard();
-      toast({ title: "Withdrawal failed", description: err.message, variant: "destructive" });
+      toast({ title: "Withdrawal failed", description: "Failed, funds returned to wallet.", variant: "destructive" });
     } finally {
       setWithdrawing(false);
     }
@@ -193,7 +201,7 @@ const VendorDashboard = ({ session, onLogout }: { session: VendorSession; onLogo
                 setWithdrawAmount(String(Math.floor(Number(data?.stats.commission || 0))));
                 setShowWithdrawModal(true);
               }}
-              disabled={withdrawing || !data?.stats.commission || data.stats.commission < 2}
+              disabled={withdrawing || !data?.stats.commission || data.stats.commission < 10}
               className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 hover:shadow-lg transition-all active:scale-95"
             >
               {withdrawing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wallet className="w-3.5 h-3.5" />}
@@ -229,6 +237,11 @@ const VendorDashboard = ({ session, onLogout }: { session: VendorSession; onLogo
             ))}
           </div>
         )}
+      </div>
+
+      <div>
+        <h2 className="font-bold text-sm mb-3">Withdrawal History</h2>
+        <VendorWithdrawalHistory withdrawals={data?.withdrawals || []} />
       </div>
 
       {/* Withdraw Modal */}
