@@ -162,14 +162,7 @@ const Index = () => {
         <div className="px-4 relative min-h-[400px]">
           <div className={`grid grid-cols-2 gap-2.5 transition-all duration-300 ${isFetching ? "opacity-60" : "opacity-100"}`}>
             {paginatedProducts.map((p) => {
-              const handleSelect = (prod: Product) => {
-                if (prod.category === "data") {
-                  setUpsellProduct(prod);
-                } else {
-                  setSelectedProduct(prod);
-                  setShowCheckout(true);
-                }
-              };
+              const handleSelect = (prod: Product) => openCheckout(prod);
               if (category === "data") return <PackageCard key={p.id} product={p} onSelect={handleSelect} />;
               if (category === "kplc") return <KplcCard key={p.id} product={p} onSelect={handleSelect} />;
               return <LoanCard key={p.id} product={p} onSelect={handleSelect} />;
@@ -228,10 +221,6 @@ const Index = () => {
       </main>
 
       <VendorLeaderboard />
-
-      <Footer />
-      <ChatButton />
-    </div>
 
       <Footer />
       <ChatButton />
