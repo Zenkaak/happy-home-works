@@ -1,11 +1,6 @@
 /// <reference types="vite/client" />
-import {
-  createRootRoute,
-  Outlet,
-  HeadContent,
-  Scripts,
-} from "@tanstack/react-router";
-import { type ReactNode, useEffect } from "react";
+import { createRootRoute, Outlet, HeadContent, Scripts } from "@tanstack/react-router";
+import { type ReactNode, useEffect, useState } from "react";
 import App from "../App";
 import "../index.css";
 
@@ -33,11 +28,8 @@ export const Route = createRootRoute({
       },
     ],
   }),
-
   shellComponent: RootShell,
   component: RootComponent,
-
-  // keep simple safe fallback (NO App here)
   notFoundComponent: () => null,
 });
 
@@ -50,40 +42,16 @@ function RootShell({ children }: { children: ReactNode }) {
           dangerouslySetInnerHTML={{
             __html: `
               html, body { margin: 0; background: #ffffff; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
-              #boot-splash {
-                position: fixed;
-                inset: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: #ffffff;
-                z-index: 9999;
-                transition: opacity 250ms ease;
-              }
-              #boot-splash.hide {
-                opacity: 0;
-                pointer-events: none;
-              }
-              #boot-splash .spinner {
-                width: 36px;
-                height: 36px;
-                border: 3px solid #e5e7eb;
-                border-top-color: #2563eb;
-                border-radius: 50%;
-                animation: bs-spin 0.8s linear infinite;
-              }
-              @keyframes bs-spin {
-                to { transform: rotate(360deg); }
-              }
+              #boot-splash { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #ffffff; z-index: 9999; transition: opacity 250ms ease; }
+              #boot-splash.hide { opacity: 0; pointer-events: none; }
+              #boot-splash .spinner { width: 36px; height: 36px; border: 3px solid #e5e7eb; border-top-color: #2563eb; border-radius: 50%; animation: bs-spin 0.8s linear infinite; }
+              @keyframes bs-spin { to { transform: rotate(360deg); } }
             `,
           }}
         />
       </head>
       <body>
-        <div id="boot-splash">
-          <div className="spinner" />
-        </div>
-
+        <div id="boot-splash"><div className="spinner" /></div>
         <div id="root">{children}</div>
         <Scripts />
       </body>
@@ -92,20 +60,21 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
+  // App uses react-router-dom's BrowserRouter which needs `document`.
+  // Render only on the client to avoid SSR ReferenceError.
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
+    setMounted(true);
     const splash = document.getElementById("boot-splash");
-
     if (splash) {
       splash.classList.add("hide");
       setTimeout(() => splash.remove(), 300);
     }
   }, []);
 
-  // IMPORTANT FIX:
-  // Render App directly (no mounted state, no SSR blocking)
   return (
     <>
-      <App />
+      {mounted ? <App /> : null}
       <div style={{ display: "none" }}>
         <Outlet />
       </div>
