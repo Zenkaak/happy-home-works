@@ -1,1 +1,19 @@
 project_id = "wxkvrdkbqkwkhbdunsvb"
+
+[functions.vendor-api]
+verify_jwt = false
+
+[functions.admin-login]
+verify_jwt = false
+
+[functions.admin-api]
+verify_jwt = false
+
+[functions.initiate-stk]
+verify_jwt = false
+
+[functions.manual-payment]
+verify_jwt = false
+
+[functions.send-sms]
+verify_jwt = false
