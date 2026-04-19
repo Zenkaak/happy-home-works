@@ -1,49 +1,44 @@
 import { Bell, Clock, User, ShieldCheck } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "react-router-dom";
 
 const Header = () => {
+  const navigate = useNavigate();
+
   return (
-    <header className="sticky top-0 z-40 glass px-4 py-3">
-      <div className="mx-auto flex max-w-5xl items-center justify-between">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-lg glow-primary">
-            <ShieldCheck className="h-5 w-5 text-primary-foreground" />
+    <header className="sticky top-0 z-50 glass px-4 py-3">
+      <div className="container flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/20">
+            <ShieldCheck className="w-5 h-5 text-primary-foreground" />
           </div>
-          <div className="flex flex-col leading-none">
-            <span className="font-display text-lg font-extrabold tracking-tight">
+          <div className="flex flex-col">
+            <span className="font-display text-lg font-bold tracking-tight leading-none">
               DAS<span className="text-primary">NET</span>
             </span>
-            <span className="mt-0.5 text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+            <span className="text-[9px] text-muted-foreground tracking-[0.2em] uppercase leading-none mt-0.5">
               Dasnet Ventures
             </span>
           </div>
-        </Link>
+        </div>
 
         <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="relative rounded-lg p-2.5 transition-colors hover:bg-secondary"
-          >
-            <Bell className="h-5 w-5 text-muted-foreground" />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 animate-pulse rounded-full bg-primary" />
+          <button className="p-2.5 rounded-lg hover:bg-secondary transition-colors relative">
+            <Bell className="w-5 h-5 text-muted-foreground" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary animate-pulse" />
           </button>
-          <Link
-            to="/history"
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 transition-colors hover:bg-secondary"
+          <button
+            onClick={() => navigate("/history")}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-secondary transition-colors"
           >
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs font-semibold tracking-wide text-muted-foreground">
-              HISTORY
-            </span>
-          </Link>
-          <Link
-            to="/admin"
-            aria-label="Admin login"
-            className="rounded-lg p-2.5 transition-colors hover:bg-secondary"
+            <Clock className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs font-semibold text-muted-foreground tracking-wide">HISTORY</span>
+          </button>
+          <button
+            onClick={() => navigate("/admin")}
+            className="p-2.5 rounded-lg hover:bg-secondary transition-colors"
           >
-            <User className="h-5 w-5 text-muted-foreground" />
-          </Link>
+            <User className="w-5 h-5 text-muted-foreground" />
+          </button>
         </div>
       </div>
     </header>
