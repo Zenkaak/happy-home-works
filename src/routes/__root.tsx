@@ -40,12 +40,18 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
         <style
           dangerouslySetInnerHTML={{
-            __html:
-              "html, body { margin: 0; background: #0a0e1a; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }",
+            __html: `
+              html, body { margin: 0; background: #ffffff; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+              #boot-splash { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #ffffff; z-index: 9999; transition: opacity 250ms ease; }
+              #boot-splash.hide { opacity: 0; pointer-events: none; }
+              #boot-splash .spinner { width: 36px; height: 36px; border: 3px solid #e5e7eb; border-top-color: #2563eb; border-radius: 50%; animation: bs-spin 0.8s linear infinite; }
+              @keyframes bs-spin { to { transform: rotate(360deg); } }
+            `,
           }}
         />
       </head>
       <body>
+        <div id="boot-splash"><div className="spinner" /></div>
         <div id="root">{children}</div>
         <Scripts />
       </body>
@@ -57,7 +63,14 @@ function RootComponent() {
   // App uses react-router-dom's BrowserRouter which needs `document`.
   // Render only on the client to avoid SSR ReferenceError.
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    const splash = document.getElementById("boot-splash");
+    if (splash) {
+      splash.classList.add("hide");
+      setTimeout(() => splash.remove(), 300);
+    }
+  }, []);
 
   return (
     <>
