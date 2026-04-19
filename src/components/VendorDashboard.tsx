@@ -183,8 +183,11 @@ const VendorDashboard = ({ session, onLogout }: { session: VendorSession; onLogo
               </p>
             </div>
             <button
-              onClick={handleWithdraw}
-              disabled={withdrawing || !data?.stats.commission || data.stats.commission < 5}
+              onClick={() => {
+                setWithdrawAmount(String(Math.floor(Number(data?.stats.commission || 0))));
+                setShowWithdrawModal(true);
+              }}
+              disabled={withdrawing || !data?.stats.commission || data.stats.commission < 2}
               className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 hover:shadow-lg transition-all active:scale-95"
             >
               {withdrawing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wallet className="w-3.5 h-3.5" />}
