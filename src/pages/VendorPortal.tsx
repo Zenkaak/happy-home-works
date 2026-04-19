@@ -6,7 +6,7 @@ import { isValidKenyanPhone } from "@/lib/formatPhone";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import VendorDashboard from "@/components/VendorDashboard";
-import { Loader2, UserPlus, LogIn, ArrowLeft } from "lucide-react";
+import { Loader2, UserPlus, LogIn, ArrowLeft, TrendingUp, Wallet, BarChart3, CheckCircle2 } from "lucide-react";
 
 type View = "menu" | "apply" | "signin" | "dashboard";
 
@@ -160,63 +160,137 @@ const VendorPortal = () => {
 
         {view === "apply" && (
           <>
-            <button onClick={() => setView("menu")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+            <button
+              onClick={() => setView("menu")}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
-            <section className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 shadow-2xl shadow-primary/5">
-              <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-primary/10 to-transparent" />
-              <div className="relative space-y-5">
-                <div className="space-y-2">
-                  <div className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-                    Professional Vendor Setup
+
+            <section className="relative overflow-hidden rounded-2xl border border-border/60 bg-card">
+              {/* Header band */}
+              <div className="relative px-5 pt-6 pb-5 border-b border-border/60">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-transparent" />
+                <div className="relative space-y-2.5">
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    Vendor Application
                   </div>
-                  <h2 className="font-display text-2xl font-bold">Open your vendor dashboard in minutes</h2>
-                  <p className="text-sm text-muted-foreground">Submit your details once and go straight to your dashboard with your live sales link, earnings, and withdrawal tools.</p>
+                  <h2 className="font-display text-[22px] font-extrabold text-foreground leading-tight">
+                    Start earning today
+                  </h2>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Submit your details once. Get instant access to your dashboard, live referral link and weekly payouts.
+                  </p>
+                </div>
+              </div>
+
+              {/* Stats strip */}
+              <div className="grid grid-cols-3 divide-x divide-border/60 border-b border-border/60">
+                <div className="px-3 py-3.5 text-center">
+                  <TrendingUp className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <p className="font-display text-base font-extrabold text-foreground leading-none">10%</p>
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1 font-semibold">Commission</p>
+                </div>
+                <div className="px-3 py-3.5 text-center">
+                  <Wallet className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <p className="font-display text-base font-extrabold text-foreground leading-none">M-Pesa</p>
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1 font-semibold">Payouts</p>
+                </div>
+                <div className="px-3 py-3.5 text-center">
+                  <BarChart3 className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <p className="font-display text-base font-extrabold text-foreground leading-none">Live</p>
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1 font-semibold">Tracking</p>
+                </div>
+              </div>
+
+              {/* Form */}
+              <div className="p-5 space-y-4">
+                <div className="space-y-3.5">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-foreground/80 mb-1.5 uppercase tracking-wider">
+                      Full name
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="John Doe"
+                      className="w-full px-4 py-3 rounded-xl bg-secondary/60 border border-border/60 text-sm font-medium placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/40 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-foreground/80 mb-1.5 uppercase tracking-wider">
+                      Phone number
+                    </label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="07XX XXX XXX"
+                      className="w-full px-4 py-3 rounded-xl bg-secondary/60 border border-border/60 text-sm font-medium placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/40 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-foreground/80 mb-1.5 uppercase tracking-wider">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Create a secure password"
+                      className="w-full px-4 py-3 rounded-xl bg-secondary/60 border border-border/60 text-sm font-medium placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/40 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-foreground/80 mb-1.5 uppercase tracking-wider">
+                      M-Pesa payout number
+                    </label>
+                    <input
+                      type="tel"
+                      value={mpesaPayout}
+                      onChange={(e) => setMpesaPayout(e.target.value)}
+                      placeholder="07XX XXX XXX"
+                      className="w-full px-4 py-3 rounded-xl bg-secondary/60 border border-border/60 text-sm font-medium placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/40 transition-all"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
+                      Where your weekly commission earnings will be sent.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-2xl border border-border bg-secondary/40 px-3 py-3">
-                    <p className="text-lg font-black text-foreground">10%</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Commission</p>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-secondary/40 px-3 py-3">
-                    <p className="text-lg font-black text-foreground">Live</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Referral Link</p>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-secondary/40 px-3 py-3">
-                    <p className="text-lg font-black text-foreground">24/7</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Tracking</p>
-                  </div>
-                </div>
+                {/* Trust list */}
+                <ul className="space-y-1.5 pt-1">
+                  {[
+                    "Instant dashboard activation",
+                    "Personal referral link & QR code",
+                    "Weekly automatic M-Pesa payouts",
+                  ].map((item) => (
+                    <li key={item} className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
 
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Full Name</label>
-                    <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="John Doe"
-                      className="w-full px-4 py-3 rounded-xl bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Phone Number</label>
-                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="07XXXXXXXX"
-                      className="w-full px-4 py-3 rounded-xl bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Password</label>
-                    <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Create a password"
-                      className="w-full px-4 py-3 rounded-xl bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">M-Pesa Payout Number</label>
-                    <input type="tel" value={mpesaPayout} onChange={e => setMpesaPayout(e.target.value)} placeholder="07XXXXXXXX"
-                      className="w-full px-4 py-3 rounded-xl bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </div>
-                </div>
-
-                <button onClick={handleApply} disabled={loading}
-                  className="w-full py-4 rounded-xl gradient-primary font-bold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  {loading ? "Submitting..." : "Submit Application"}
+                <button
+                  onClick={handleApply}
+                  disabled={loading}
+                  className="w-full py-3.5 rounded-xl gradient-primary font-bold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Submitting...
+                    </>
+                  ) : (
+                    <>Create vendor account</>
+                  )}
                 </button>
+
+                <p className="text-[10px] text-center text-muted-foreground leading-relaxed">
+                  By applying you agree to DASNET's vendor terms.
+                </p>
               </div>
             </section>
           </>
@@ -224,27 +298,60 @@ const VendorPortal = () => {
 
         {view === "signin" && (
           <>
-            <button onClick={() => setView("menu")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+            <button
+              onClick={() => setView("menu")}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
-            <h2 className="font-display text-xl font-bold">Vendor Sign In</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Phone Number</label>
-                <input type="tel" value={loginPhone} onChange={e => setLoginPhone(e.target.value)} placeholder="07XXXXXXXX"
-                  className="w-full px-4 py-3 rounded-xl bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+
+            <section className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+              <div className="px-5 pt-5 pb-4 border-b border-border/60">
+                <h2 className="font-display text-xl font-extrabold text-foreground">Vendor Sign In</h2>
+                <p className="text-xs text-muted-foreground mt-1">Welcome back. Access your dashboard.</p>
               </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Password</label>
-                <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="Enter your password"
-                  className="w-full px-4 py-3 rounded-xl bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              <div className="p-5 space-y-4">
+                <div className="space-y-3.5">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-foreground/80 mb-1.5 uppercase tracking-wider">
+                      Phone number
+                    </label>
+                    <input
+                      type="tel"
+                      value={loginPhone}
+                      onChange={(e) => setLoginPhone(e.target.value)}
+                      placeholder="07XX XXX XXX"
+                      className="w-full px-4 py-3 rounded-xl bg-secondary/60 border border-border/60 text-sm font-medium placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/40 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-foreground/80 mb-1.5 uppercase tracking-wider">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="w-full px-4 py-3 rounded-xl bg-secondary/60 border border-border/60 text-sm font-medium placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/40 transition-all"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={handleSignIn}
+                  disabled={loading}
+                  className="w-full py-3.5 rounded-xl gradient-primary font-bold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Signing in...
+                    </>
+                  ) : (
+                    <>Sign in</>
+                  )}
+                </button>
               </div>
-            </div>
-            <button onClick={handleSignIn} disabled={loading}
-              className="w-full py-4 rounded-xl gradient-primary font-bold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
+            </section>
           </>
         )}
       </main>
