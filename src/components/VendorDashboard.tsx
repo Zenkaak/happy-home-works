@@ -66,29 +66,35 @@ const VendorDashboard = ({ session, onLogout }: { session: VendorSession; onLogo
 
   const handleWithdraw = async () => {
     const currentBalance = Number(data?.stats.commission || 0);
-    
-    if (currentBalance < 10) {
+    const requestedAmount = Math.floor(Number(withdrawAmount));
+
+    if (!requestedAmount || requestedAmount < 10) {
       return toast({ title: "Minimum withdrawal is KSH 10", description: "M-Pesa requires a minimum of KES 10 per payout.", variant: "destructive" });
     }
-    
+    if (requestedAmount > currentBalance) {
+      return toast({ title: "Insufficient balance", description: `You only have KSH ${currentBalance} available.`, variant: "destructive" });
+    }
+
     setWithdrawing(true);
-    
-    // 1. OPTIMISTIC UPDATE: Set to 0 immediately in UI
+
+    // OPTIMISTIC UPDATE: deduct only the requested amount
     setData(prev => prev ? {
       ...prev,
-      stats: { ...prev.stats, commission: 0 }
+      stats: { ...prev.stats, commission: currentBalance - requestedAmount }
     } : null);
 
     try {
       const { data: res, error } = await supabase.functions.invoke("vendor-api", {
-        body: { action: "request_withdrawal", vendor_id: session.vendor_id, amount: currentBalance },
+        body: { action: "request_withdrawal", vendor_id: session.vendor_id, amount: requestedAmount },
       });
 
       if (error) throw new Error(error.message || "Network error");
       if (res?.error) throw new Error(res.error);
       if (!res?.success) throw new Error("Withdrawal could not be initiated");
 
-      toast({ title: "Withdrawal initiated!", description: "Funds will arrive on M-Pesa shortly." });
+      toast({ title: "Withdrawal initiated!", description: `KSH ${requestedAmount} on the way to M-Pesa.` });
+      setShowWithdrawModal(false);
+      setWithdrawAmount("");
       setRefreshKey(prev => prev + 1);
 
     } catch (err: any) {
