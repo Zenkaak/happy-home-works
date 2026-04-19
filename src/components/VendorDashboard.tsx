@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getAppBaseUrl } from "@/lib/siteUrl";
 import { Copy, LogOut, TrendingUp, DollarSign, Users, Wallet, Loader2, Share2 } from "lucide-react";
 import VendorAnalytics from "@/components/VendorAnalytics";
+import VendorWithdrawalHistory from "@/components/vendor/VendorWithdrawalHistory";
 
 interface VendorSession {
   vendor_id: string;
@@ -24,6 +25,13 @@ interface Sale {
 interface DashboardData {
   vendor: any;
   sales: Sale[];
+  withdrawals: Array<{
+    id: string;
+    amount: number;
+    status: string;
+    mpesa_reference: string | null;
+    created_at: string;
+  }>;
   stats: {
     total_sales: number;
     total_revenue: number;
@@ -229,6 +237,11 @@ const VendorDashboard = ({ session, onLogout }: { session: VendorSession; onLogo
             ))}
           </div>
         )}
+      </div>
+
+      <div>
+        <h2 className="font-bold text-sm mb-3">Withdrawal History</h2>
+        <VendorWithdrawalHistory withdrawals={data?.withdrawals || []} />
       </div>
 
       {/* Withdraw Modal */}

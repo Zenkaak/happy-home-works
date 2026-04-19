@@ -33,7 +33,11 @@ const statusMeta: Record<string, { label: string; icon: typeof Clock3; className
 };
 
 const VendorWithdrawalHistory = ({ withdrawals }: { withdrawals: WithdrawalRecord[] }) => {
-  if (!withdrawals.length) {
+  const orderedWithdrawals = [...withdrawals].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+
+  if (!orderedWithdrawals.length) {
     return (
       <div className="text-center py-10 text-muted-foreground text-sm border-2 border-dashed rounded-xl bg-muted/20">
         <p>No withdrawals yet.</p>
@@ -43,7 +47,7 @@ const VendorWithdrawalHistory = ({ withdrawals }: { withdrawals: WithdrawalRecor
 
   return (
     <div className="space-y-2.5">
-      {withdrawals.map((withdrawal) => {
+      {orderedWithdrawals.map((withdrawal) => {
         const meta = statusMeta[withdrawal.status] || statusMeta.pending;
         const Icon = meta.icon;
 
