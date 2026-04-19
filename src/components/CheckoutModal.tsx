@@ -305,7 +305,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/85 backdrop-blur-md animate-in fade-in duration-200">
       <div
         className="w-full max-w-md bg-card border border-border/60 rounded-t-3xl sm:rounded-3xl overflow-y-auto overscroll-contain shadow-2xl shadow-black/40 animate-in slide-in-from-bottom-4 duration-300"
-        style={{ maxHeight: "100dvh", paddingBottom: "env(safe-area-inset-bottom)" }}
+        style={{ maxHeight: "100svh", paddingBottom: "calc(env(safe-area-inset-bottom) + 1.5rem)" }}
       >
         {/* Welcoming gradient header */}
         <div className="relative overflow-hidden">

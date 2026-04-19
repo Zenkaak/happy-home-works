@@ -118,6 +118,18 @@ const AdminDashboard = () => {
     onError: handleError,
   });
 
+  const deleteVendor = useMutation({
+    mutationFn: async (id: string) => await adminApi("delete_vendor", { id }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin-vendors"] }); toast({ title: "Vendor deleted" }); },
+    onError: handleError,
+  });
+
+  const banVendor = useMutation({
+    mutationFn: async (v: { id: string; phone_number: string }) => await adminApi("ban_vendor", v),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin-vendors"] }); toast({ title: "Vendor banned" }); },
+    onError: handleError,
+  });
+
   const deleteTx = useMutation({
     mutationFn: async (id: string) => await adminApi("delete_transaction", { id }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin-transactions"] }); toast({ title: "Transaction removed" }); },
@@ -260,6 +272,16 @@ const AdminDashboard = () => {
           <AdminVendorManager
             vendors={vendors}
             onUpdateVendor={(v: any) => updateVendor.mutate(v)}
+            onDeleteVendor={(id: string) => {
+              if (confirm("Delete this vendor permanently? Their referral history stays but they can't log in.")) {
+                deleteVendor.mutate(id);
+              }
+            }}
+            onBanVendor={(v: any) => {
+              if (confirm(`Ban ${v.name}? Their account will be disabled and the phone (${v.phone}) will be blocked from re-registering.`)) {
+                banVendor.mutate({ id: v.id, phone_number: v.phone });
+              }
+            }}
           />
         )}
         {tab === "sms_logs" && <AdminSmsLogs />}

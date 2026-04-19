@@ -67,8 +67,8 @@ const VendorDashboard = ({ session, onLogout }: { session: VendorSession; onLogo
   const handleWithdraw = async () => {
     const currentBalance = Number(data?.stats.commission || 0);
     
-    if (currentBalance < 5) {
-      return toast({ title: "Minimum withdrawal is KSH 5", variant: "destructive" });
+    if (currentBalance < 10) {
+      return toast({ title: "Minimum withdrawal is KSH 10", description: "M-Pesa requires a minimum of KES 10 per payout.", variant: "destructive" });
     }
     
     setWithdrawing(true);

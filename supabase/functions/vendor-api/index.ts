@@ -340,26 +340,61 @@ serve(async (req) => {
         if (withdrawalId && result) {
           const success = result.ResultCode === 0;
 
-          if (success) {
-            await supabase
-              .from("withdrawals")
-              .update({
-                status: "completed",
-                mpesa_reference:
-                  result?.ResultParameters?.ResultParameter?.find(
-                    (i: any) => i.Key === "TransactionReceipt"
-                  )?.Value,
-                completed_at: new Date().toISOString(),
-              })
-              .eq("id", withdrawalId);
-          } else {
-            await supabase
-              .from("withdrawals")
-              .update({
-                status: "failed",
-                failure_reason: result.ResultDesc,
-              })
-              .eq("id", withdrawalId);
+          // Fetch withdrawal so we can refund vendor on failure (and avoid double-processing)
+          const { data: w } = await supabase
+            .from("withdrawals")
+            .select("id, vendor_id, amount, status")
+            .eq("id", withdrawalId)
+            .single();
+
+          if (w && w.status !== "completed" && w.status !== "failed") {
+            if (success) {
+              await supabase
+                .from("withdrawals")
+                .update({
+                  status: "completed",
+                  mpesa_reference:
+                    result?.ResultParameters?.ResultParameter?.find(
+                      (i: any) => i.Key === "TransactionReceipt"
+                    )?.Value,
+                  completed_at: new Date().toISOString(),
+                })
+                .eq("id", withdrawalId);
+            } else {
+              // Mark failed AND REFUND vendor balance
+              await supabase
+                .from("withdrawals")
+                .update({
+                  status: "failed",
+                  failure_reason: result.ResultDesc,
+                })
+                .eq("id", withdrawalId);
+
+              const { data: v } = await supabase
+                .from("vendors")
+                .select("commission_balance, name, phone")
+                .eq("id", w.vendor_id)
+                .single();
+
+              if (v) {
+                await supabase
+                  .from("vendors")
+                  .update({
+                    commission_balance: Number(v.commission_balance || 0) + Number(w.amount),
+                  })
+                  .eq("id", w.vendor_id);
+
+                // Notify vendor that money was refunded
+                try {
+                  await supabase.functions.invoke("send-sms", {
+                    body: {
+                      phone: v.phone,
+                      message: `DASNET: Withdrawal of KSH ${w.amount} failed (${result.ResultDesc}). Your balance has been refunded.`,
+                    },
+                  });
+                } catch (_) {}
+              }
+            }
           }
         }
 
