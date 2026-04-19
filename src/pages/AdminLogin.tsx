@@ -23,7 +23,7 @@ const AdminLogin = () => {
         return;
       }
 
-      sessionStorage.setItem("dasnet_admin_token", data.session_token);
+      localStorage.setItem("dasnet_admin_token", data.session_token);
       navigate("/admin/dashboard");
     } catch (err: any) {
       setError(err.message || "Login failed");

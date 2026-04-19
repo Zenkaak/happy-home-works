@@ -18,7 +18,7 @@ import AdminVendorManager from "@/components/admin/AdminVendorManager";
 import AdminWithdrawals from "@/components/admin/AdminWithdrawals";
 import AdminManualPayments from "@/components/admin/AdminManualPayments";
 
-const getAdminToken = () => sessionStorage.getItem("dasnet_admin_token");
+const getAdminToken = () => localStorage.getItem("dasnet_admin_token");
 
 const adminApi = async (action: string, params: Record<string, any> = {}) => {
   const token = getAdminToken();
@@ -88,7 +88,7 @@ const AdminDashboard = () => {
 
   const handleError = (err: any) => {
     if (err.message?.includes("expired") || err.message?.includes("Unauthorized")) {
-      sessionStorage.removeItem("dasnet_admin_token");
+      localStorage.removeItem("dasnet_admin_token");
       navigate("/admin");
     }
     toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -182,7 +182,7 @@ const AdminDashboard = () => {
     );
   };
 
-  const handleLogout = () => { sessionStorage.removeItem("dasnet_admin_token"); navigate("/"); };
+  const handleLogout = () => { localStorage.removeItem("dasnet_admin_token"); navigate("/"); };
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: "overview", label: "Overview" },

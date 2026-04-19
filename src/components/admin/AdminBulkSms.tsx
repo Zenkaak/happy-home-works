@@ -3,7 +3,7 @@ import { Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-const getAdminToken = () => sessionStorage.getItem("dasnet_admin_token");
+const getAdminToken = () => localStorage.getItem("dasnet_admin_token");
 
 const AdminBulkSms = () => {
   const { toast } = useToast();

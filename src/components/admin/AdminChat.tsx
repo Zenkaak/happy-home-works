@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { getAppBaseUrl } from "@/lib/siteUrl";
 
-const getAdminToken = () => sessionStorage.getItem("dasnet_admin_token");
+const getAdminToken = () => localStorage.getItem("dasnet_admin_token");
 
 interface Conversation {
   id: string;
