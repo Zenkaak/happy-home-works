@@ -11,9 +11,8 @@ import NetworkTabs from "@/components/NetworkTabs";
 import PackageCard from "@/components/PackageCard";
 import KplcCard from "@/components/KplcCard";
 import LoanCard from "@/components/LoanCard";
-import CheckoutModal from "@/components/CheckoutModal";
 import ChatButton from "@/components/ChatButton";
-import UpsellModal from "@/components/UpsellModal";
+import { useCheckout } from "@/contexts/CheckoutContext";
 import ProductFilterBar from "@/components/ProductFilterBar";
 import VendorLeaderboard from "@/components/VendorLeaderboard";
 
@@ -24,11 +23,9 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const referralCode = searchParams.get("ref") || undefined;
+  const { openCheckout } = useCheckout();
   const [category, setCategory] = useState<ServiceCategory>("data");
   const [network, setNetwork] = useState<NetworkProvider>("safaricom");
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [upsellProduct, setUpsellProduct] = useState<Product | null>(null);
-  const [showCheckout, setShowCheckout] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number] | null>(null);
   const [page, setPage] = useState(1);
@@ -165,14 +162,7 @@ const Index = () => {
         <div className="px-4 relative min-h-[400px]">
           <div className={`grid grid-cols-2 gap-2.5 transition-all duration-300 ${isFetching ? "opacity-60" : "opacity-100"}`}>
             {paginatedProducts.map((p) => {
-              const handleSelect = (prod: Product) => {
-                if (prod.category === "data") {
-                  setUpsellProduct(prod);
-                } else {
-                  setSelectedProduct(prod);
-                  setShowCheckout(true);
-                }
-              };
+              const handleSelect = (prod: Product) => openCheckout(prod);
               if (category === "data") return <PackageCard key={p.id} product={p} onSelect={handleSelect} />;
               if (category === "kplc") return <KplcCard key={p.id} product={p} onSelect={handleSelect} />;
               return <LoanCard key={p.id} product={p} onSelect={handleSelect} />;
@@ -231,29 +221,6 @@ const Index = () => {
       </main>
 
       <VendorLeaderboard />
-
-      {/* Upsell modal */}
-      {upsellProduct && !showCheckout && (
-        <UpsellModal
-          selectedProduct={upsellProduct}
-          allProducts={products || []}
-          onProceedOriginal={() => {
-            setSelectedProduct(upsellProduct);
-            setUpsellProduct(null);
-            setShowCheckout(true);
-          }}
-          onProceedUpsell={(p) => {
-            setSelectedProduct(p);
-            setUpsellProduct(null);
-            setShowCheckout(true);
-          }}
-          onClose={() => setUpsellProduct(null)}
-        />
-      )}
-
-      {showCheckout && selectedProduct && (
-        <CheckoutModal product={selectedProduct} referralCode={referralCode} onClose={() => { setSelectedProduct(null); setShowCheckout(false); }} />
-      )}
 
       <Footer />
       <ChatButton />
