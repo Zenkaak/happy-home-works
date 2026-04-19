@@ -259,7 +259,7 @@ const AdminDashboard = () => {
         {tab === "vendors" && (
           <AdminVendorManager
             vendors={vendors}
-            onUpdateVendor={(v) => updateVendor.mutate(v)}
+            onUpdateVendor={(v: any) => updateVendor.mutate(v)}
           />
         )}
         {tab === "sms_logs" && <AdminSmsLogs />}
