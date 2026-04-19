@@ -224,6 +224,73 @@ const VendorDashboard = ({ session, onLogout }: { session: VendorSession; onLogo
           </div>
         )}
       </div>
+
+      {/* Withdraw Modal */}
+      {showWithdrawModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+          onClick={() => setShowWithdrawModal(false)}
+        >
+          <div
+            className="w-full max-w-[320px] bg-card rounded-2xl overflow-hidden shadow-2xl border border-border/60 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 pt-5 pb-3 border-b border-border/60">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center">
+                  <Wallet className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <span className="text-[10px] uppercase tracking-[0.15em] text-primary font-bold">
+                  Withdraw to M-Pesa
+                </span>
+              </div>
+              <h3 className="font-display font-bold text-base text-foreground">
+                Enter amount
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Available: KSH {Math.floor(Number(data?.stats.commission || 0))}
+              </p>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-[11px] text-foreground/80 mb-1.5 font-semibold">
+                  Amount (KSH)
+                </label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={2}
+                  autoFocus
+                  placeholder="e.g. 50"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-secondary/60 border border-border text-base font-bold placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  Minimum withdrawal: KSH 2
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowWithdrawModal(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-secondary border border-border/60 text-xs font-semibold hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleWithdraw}
+                  disabled={withdrawing}
+                  className="flex-[2] py-2.5 rounded-xl gradient-primary text-primary-foreground text-xs font-bold disabled:opacity-50 hover:opacity-95 active:scale-[0.99] transition-all shadow-lg shadow-primary/20"
+                >
+                  {withdrawing ? "Processing..." : "Confirm Withdrawal"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 };
