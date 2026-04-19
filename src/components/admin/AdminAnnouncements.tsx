@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Megaphone, Loader2, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const getAdminToken = () => sessionStorage.getItem("dasnet_admin_token");
+const getAdminToken = () => localStorage.getItem("dasnet_admin_token");
 
 interface Announcement {
   id: string;

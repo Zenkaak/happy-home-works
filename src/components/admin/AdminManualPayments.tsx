@@ -24,7 +24,7 @@ const AdminManualPayments = () => {
 
   const act = useMutation({
     mutationFn: async ({ id, action, notes }: { id: string; action: "verify" | "reject"; notes?: string }) => {
-      const token = sessionStorage.getItem("dasnet_admin_token");
+      const token = localStorage.getItem("dasnet_admin_token");
       const { data, error } = await supabase.functions.invoke("manual-payment", {
         body: { action, id, admin_notes: notes },
         headers: { "x-admin-token": token || "" },
