@@ -1,13 +1,9 @@
-export type ServiceCategory = "data" | "kplc" | "loans";
-export type NetworkProvider = "safaricom" | "airtel" | "telkom";
-export type TransactionStatus = "pending" | "processing" | "completed" | "failed";
-
 export interface Product {
   id: string;
   name: string;
   description: string | null;
-  category: ServiceCategory;
-  network: NetworkProvider | null;
+  category: 'data' | 'kplc' | 'loans';
+  network: 'safaricom' | 'airtel' | 'telkom' | null;
   data_amount: string | null;
   minutes: string | null;
   price: number;
@@ -30,12 +26,14 @@ export interface Transaction {
   service_number: string | null;
   meter_number: string | null;
   amount: number;
-  status: TransactionStatus;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   mpesa_reference: string | null;
   kplc_token: string | null;
   stk_checkout_id: string | null;
   failure_reason: string | null;
-  referral_code: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export type ServiceCategory = 'data' | 'kplc' | 'loans';
+export type NetworkProvider = 'safaricom' | 'airtel' | 'telkom';

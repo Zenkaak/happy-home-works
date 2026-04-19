@@ -8,31 +8,21 @@ interface LoanCardProps {
 
 const LoanCard = ({ product, onSelect }: LoanCardProps) => (
   <button
-    type="button"
     onClick={() => onSelect(product)}
-    className="group animate-slide-up rounded-xl gradient-card p-2.5 text-left transition-all hover:border-info/40 hover:shadow-elevated"
+    className="gradient-card rounded-xl p-2.5 text-left transition-all hover:border-blue-500/30 group animate-slide-up"
   >
-    <div className="mb-1.5 flex items-center gap-2">
-      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-info/20 bg-info/10">
-        <TrendingUp className="h-3 w-3 text-info" />
+    <div className="flex items-center gap-2 mb-1.5">
+      <div className="w-6 h-6 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+        <TrendingUp className="w-3 h-3 text-blue-400" />
       </div>
-      <h3 className="truncate font-display text-[12px] font-bold text-foreground">
-        {product.name}
-      </h3>
+      <h3 className="font-display font-bold text-[12px] text-foreground truncate">{product.name}</h3>
     </div>
-    {product.description && (
-      <p className="mb-1 line-clamp-1 text-[10px] text-muted-foreground">
-        {product.description}
-      </p>
-    )}
+
     <div className="flex items-center justify-between">
-      <p className="font-display text-sm font-bold text-foreground">
-        <span className="mr-0.5 text-[10px] text-info">KSH</span>
-        {product.price.toLocaleString()}
+      <p className="font-display font-bold text-sm text-foreground">
+        <span className="text-blue-400 text-[10px] mr-0.5">KSH</span>{product.price.toLocaleString()}
       </p>
-      <span className="text-[8px] font-medium tracking-wider text-muted-foreground">
-        UPGRADE
-      </span>
+      <span className="text-[8px] text-muted-foreground font-medium tracking-wider">UPGRADE</span>
     </div>
   </button>
 );

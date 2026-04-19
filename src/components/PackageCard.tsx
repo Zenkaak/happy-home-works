@@ -1,4 +1,4 @@
-import { Wifi, Flame, Phone } from "lucide-react";
+import { Wifi, Flame } from "lucide-react";
 import type { Product } from "@/lib/types";
 
 interface PackageCardProps {
@@ -6,39 +6,28 @@ interface PackageCardProps {
   onSelect: (p: Product) => void;
 }
 
-const PackageCard = ({ product, onSelect }: PackageCardProps) => {
-  const hasMinutes = !!product.minutes;
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(product)}
-      className="group animate-slide-up rounded-xl gradient-card p-2.5 text-left transition-all hover:border-primary/40 hover:shadow-elevated"
-    >
-      <div className="mb-1.5 flex items-center gap-2">
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">
-          {hasMinutes ? (
-            <Phone className="h-3 w-3 text-primary" />
-          ) : (
-            <Wifi className="h-3 w-3 text-primary" />
-          )}
-        </div>
-        <h3 className="truncate font-display text-[12px] font-bold text-foreground">
-          {product.name}
-        </h3>
-        {product.is_promo && <Flame className="h-3 w-3 shrink-0 text-accent" />}
+const PackageCard = ({ product, onSelect }: PackageCardProps) => (
+  <button
+    onClick={() => onSelect(product)}
+    className="gradient-card rounded-xl p-2.5 text-left transition-all hover:border-primary/30 group animate-slide-up"
+  >
+    <div className="flex items-center gap-2 mb-1.5">
+      <div className="w-6 h-6 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+        <Wifi className="w-3 h-3 text-primary" />
       </div>
+      <h3 className="font-display font-bold text-[12px] text-foreground truncate">{product.name}</h3>
+      {product.is_promo && (
+        <Flame className="w-3 h-3 text-accent shrink-0" />
+      )}
+    </div>
 
-      <div className="flex items-center justify-between">
-        <p className="font-display text-sm font-bold text-foreground">
-          <span className="mr-0.5 text-[10px] text-primary">KSH</span>
-          {product.price}
-        </p>
-        <span className="text-[8px] font-medium tracking-wider text-muted-foreground">
-          NO EXPIRY
-        </span>
-      </div>
-    </button>
-  );
-};
+    <div className="flex items-center justify-between">
+      <p className="font-display font-bold text-sm text-foreground">
+        <span className="text-primary text-[10px] mr-0.5">KSH</span>{product.price}
+      </p>
+      <span className="text-[8px] text-muted-foreground font-medium tracking-wider">NO EXPIRY</span>
+    </div>
+  </button>
+);
 
 export default PackageCard;

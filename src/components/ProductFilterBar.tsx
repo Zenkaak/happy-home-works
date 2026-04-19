@@ -1,19 +1,19 @@
-import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useState } from "react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 
 interface ProductFilterBarProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   priceRange: [number, number] | null;
-  onPriceRangeChange: (r: [number, number] | null) => void;
+  onPriceRangeChange: (range: [number, number] | null) => void;
   totalCount: number;
   filteredCount: number;
 }
 
-const PRESETS: { label: string; range: [number, number] }[] = [
+const priceRanges: { label: string; range: [number, number] }[] = [
   { label: "Under 100", range: [0, 99] },
-  { label: "100-300", range: [100, 300] },
-  { label: "300-600", range: [300, 600] },
+  { label: "100–300", range: [100, 300] },
+  { label: "300–600", range: [300, 600] },
   { label: "600+", range: [600, 99999] },
 ];
 
@@ -26,86 +26,82 @@ const ProductFilterBar = ({
   filteredCount,
 }: ProductFilterBarProps) => {
   const [showFilters, setShowFilters] = useState(false);
-  const hasFilters = searchQuery.length > 0 || priceRange !== null;
+  const hasActiveFilters = searchQuery.length > 0 || priceRange !== null;
 
   return (
     <div className="space-y-2">
+      {/* Search bar */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
+            placeholder="Search packages (e.g. 20GB, unlimited)..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search packages…"
-            className="h-10 w-full rounded-xl border border-border/60 bg-secondary/60 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-secondary/60 border border-border/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all"
           />
           {searchQuery && (
             <button
-              type="button"
               onClick={() => onSearchChange("")}
-              aria-label="Clear search"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-muted transition-colors"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
           )}
         </div>
         <button
-          type="button"
-          onClick={() => setShowFilters((s) => !s)}
-          className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-all ${
+          onClick={() => setShowFilters(!showFilters)}
+          className={`p-2.5 rounded-xl border transition-all shrink-0 ${
             showFilters || priceRange
-              ? "border-primary/50 bg-primary/10 text-primary"
-              : "border-border/60 bg-secondary/60 text-muted-foreground hover:text-foreground"
+              ? "bg-primary/10 border-primary/30 text-primary"
+              : "bg-secondary/60 border-border/50 text-muted-foreground hover:text-foreground"
           }`}
-          aria-label="Filters"
         >
-          <SlidersHorizontal className="h-4 w-4" />
+          <SlidersHorizontal className="w-4 h-4" />
         </button>
       </div>
 
+      {/* Price filter chips */}
       {showFilters && (
-        <div className="flex flex-wrap gap-1.5 rounded-xl border border-border/50 bg-card p-2">
-          {PRESETS.map((p) => {
-            const active =
-              priceRange?.[0] === p.range[0] && priceRange?.[1] === p.range[1];
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none animate-in fade-in slide-in-from-top-2 duration-200">
+          <span className="text-[10px] text-muted-foreground font-medium shrink-0 mr-1">PRICE:</span>
+          {priceRanges.map((pr) => {
+            const active = priceRange?.[0] === pr.range[0] && priceRange?.[1] === pr.range[1];
             return (
               <button
-                key={p.label}
-                type="button"
-                onClick={() => onPriceRangeChange(active ? null : p.range)}
-                className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                key={pr.label}
+                onClick={() => onPriceRangeChange(active ? null : pr.range)}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all shrink-0 ${
                   active
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground hover:text-foreground"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-secondary/60 border border-border/50 text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {p.label}
+                KSH {pr.label}
               </button>
             );
           })}
         </div>
       )}
 
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>
-          Showing <span className="font-semibold text-foreground">{filteredCount}</span>
-          {hasFilters && ` of ${totalCount}`} packages
-        </span>
-        {hasFilters && (
+      {/* Active filter summary */}
+      {hasActiveFilters && (
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] text-muted-foreground">
+            Showing {filteredCount} of {totalCount} packages
+          </p>
           <button
-            type="button"
             onClick={() => {
               onSearchChange("");
               onPriceRangeChange(null);
             }}
-            className="font-semibold text-primary hover:underline"
+            className="text-[10px] text-primary font-semibold hover:underline"
           >
-            Clear all
+            Clear filters
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
