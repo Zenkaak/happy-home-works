@@ -14,10 +14,9 @@ function formatPhone(phone: string): string {
   return cleaned;
 }
 
-async function sendViaAfricasTalking(phone: string, message: string, includeSenderId: boolean) {
+async function sendViaAfricasTalking(phone: string, message: string) {
   const apiKey = Deno.env.get("AT_API_KEY");
   const username = Deno.env.get("AT_USERNAME");
-  const senderId = Deno.env.get("AT_SENDER_ID");
 
   if (!apiKey || !username) throw new Error("Africa's Talking credentials not configured");
 
@@ -26,8 +25,6 @@ async function sendViaAfricasTalking(phone: string, message: string, includeSend
     to: "+" + formatPhone(phone),
     message,
   });
-
-  if (includeSenderId && senderId) params.append("from", senderId);
 
   const url = username === "sandbox"
     ? "https://api.sandbox.africastalking.com/version1/messaging"
@@ -84,14 +81,7 @@ serve(async (req) => {
       });
     }
 
-    let data = await sendViaAfricasTalking(phone, message, true);
-    const invalidSenderId = JSON.stringify(data).includes("InvalidSenderId");
-
-    if (invalidSenderId) {
-      console.warn("AT sender id rejected, retrying without sender id");
-      data = await sendViaAfricasTalking(phone, message, false);
-    }
-
+    const data = await sendViaAfricasTalking(phone, message);
     const recipient = data?.SMSMessageData?.Recipients?.[0];
     const success = recipient?.status === "Success";
 
