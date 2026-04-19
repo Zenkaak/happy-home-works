@@ -146,11 +146,21 @@ serve(async (req) => {
           .select("*")
           .eq("vendor_id", vendor_id);
 
+        const completedSales = (sales || []).filter((s: any) => s.status === "completed");
+        const total_revenue = completedSales.reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0);
+        const commission_rate = Number(vendor?.commission_rate || 0.1);
+
         return new Response(
           JSON.stringify({
             vendor,
             sales: sales || [],
             withdrawals: withdrawals || [],
+            stats: {
+              total_sales: completedSales.length,
+              total_revenue,
+              commission: Number(vendor?.commission_balance || 0),
+              commission_rate,
+            },
           }),
           { headers: corsHeaders }
         );
