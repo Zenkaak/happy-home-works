@@ -4,7 +4,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-admin-token",
+  "Content-Type": "application/json",
 };
+
+const CALLBACK_ACTIONS = new Set([
+  "account_balance_result",
+  "account_balance_timeout",
+  "admin_b2c_result",
+  "admin_b2c_timeout",
+]);
 
 async function verifyAdmin(supabase: any, token: string): Promise<string | null> {
   const { data, error } = await supabase.rpc("verify_admin_session", { p_token: token });
@@ -12,224 +20,334 @@ async function verifyAdmin(supabase: any, token: string): Promise<string | null>
   return data as string;
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: corsHeaders,
+  });
+}
+
+function formatPhone(phone: string): string {
+  const cleaned = String(phone || "").replace(/[^0-9]/g, "");
+  if (cleaned.startsWith("0") && cleaned.length === 10) return `254${cleaned.slice(1)}`;
+  if (cleaned.startsWith("254") && cleaned.length === 12) return cleaned;
+  return cleaned;
+}
+
+function parseBalanceItems(rawValue: string | null | undefined) {
+  if (!rawValue) return [];
+
+  return rawValue
+    .split("&")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const parts = entry.split("|").map((part) => part.trim()).filter(Boolean);
+      const label = parts[0] || "Account";
+      const currency = parts.find((part) => /^[A-Z]{3}$/.test(part)) || "KES";
+      const numericParts = parts
+        .map((part) => Number(part.replace(/,/g, "")))
+        .filter((value) => Number.isFinite(value));
+      const available = numericParts.length ? numericParts[numericParts.length - 1] : 0;
+
+      return { label, currency, available };
+    });
+}
+
+async function requestDarajaToken() {
+  const consumerKey = Deno.env.get("DARAJA_CONSUMER_KEY");
+  const consumerSecret = Deno.env.get("DARAJA_CONSUMER_SECRET");
+
+  if (!consumerKey || !consumerSecret) throw new Error("Daraja credentials not configured");
+
+  const auth = btoa(`${consumerKey}:${consumerSecret}`);
+  const response = await fetch(
+    "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
+    { headers: { Authorization: `Basic ${auth}` } },
+  );
+  const data = await response.json();
+
+  if (!data?.access_token) {
+    throw new Error(data?.errorMessage || data?.error_description || "Failed to get Daraja token");
   }
+
+  return data.access_token as string;
+}
+
+async function recordAudit(supabase: any, action: string, details: Record<string, unknown>, adminId?: string | null) {
+  await supabase.from("audit_logs").insert({
+    action,
+    admin_id: adminId || null,
+    details,
+  });
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const adminToken = req.headers.get("x-admin-token");
-    if (!adminToken) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const url = new URL(req.url);
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
     }
+
+    const action = url.searchParams.get("action") || body?.action;
+    if (!action) return json({ error: "Unknown action" }, 400);
+
+    if (CALLBACK_ACTIONS.has(action)) {
+      switch (action) {
+        case "account_balance_result": {
+          const result = body?.Result;
+          const rawBalance = result?.ResultParameters?.ResultParameter?.find((item: any) => item.Key === "AccountBalance")?.Value;
+          const snapshot = {
+            created_at: new Date().toISOString(),
+            items: parseBalanceItems(rawBalance),
+            raw: rawBalance || null,
+            result_code: result?.ResultCode ?? null,
+          };
+
+          await recordAudit(supabase, "paybill_balance_snapshot", snapshot, null);
+          return json({ ResultCode: 0, ResultDesc: "Accepted" });
+        }
+        case "account_balance_timeout": {
+          await recordAudit(supabase, "paybill_balance_timeout", { created_at: new Date().toISOString(), body }, null);
+          return json({ ResultCode: 0, ResultDesc: "Accepted" });
+        }
+        case "admin_b2c_result": {
+          await recordAudit(supabase, "admin_b2c_result", { created_at: new Date().toISOString(), body }, null);
+          return json({ ResultCode: 0, ResultDesc: "Accepted" });
+        }
+        case "admin_b2c_timeout": {
+          await recordAudit(supabase, "admin_b2c_timeout", { created_at: new Date().toISOString(), body }, null);
+          return json({ ResultCode: 0, ResultDesc: "Accepted" });
+        }
+      }
+    }
+
+    const adminToken = req.headers.get("x-admin-token");
+    if (!adminToken) return json({ error: "Unauthorized" }, 401);
 
     const adminId = await verifyAdmin(supabase, adminToken);
-    if (!adminId) {
-      return new Response(JSON.stringify({ error: "Invalid or expired session" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!adminId) return json({ error: "Invalid or expired session" }, 401);
 
-    const { action, ...params } = await req.json();
+    const params = body || {};
 
     switch (action) {
-      // --- VENDOR ACTIONS ---
       case "update_vendor": {
         const { id, ...updates } = params;
         const { error } = await supabase.from("vendors").update(updates).eq("id", id);
         if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ success: true });
       }
-
       case "delete_vendor": {
         const { error } = await supabase.from("vendors").delete().eq("id", params.id);
         if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ success: true });
       }
-
       case "ban_vendor": {
         const { id, phone_number } = params;
-        // 1. Disable and mark as banned
-        const { error: updateErr } = await supabase
-          .from("vendors")
-          .update({ is_active: false, is_banned: true })
-          .eq("id", id);
+        const { error: updateErr } = await supabase.from("vendors").update({ status: "banned" }).eq("id", id);
         if (updateErr) throw updateErr;
-
-        // 2. Add to banned_numbers table to prevent re-registration
-        const { error: banErr } = await supabase
-          .from("banned_numbers")
-          .upsert({ phone_number });
+        const { error: banErr } = await supabase.from("banned_numbers").upsert({ phone_number });
         if (banErr) throw banErr;
-
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ success: true });
       }
-
-      // --- EXISTING ACTIONS ---
       case "update_product": {
         const { id, ...updates } = params;
         const { error } = await supabase.from("products").update(updates).eq("id", id);
         if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ success: true });
       }
-
       case "delete_product": {
         const { error } = await supabase.from("products").delete().eq("id", params.id);
         if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ success: true });
       }
-
       case "delete_transaction": {
         const { error } = await supabase.from("transactions").delete().eq("id", params.id);
         if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ success: true });
       }
-
       case "update_transaction_status": {
         const { error } = await supabase.from("transactions").update({ status: params.status }).eq("id", params.id);
         if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ success: true });
       }
-
       case "create_product": {
         const { error } = await supabase.from("products").insert(params);
         if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ success: true });
       }
-
       case "get_broadcast_contacts": {
-        const { count, error } = await supabase
-          .from("broadcast_contacts")
-          .select("*", { count: "exact", head: true });
+        const { count, error } = await supabase.from("broadcast_contacts").select("*", { count: "exact", head: true });
         if (error) throw error;
-        return new Response(JSON.stringify({ count: count ?? 0 }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ count: count ?? 0 });
       }
-
       case "broadcast_sms": {
-        const { data: contacts, error: cErr } = await supabase
-          .from("broadcast_contacts")
-          .select("phone_number");
+        const { data: contacts, error: cErr } = await supabase.from("broadcast_contacts").select("phone_number");
         if (cErr) throw cErr;
 
-        const smsApiKey = Deno.env.get("TEXTSMS_API_KEY");
-        const partnerId = Deno.env.get("TEXTSMS_PARTNER_ID");
         let successCount = 0;
         let failCount = 0;
-
         for (const contact of contacts || []) {
           try {
-            const smsRes = await fetch("https://sms.textsms.co.ke/api/services/sendsms/", {
+            const smsRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-sms`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                apikey: smsApiKey,
-                partnerID: partnerId,
-                message: params.message,
-                shortcode: "TextSMS",
-                mobile: contact.phone_number,
-              }),
+              headers: {
+                "Content-Type": "application/json",
+                "x-admin-token": adminToken,
+                apikey: Deno.env.get("SUPABASE_ANON_KEY")!,
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")!}`,
+              },
+              body: JSON.stringify({ phone: contact.phone_number, message: params.message }),
             });
             const smsData = await smsRes.json();
-
+            const ok = smsRes.ok && !smsData?.error;
             await supabase.from("sms_logs").insert({
               phone_number: contact.phone_number,
               message: params.message,
-              status: smsData?.responses?.[0]?.["respose-code"] === "200" ? "sent" : "failed",
+              status: ok ? "sent" : "failed",
               batch_id: `broadcast-${Date.now()}`,
             });
-
-            if (smsData?.responses?.[0]?.["respose-code"] === "200") {
-              successCount++;
-            } else {
-              failCount++;
-            }
+            if (ok) successCount += 1;
+            else failCount += 1;
           } catch {
-            failCount++;
+            failCount += 1;
           }
         }
-
-        return new Response(JSON.stringify({ successCount, failCount, total: (contacts || []).length }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ successCount, failCount, total: (contacts || []).length });
       }
-
       case "create_announcement": {
         const { error } = await supabase.from("announcements").insert({ title: params.title, message: params.message });
         if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ success: true });
       }
-
       case "toggle_announcement": {
         const { error } = await supabase.from("announcements").update({ is_active: params.is_active }).eq("id", params.id);
         if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ success: true });
       }
-
       case "delete_announcement": {
         const { error } = await supabase.from("announcements").delete().eq("id", params.id);
         if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ success: true });
       }
-
       case "send_chat_reply": {
         const { conversation_id, message: msg } = params;
-        const { error } = await supabase.from("chat_messages").insert({
-          conversation_id,
-          sender_type: "admin",
-          message: msg,
-        });
+        const { error } = await supabase.from("chat_messages").insert({ conversation_id, sender_type: "admin", message: msg });
         if (error) throw error;
-
-        await supabase.from("chat_conversations")
-          .update({ last_message_at: new Date().toISOString() })
-          .eq("id", conversation_id);
-
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        await supabase.from("chat_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversation_id);
+        return json({ success: true });
       }
+      case "get_paybill_balance": {
+        const { data, error } = await supabase
+          .from("audit_logs")
+          .select("created_at, details")
+          .eq("action", "paybill_balance_snapshot")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        return json({ snapshot: data ? { created_at: data.created_at, ...(data.details as Record<string, unknown>) } : null });
+      }
+      case "refresh_paybill_balance": {
+        const accessToken = await requestDarajaToken();
+        const shortcode = Deno.env.get("MPESA_SHORTCODE");
+        const initiatorName = Deno.env.get("MPESA_INITIATOR_NAME");
+        const securityCredential = Deno.env.get("MPESA_SECURITY_CREDENTIAL");
+        const baseUrl = Deno.env.get("SUPABASE_URL");
+        if (!shortcode || !initiatorName || !securityCredential || !baseUrl) {
+          throw new Error("M-Pesa balance settings are not configured");
+        }
 
-      default:
-        return new Response(JSON.stringify({ error: "Unknown action" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        const payload = {
+          Initiator: initiatorName,
+          SecurityCredential: securityCredential,
+          CommandID: "AccountBalance",
+          PartyA: shortcode,
+          IdentifierType: "4",
+          Remarks: "Admin paybill balance request",
+          QueueTimeOutURL: `${baseUrl}/functions/v1/admin-api?action=account_balance_timeout`,
+          ResultURL: `${baseUrl}/functions/v1/admin-api?action=account_balance_result`,
+        };
+
+        const response = await fetch("https://api.safaricom.co.ke/mpesa/accountbalance/v1/query", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
         });
+        const data = await response.json();
+        if (!response.ok || data?.ResponseCode !== "0") {
+          throw new Error(data?.errorMessage || data?.ResponseDescription || "Balance request failed");
+        }
+        await recordAudit(supabase, "paybill_balance_request", { created_at: new Date().toISOString(), response: data }, adminId);
+        return json({ success: true, data });
+      }
+      case "initiate_admin_b2c": {
+        const accessToken = await requestDarajaToken();
+        const shortcode = Deno.env.get("MPESA_SHORTCODE");
+        const initiatorName = Deno.env.get("MPESA_INITIATOR_NAME");
+        const securityCredential = Deno.env.get("MPESA_SECURITY_CREDENTIAL");
+        const baseUrl = Deno.env.get("SUPABASE_URL");
+        if (!shortcode || !initiatorName || !securityCredential || !baseUrl) {
+          throw new Error("M-Pesa payout settings are not configured");
+        }
+
+        const payoutPhone = formatPhone(params.phone);
+        const payoutAmount = Math.floor(Number(params.amount));
+        if (!payoutPhone || !payoutAmount || payoutAmount < 1) {
+          throw new Error("Enter a valid phone number and amount");
+        }
+
+        const payload = {
+          InitiatorName: initiatorName,
+          SecurityCredential: securityCredential,
+          CommandID: "BusinessPayment",
+          Amount: payoutAmount,
+          PartyA: shortcode,
+          PartyB: payoutPhone,
+          Remarks: "Admin initiated B2C payout",
+          QueueTimeOutURL: `${baseUrl}/functions/v1/admin-api?action=admin_b2c_timeout`,
+          ResultURL: `${baseUrl}/functions/v1/admin-api?action=admin_b2c_result`,
+          Occasion: "AdminPayout",
+        };
+
+        const response = await fetch("https://api.safaricom.co.ke/mpesa/b2c/v1/paymentrequest", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok || data?.ResponseCode !== "0") {
+          throw new Error(data?.errorMessage || data?.ResponseDescription || "B2C request failed");
+        }
+        await recordAudit(supabase, "admin_b2c_request", {
+          created_at: new Date().toISOString(),
+          phone: payoutPhone,
+          amount: payoutAmount,
+          response: data,
+        }, adminId);
+        return json({ success: true, data });
+      }
+      default:
+        return json({ error: "Unknown action" }, 400);
     }
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: msg }, 500);
   }
 });
- 
