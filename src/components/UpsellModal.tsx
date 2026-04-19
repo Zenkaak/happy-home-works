@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import type { Product } from "@/lib/types";
-import { ArrowRight, TrendingUp, X } from "lucide-react";
+import { ArrowRight, Sparkles, X, TrendingUp } from "lucide-react";
 
 interface UpsellModalProps {
   selectedProduct: Product;
@@ -61,17 +61,23 @@ const UpsellModal = ({
   const upsGB = parseGB(upsellProduct.data_amount) || 0;
   const extraData = +(upsGB - selectedGB).toFixed(1);
 
+  const pricePerGbOriginal = (selectedProduct.price / selectedGB).toFixed(1);
+  const pricePerGbUpgrade = (upsellProduct.price / upsGB).toFixed(1);
+  const savingsPct = Math.round(
+    ((Number(pricePerGbOriginal) - Number(pricePerGbUpgrade)) / Number(pricePerGbOriginal)) * 100
+  );
+
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm bg-card rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl border border-border/60 animate-in slide-in-from-bottom-4 duration-200"
+        className="w-full max-w-sm bg-card rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl border border-border/60 animate-in slide-in-from-bottom-4 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 pt-5 pb-4 text-center border-b border-border/60 relative">
+        <div className="relative px-5 pt-5 pb-4 border-b border-border/60">
           <button
             onClick={onClose}
             className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-secondary/80 transition-colors"
@@ -79,36 +85,51 @@ const UpsellModal = ({
           >
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
-          <h3 className="font-display font-bold text-base text-foreground">
-            Upgrade Your Plan
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <span className="text-[10px] uppercase tracking-[0.15em] text-primary font-bold">
+              Smart Upgrade
+            </span>
+          </div>
+          <h3 className="font-display font-bold text-lg text-foreground leading-tight">
+            Better value awaits
           </h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Get more value for less
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Pay just KES {extraPrice} more — get {extraData}GB extra
           </p>
         </div>
 
         {/* Body */}
         <div className="p-4 space-y-3">
           {/* CURRENT PLAN */}
-          <div className="rounded-xl border border-border/60 p-4 bg-muted/20">
-            <div className="flex justify-between items-start mb-3">
-              <p className="text-sm font-semibold text-foreground">Current Plan</p>
-              <span className="text-[10px] uppercase tracking-wider font-semibold bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                Selected
+          <div className="rounded-2xl border border-border/60 p-4 bg-muted/20">
+            <div className="flex justify-between items-center mb-2.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Your selection
+              </p>
+              <span className="text-[9px] uppercase tracking-wider font-bold bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                Current
               </span>
             </div>
 
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="font-display font-bold text-base text-foreground">
                   {selectedProduct.data_amount}
-                </span>
+                </p>
                 {selectedProduct.minutes && (
-                  <div className="text-xs mt-1">{selectedProduct.minutes}</div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {selectedProduct.minutes}
+                  </p>
                 )}
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  KES {pricePerGbOriginal}/GB
+                </p>
               </div>
 
-              <div className="font-display font-bold text-foreground">
+              <div className="font-display font-bold text-foreground text-lg leading-none">
                 <span className="text-[10px] text-muted-foreground font-medium mr-0.5">
                   KES
                 </span>
@@ -118,58 +139,68 @@ const UpsellModal = ({
 
             <button
               onClick={onProceedOriginal}
-              className="w-full mt-4 rounded-lg py-2.5 text-sm border border-border/60 font-semibold hover:bg-muted/50 transition-colors"
+              className="w-full mt-3.5 rounded-xl py-2.5 text-xs border border-border/60 font-semibold text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
             >
-              Continue
+              Keep current plan
             </button>
           </div>
 
           {/* UPGRADE PLAN */}
-          <div className="rounded-xl border border-primary/40 p-4 bg-primary/5 relative">
-            <div className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-wider bg-primary text-primary-foreground px-2 py-0.5 rounded-full shadow-sm">
-              Recommended
-            </div>
+          <div className="relative rounded-2xl border-2 border-primary/40 p-4 bg-gradient-to-br from-primary/8 via-card to-card overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-primary/10 blur-2xl" />
 
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              <p className="text-sm font-semibold text-foreground">Upgrade Plan</p>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">
-                  {upsellProduct.data_amount}
-                </span>
-                {upsellProduct.minutes && (
-                  <div className="text-xs mt-1">{upsellProduct.minutes}</div>
+            <div className="relative">
+              <div className="flex justify-between items-center mb-2.5">
+                <div className="flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-primary" />
+                  <p className="text-xs font-bold text-primary uppercase tracking-wider">
+                    Recommended
+                  </p>
+                </div>
+                {savingsPct > 0 && (
+                  <span className="text-[9px] uppercase tracking-wider font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-full shadow-sm">
+                    Save {savingsPct}%/GB
+                  </span>
                 )}
               </div>
 
-              <div className="font-display font-bold text-primary">
-                <span className="text-[10px] font-medium mr-0.5 opacity-80">
-                  KES
-                </span>
-                {upsellProduct.price}
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="font-display font-bold text-lg text-foreground">
+                    {upsellProduct.data_amount}
+                  </p>
+                  {upsellProduct.minutes && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {upsellProduct.minutes}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-primary font-semibold mt-1">
+                    KES {pricePerGbUpgrade}/GB
+                  </p>
+                </div>
+
+                <div className="font-display font-extrabold text-primary text-xl leading-none">
+                  <span className="text-[10px] font-medium mr-0.5 opacity-80">
+                    KES
+                  </span>
+                  {upsellProduct.price}
+                </div>
               </div>
-            </div>
 
-            <div className="text-xs text-muted-foreground mt-2.5">
-              <span className="font-semibold text-foreground">
-                +{extraData}GB
-              </span>{" "}
-              for only{" "}
-              <span className="font-semibold text-primary">
-                KES {extraPrice}
-              </span>{" "}
-              more
-            </div>
+              <div className="mt-3 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
+                <p className="text-[11px] text-foreground/80 leading-snug text-center">
+                  <span className="font-bold text-primary">+{extraData}GB</span> for only{" "}
+                  <span className="font-bold text-primary">KES {extraPrice}</span> more
+                </p>
+              </div>
 
-            <button
-              onClick={() => onProceedUpsell(upsellProduct)}
-              className="w-full mt-4 rounded-lg py-2.5 text-sm gradient-primary text-primary-foreground font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-md shadow-primary/20"
-            >
-              Upgrade <ArrowRight className="w-4 h-4" />
-            </button>
+              <button
+                onClick={() => onProceedUpsell(upsellProduct)}
+                className="w-full mt-3.5 rounded-xl py-3 text-sm gradient-primary text-primary-foreground font-display font-bold flex items-center justify-center gap-2 hover:opacity-95 active:scale-[0.99] transition-all shadow-lg shadow-primary/25"
+              >
+                Upgrade Now <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

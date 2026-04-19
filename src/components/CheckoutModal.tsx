@@ -303,7 +303,10 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-card border border-border/60 rounded-t-3xl sm:rounded-3xl max-h-[92vh] overflow-y-auto shadow-2xl shadow-black/40 animate-in slide-in-from-bottom-4 duration-300">
+      <div
+        className="w-full max-w-md bg-card border border-border/60 rounded-t-3xl sm:rounded-3xl overflow-y-auto overscroll-contain shadow-2xl shadow-black/40 animate-in slide-in-from-bottom-4 duration-300"
+        style={{ maxHeight: "100dvh", paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
         {/* Welcoming gradient header */}
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 gradient-primary opacity-10" />
@@ -375,6 +378,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
                       placeholder="07XX XXX XXX"
                       value={serviceNumber}
                       onChange={(e) => setServiceNumber(e.target.value)}
+                      onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ block: "center", behavior: "smooth" }), 300)}
                       className="w-full px-4 py-3.5 rounded-xl bg-secondary/60 border border-border text-sm font-medium placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
                     />
                   </div>
@@ -395,6 +399,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
                     placeholder="07XX XXX XXX"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
+                    onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ block: "center", behavior: "smooth" }), 300)}
                     className="w-full px-4 py-3.5 rounded-xl bg-secondary/60 border border-border text-sm font-medium placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
                   />
                 </div>
@@ -410,6 +415,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
                       placeholder="Enter meter number"
                       value={meterNumber}
                       onChange={(e) => setMeterNumber(e.target.value)}
+                      onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ block: "center", behavior: "smooth" }), 300)}
                       className="w-full px-4 py-3.5 rounded-xl bg-secondary/60 border border-border text-sm font-medium placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
                     />
                   </div>
