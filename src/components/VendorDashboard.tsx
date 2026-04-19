@@ -37,7 +37,9 @@ const VendorDashboard = ({ session, onLogout }: { session: VendorSession; onLogo
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [withdrawing, setWithdrawing] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0); // Forces UI refresh
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
 
   const referralLink = `${getAppBaseUrl()}/?ref=${session.referral_code}`;
 
