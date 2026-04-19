@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { createRootRoute, Outlet, HeadContent, Scripts } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import App from "../App";
 import "../index.css";
 
@@ -54,10 +54,14 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
-  // Render the original BrowserRouter-based app. Outlet is unused since App owns routing.
+  // App uses react-router-dom's BrowserRouter which needs `document`.
+  // Render only on the client to avoid SSR ReferenceError.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   return (
     <>
-      <App />
+      {mounted ? <App /> : null}
       <div style={{ display: "none" }}>
         <Outlet />
       </div>
