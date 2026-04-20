@@ -1,0 +1,9 @@
+{
+  "buildCommand": "vite build --config vite.config.vercel.ts",
+  "outputDirectory": "dist",
+  "framework": null,
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": ".*", "dest": "/index.html" }
+  ]
+}
