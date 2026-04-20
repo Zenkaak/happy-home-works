@@ -420,7 +420,8 @@ const AdminDashboard = () => {
             <AdminStkPrompt />
           </div>
         )}
-      </main>
+        </main>
+      </div>
 
       {/* Transaction Detail Modal */}
       {viewTx && (
