@@ -4,6 +4,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Transaction, Product } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import {
+  LayoutDashboard, BarChart3, ShoppingBag, Package,
+  Wallet, Banknote, Receipt, Smartphone,
+  Users, MessageCircle, Megaphone, MessageSquare, Send,
+  LogOut, ChevronDown,
+} from "lucide-react";
 import AdminStkPrompt from "@/components/AdminStkPrompt";
 import TransactionDetailModal from "@/components/TransactionDetailModal";
 import AdminOverview from "@/components/admin/AdminOverview";
