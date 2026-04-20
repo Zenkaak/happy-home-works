@@ -34,24 +34,47 @@ function formatPhone(phone: string): string {
   return cleaned;
 }
 
+// Daraja AccountBalance format per account:
+//   "Working Account|KES|481.00|481.00|0.00|0.00"
+//   parts: [Label, Currency, Balance, Available, Reserved, Uncleared]
+// We want the "Available" value (index 1 of numerics) — the previous code
+// picked the last numeric (Uncleared) which is almost always 0.
+const RELEVANT_LABELS = [
+  "working account",
+  "utility account",
+  "mmf account",
+  "merchant account",
+  "float account",
+];
+
 function parseBalanceItems(rawValue: string | null | undefined) {
   if (!rawValue) return [];
 
-  return rawValue
+  const all = rawValue
     .split("&")
     .map((entry) => entry.trim())
     .filter(Boolean)
     .map((entry) => {
-      const parts = entry.split("|").map((part) => part.trim()).filter(Boolean);
+      const parts = entry.split("|").map((part) => part.trim());
       const label = parts[0] || "Account";
       const currency = parts.find((part) => /^[A-Z]{3}$/.test(part)) || "KES";
       const numericParts = parts
-        .map((part) => Number(part.replace(/,/g, "")))
+        .map((part) => Number(String(part).replace(/,/g, "")))
         .filter((value) => Number.isFinite(value));
-      const available = numericParts.length ? numericParts[numericParts.length - 1] : 0;
+      // Prefer the "Available" balance (2nd numeric). Fall back to first.
+      const available = numericParts.length >= 2
+        ? numericParts[1]
+        : (numericParts[0] ?? 0);
 
       return { label, currency, available };
     });
+
+  // Hide empty accounts that aren't part of the core wallet set, to keep
+  // the admin view focused on the balances that actually move money.
+  return all.filter((item) => {
+    const isRelevant = RELEVANT_LABELS.includes(item.label.toLowerCase());
+    return isRelevant || Number(item.available) > 0;
+  });
 }
 
 async function requestDarajaToken() {
