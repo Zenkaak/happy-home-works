@@ -185,20 +185,35 @@ const AdminDashboard = () => {
 
   const handleLogout = () => { localStorage.removeItem("dasnet_admin_token"); navigate("/"); };
 
-  const tabs: { key: TabKey; label: string }[] = [
-    { key: "overview", label: "Overview" },
-    { key: "charts", label: "Analytics" },
-    { key: "products", label: "Products" },
-    { key: "transactions", label: "Orders" },
-    { key: "vendors", label: "Vendors" },
-    { key: "withdrawals", label: "Withdrawals" },
-    { key: "paybill", label: "Paybill" },
-    { key: "manual_pay", label: "Manual Pay" },
-    { key: "chat", label: "Chat" },
-    { key: "announcements", label: "Announce" },
-    { key: "sms_logs", label: "SMS" },
-    { key: "broadcast", label: "Broadcast" },
-    { key: "stk", label: "STK" },
+  const tabGroups: { label: string; items: { key: TabKey; label: string }[] }[] = [
+    {
+      label: "Operations",
+      items: [
+        { key: "overview", label: "Overview" },
+        { key: "charts", label: "Analytics" },
+        { key: "transactions", label: "Orders" },
+        { key: "products", label: "Products" },
+      ],
+    },
+    {
+      label: "Money",
+      items: [
+        { key: "paybill", label: "Paybill" },
+        { key: "withdrawals", label: "Withdrawals" },
+        { key: "manual_pay", label: "Manual Pay" },
+        { key: "stk", label: "STK" },
+      ],
+    },
+    {
+      label: "People & Comms",
+      items: [
+        { key: "vendors", label: "Vendors" },
+        { key: "chat", label: "Chat" },
+        { key: "announcements", label: "Announce" },
+        { key: "sms_logs", label: "SMS" },
+        { key: "broadcast", label: "Broadcast" },
+      ],
+    },
   ];
 
   return (
@@ -225,20 +240,29 @@ const AdminDashboard = () => {
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="px-3 py-2 flex gap-1.5 overflow-x-auto no-scrollbar border-b border-border bg-card/50 backdrop-blur-sm">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-              tab === t.key
-                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                : "bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
-            }`}
-          >
-            {t.label}
-          </button>
+      {/* Tabs — grouped, wrap to multiple rows */}
+      <div className="px-3 py-2 space-y-1.5 border-b border-border bg-card/50 backdrop-blur-sm">
+        {tabGroups.map((group) => (
+          <div key={group.label} className="flex items-center gap-2">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/70 w-20 shrink-0 hidden sm:inline-block">
+              {group.label}
+            </span>
+            <div className="flex flex-wrap gap-1.5 flex-1">
+              {group.items.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                    tab === t.key
+                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                      : "bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 
