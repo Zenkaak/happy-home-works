@@ -240,30 +240,46 @@ const AdminDashboard = () => {
         </div>
       </header>
 
-      {/* Tabs — grouped, wrap to multiple rows */}
-      <div className="px-3 py-2 space-y-1.5 border-b border-border bg-card/50 backdrop-blur-sm">
-        {tabGroups.map((group) => (
-          <div key={group.label} className="flex items-center gap-2">
-            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/70 w-20 shrink-0 hidden sm:inline-block">
-              {group.label}
-            </span>
-            <div className="flex flex-wrap gap-1.5 flex-1">
-              {group.items.map((t) => (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                    tab === t.key
-                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                      : "bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+      {/* Section selector — top-level pills + sub-tabs */}
+      <div className="px-3 pt-3 pb-2 border-b border-border bg-card/50 backdrop-blur-sm space-y-2">
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+          {tabGroups.map((group) => {
+            const isActive = group.items.some((i) => i.key === tab);
+            return (
+              <button
+                key={group.label}
+                onClick={() => {
+                  if (!isActive) setTab(group.items[0].key);
+                }}
+                className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+                  isActive
+                    ? "bg-primary/15 text-primary border border-primary/30"
+                    : "bg-secondary/40 text-muted-foreground border border-transparent hover:text-foreground"
+                }`}
+              >
+                {group.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {tabGroups
+            .find((g) => g.items.some((i) => i.key === tab))
+            ?.items.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                  tab === t.key
+                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                    : "bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+        </div>
       </div>
 
       {/* Content */}
