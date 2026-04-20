@@ -145,22 +145,9 @@ const AdminPaybillTools = () => {
             </p>
           </div>
 
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          ) : snapshot?.items?.length ? (
-            <div className="grid sm:grid-cols-2 gap-3">
-              {snapshot.items.map((item) => (
-                <div key={item.label} className="rounded-xl border border-border/50 bg-card px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{item.label}</p>
-                  <p className="text-xl font-bold mt-1">{item.currency} {Number(item.available || 0).toLocaleString()}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground text-center">
-              Tap refresh to fetch the latest paybill balances.
+          {loading && (
+            <div className="flex justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
             </div>
           )}
         </section>
