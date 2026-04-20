@@ -4,6 +4,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Transaction, Product } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import {
+  LayoutDashboard, BarChart3, ShoppingBag, Package,
+  Wallet, Banknote, Receipt, Smartphone,
+  Users, MessageCircle, Megaphone, MessageSquare, Send,
+  LogOut, ChevronDown,
+} from "lucide-react";
 import AdminStkPrompt from "@/components/AdminStkPrompt";
 import TransactionDetailModal from "@/components/TransactionDetailModal";
 import AdminOverview from "@/components/admin/AdminOverview";
@@ -43,6 +49,7 @@ const AdminDashboard = () => {
   const [smsTarget, setSmsTarget] = useState<Transaction | null>(null);
   const [smsMessage, setSmsMessage] = useState("");
   const [viewTx, setViewTx] = useState<Transaction | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     if (!getAdminToken()) navigate("/admin");
@@ -185,105 +192,181 @@ const AdminDashboard = () => {
 
   const handleLogout = () => { localStorage.removeItem("dasnet_admin_token"); navigate("/"); };
 
-  const tabGroups: { label: string; items: { key: TabKey; label: string }[] }[] = [
+  const tabGroups: { label: string; items: { key: TabKey; label: string; icon: any }[] }[] = [
     {
       label: "Operations",
       items: [
-        { key: "overview", label: "Overview" },
-        { key: "charts", label: "Analytics" },
-        { key: "transactions", label: "Orders" },
-        { key: "products", label: "Products" },
+        { key: "overview", label: "Overview", icon: LayoutDashboard },
+        { key: "charts", label: "Analytics", icon: BarChart3 },
+        { key: "transactions", label: "Orders", icon: ShoppingBag },
+        { key: "products", label: "Products", icon: Package },
       ],
     },
     {
       label: "Money",
       items: [
-        { key: "paybill", label: "Paybill" },
-        { key: "withdrawals", label: "Withdrawals" },
-        { key: "manual_pay", label: "Manual Pay" },
-        { key: "stk", label: "STK" },
+        { key: "paybill", label: "Paybill", icon: Wallet },
+        { key: "withdrawals", label: "Withdrawals", icon: Banknote },
+        { key: "manual_pay", label: "Manual Pay", icon: Receipt },
+        { key: "stk", label: "STK Push", icon: Smartphone },
       ],
     },
     {
       label: "People & Comms",
       items: [
-        { key: "vendors", label: "Vendors" },
-        { key: "chat", label: "Chat" },
-        { key: "announcements", label: "Announce" },
-        { key: "sms_logs", label: "SMS" },
-        { key: "broadcast", label: "Broadcast" },
+        { key: "vendors", label: "Vendors", icon: Users },
+        { key: "chat", label: "Chat", icon: MessageCircle },
+        { key: "announcements", label: "Announcements", icon: Megaphone },
+        { key: "sms_logs", label: "SMS Logs", icon: MessageSquare },
+        { key: "broadcast", label: "Broadcast", icon: Send },
       ],
     },
   ];
 
+  const allItems = tabGroups.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label })));
+  const activeItem = allItems.find((i) => i.key === tab) ?? allItems[0];
+  const ActiveIcon = activeItem.icon;
+  const activeGroup = tabGroups.find((g) => g.items.some((i) => i.key === tab)) ?? tabGroups[0];
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="sticky top-0 z-50 px-4 py-3 bg-card/95 backdrop-blur-md border-b border-border flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-2.5">
+    <div className="min-h-screen bg-background text-foreground flex">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex flex-col w-60 border-r border-border bg-card/50 sticky top-0 h-screen">
+        <div className="p-4 border-b border-border flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center shadow-md shadow-primary/30">
             <span className="text-primary-foreground font-bold text-sm">D</span>
           </div>
           <div>
-            <h1 className="font-display font-bold text-base leading-tight">DASNET Console</h1>
-            <p className="text-[10px] text-muted-foreground tracking-wider uppercase">Admin Operations</p>
+            <h1 className="font-display font-bold text-sm leading-tight">DASNET</h1>
+            <p className="text-[10px] text-muted-foreground tracking-wider uppercase">Console</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Live</span>
-          </span>
-          <button onClick={handleLogout} className="px-3 py-1.5 border border-border rounded-lg hover:text-destructive hover:border-destructive text-xs font-semibold transition-all">
-            Logout
-          </button>
-        </div>
-      </header>
-
-      {/* Section selector — top-level pills + sub-tabs */}
-      <div className="px-3 pt-3 pb-2 border-b border-border bg-card/50 backdrop-blur-sm space-y-2">
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-          {tabGroups.map((group) => {
-            const isActive = group.items.some((i) => i.key === tab);
-            return (
-              <button
-                key={group.label}
-                onClick={() => {
-                  if (!isActive) setTab(group.items[0].key);
-                }}
-                className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
-                  isActive
-                    ? "bg-primary/15 text-primary border border-primary/30"
-                    : "bg-secondary/40 text-muted-foreground border border-transparent hover:text-foreground"
-                }`}
-              >
+        <nav className="flex-1 overflow-y-auto p-2 space-y-4">
+          {tabGroups.map((group) => (
+            <div key={group.label}>
+              <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
                 {group.label}
-              </button>
-            );
-          })}
-        </div>
+              </p>
+              <div className="space-y-0.5 mt-1">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = tab === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => setTab(item.key)}
+                      className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                        active
+                          ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+        <button
+          onClick={handleLogout}
+          className="m-2 p-2.5 rounded-lg border border-border hover:border-destructive hover:text-destructive text-xs font-semibold transition-all flex items-center gap-2 justify-center"
+        >
+          <LogOut className="w-3.5 h-3.5" /> Logout
+        </button>
+      </aside>
 
-        <div className="flex flex-wrap gap-1.5">
-          {tabGroups
-            .find((g) => g.items.some((i) => i.key === tab))
-            ?.items.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                  tab === t.key
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                    : "bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-        </div>
-      </div>
+      {/* Main column */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Top header */}
+        <header className="sticky top-0 z-50 bg-card/95 backdrop-blur-md border-b border-border">
+          <div className="lg:hidden px-4 py-2.5 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-xs">D</span>
+              </div>
+              <div>
+                <h1 className="font-display font-bold text-sm leading-none">DASNET Console</h1>
+                <p className="text-[9px] text-muted-foreground tracking-wider uppercase mt-0.5">Admin</p>
+              </div>
+            </div>
+            <button onClick={handleLogout} className="p-2 rounded-lg border border-border hover:text-destructive hover:border-destructive transition-all">
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-      {/* Content */}
-      <main className="p-4">
+          {/* Mobile dropdown nav */}
+          <div className="lg:hidden px-3 pb-2.5 relative">
+            <button
+              onClick={() => setMobileNavOpen((v) => !v)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-secondary/60 border border-border"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                  <ActiveIcon className="w-4 h-4" />
+                </div>
+                <div className="text-left min-w-0">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold leading-none">{activeGroup.label}</p>
+                  <p className="text-sm font-bold truncate mt-0.5">{activeItem.label}</p>
+                </div>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${mobileNavOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {mobileNavOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMobileNavOpen(false)} />
+                <div className="absolute left-3 right-3 mt-1.5 z-50 bg-card border border-border rounded-xl shadow-2xl max-h-[70vh] overflow-y-auto p-2 space-y-3">
+                  {tabGroups.map((group) => (
+                    <div key={group.label}>
+                      <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                        {group.label}
+                      </p>
+                      <div className="grid grid-cols-2 gap-1 mt-1">
+                        {group.items.map((item) => {
+                          const Icon = item.icon;
+                          const active = tab === item.key;
+                          return (
+                            <button
+                              key={item.key}
+                              onClick={() => { setTab(item.key); setMobileNavOpen(false); }}
+                              className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold transition-all text-left ${
+                                active
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-secondary/40 text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              <Icon className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">{item.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Desktop breadcrumb */}
+          <div className="hidden lg:flex items-center justify-between px-6 py-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">{activeGroup.label}</span>
+              <span className="text-muted-foreground/50">/</span>
+              <span className="font-bold">{activeItem.label}</span>
+            </div>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Live</span>
+            </span>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="p-4 lg:p-6 flex-1">
         {tab === "overview" && (
           <AdminOverview
             transactions={transactions}
@@ -338,7 +421,8 @@ const AdminDashboard = () => {
             <AdminStkPrompt />
           </div>
         )}
-      </main>
+        </main>
+      </div>
 
       {/* Transaction Detail Modal */}
       {viewTx && (
