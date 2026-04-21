@@ -104,6 +104,33 @@ serve(async (req) => {
 
       // ================= LOGIN =================
       case "login": {
+        // First, check raw status (bypasses approved-only filter) so we can tell
+        // a banned vendor apart from a wrong-password attempt.
+        const { data: statusRows } = await supabase.rpc("vendor_login_status", {
+          p_phone: formatPhone(params.phone),
+          p_password: params.password,
+        });
+
+        const row = statusRows?.[0];
+        if (!row) {
+          return new Response(
+            JSON.stringify({ error: "Invalid credentials" }),
+            { status: 401, headers: corsHeaders }
+          );
+        }
+
+        if (row.vendor_status === "banned") {
+          return new Response(
+            JSON.stringify({
+              error: "Your vendor account has been suspended.",
+              banned: true,
+              vendor_name: row.vendor_name,
+            }),
+            { status: 403, headers: corsHeaders }
+          );
+        }
+
+        // For pending/approved, fall through to verify_vendor (it auto-approves pending).
         const { data, error } = await supabase.rpc("verify_vendor", {
           p_phone: formatPhone(params.phone),
           p_password: params.password,
