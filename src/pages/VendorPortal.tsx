@@ -6,9 +6,9 @@ import { isValidKenyanPhone } from "@/lib/formatPhone";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import VendorDashboard from "@/components/VendorDashboard";
-import { Loader2, UserPlus, LogIn, ArrowLeft, TrendingUp, Wallet, BarChart3, CheckCircle2 } from "lucide-react";
+import { Loader2, UserPlus, LogIn, ArrowLeft, TrendingUp, Wallet, BarChart3, CheckCircle2, ShieldAlert } from "lucide-react";
 
-type View = "menu" | "apply" | "signin" | "dashboard";
+type View = "menu" | "apply" | "signin" | "dashboard" | "banned";
 
 const VendorPortal = () => {
   const { toast } = useToast();
