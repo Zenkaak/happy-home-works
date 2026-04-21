@@ -12,7 +12,7 @@ interface CheckoutModalProps {
   referralCode?: string;
 }
 
-type Step = "form" | "confirm" | "processing" | "success" | "failed";
+type Step = "form" | "confirm" | "processing" | "success" | "failed" | "banned";
 
 const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) => {
   const { toast } = useToast();
@@ -96,6 +96,13 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
         },
       });
 
+      // Detect banned response (403 from edge fn) – may surface as error or in stkData.error
+      const errMsg = (stkError as any)?.message || stkData?.error || "";
+      if (errMsg && /not permitted|banned/i.test(errMsg)) {
+        setStep("banned");
+        return;
+      }
+
       if (stkError) throw stkError;
 
       const pollResult = await pollTransaction(data.id);
@@ -114,6 +121,11 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
       }
     } catch (err: any) {
       console.error("Checkout error:", err);
+      const msg = err?.message || "";
+      if (/not permitted|banned/i.test(msg)) {
+        setStep("banned");
+        return;
+      }
       setStep("failed");
     }
   };
@@ -218,6 +230,54 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
             </div>
             <p className="text-center text-xs text-primary mt-4">
               ✅ Verified Digital Receipt by DASNET
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "banned") {
+    const reviewMsg = encodeURIComponent(
+      `Hello DASNET, my number ${formatPhoneTo254(phoneNumber)} is restricted from making payments. Please review my account.`
+    );
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+        <div className="w-full max-w-md bg-card rounded-2xl overflow-hidden">
+          <div className="bg-destructive/90 p-8 text-center">
+            <Lock className="w-14 h-14 text-destructive-foreground mx-auto mb-3" />
+            <h2 className="font-display text-2xl font-bold text-destructive-foreground">Account Restricted</h2>
+            <span className="inline-block mt-2 px-3 py-1 rounded-full bg-destructive-foreground/20 text-destructive-foreground text-xs font-bold">
+              BANNED
+            </span>
+          </div>
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-foreground text-center">
+              The number <span className="font-bold">{formatPhoneTo254(phoneNumber)}</span> is currently
+              restricted from making payments on DASNET.
+            </p>
+            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-xs text-destructive">
+              No charges were attempted. If you believe this is a mistake, request a review and our team will get back to you.
+            </div>
+            <div className="space-y-2">
+              <a
+                href={`https://wa.me/254112628799?text=${reviewMsg}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                Request Account Review
+              </a>
+              <button
+                onClick={onClose}
+                className="w-full py-2.5 rounded-xl border border-border font-medium text-sm"
+              >
+                Close
+              </button>
+            </div>
+            <p className="text-center text-xs text-muted-foreground">
+              Support: WhatsApp +254 112 628 799
             </p>
           </div>
         </div>
