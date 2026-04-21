@@ -81,23 +81,28 @@ const VendorPortal = () => {
         body: { action: "login", phone: loginPhone, password: loginPassword },
       });
 
-      // Banned vendors come back as { banned: true, error, vendor_name } with status 403.
-      // supabase.functions.invoke surfaces the body in `data` even on non-2xx in many cases.
-      const banned = (data as any)?.banned || /suspended|banned/i.test((error as any)?.message || "");
-      if (banned) {
-        setBannedInfo({ name: (data as any)?.vendor_name, phone: loginPhone });
+      // Banned vendors return 403 with { banned: true, vendor_name }.
+      // supabase-js throws on non-2xx — the body lives on error.context (a Response).
+      let body: any = data;
+      if (error && (error as any).context && typeof (error as any).context.json === "function") {
+        try { body = await (error as any).context.json(); } catch {}
+      }
+
+      if (body?.banned) {
+        setBannedInfo({ name: body.vendor_name, phone: loginPhone });
         setView("banned");
         return;
       }
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error) throw new Error(body?.error || error.message);
+      if (body?.error) throw new Error(body.error);
+      const result = body;
 
-      const session = { vendor_id: data.vendor_id, name: data.name, referral_code: data.referral_code };
+      const session = { vendor_id: result.vendor_id, name: result.name, referral_code: result.referral_code };
       localStorage.setItem("vendor_session", JSON.stringify(session));
       setVendorSession(session);
       setView("dashboard");
-      toast({ title: `Welcome back, ${data.name}!` });
+      toast({ title: `Welcome back, ${result.name}!` });
     } catch (err: any) {
       toast({ title: "Sign in failed", description: err.message, variant: "destructive" });
     } finally {
