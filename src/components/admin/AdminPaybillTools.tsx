@@ -47,20 +47,28 @@ const AdminPaybillTools = () => {
 
   useEffect(() => {
     let mounted = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
 
-    (async () => {
+    const load = async (silent: boolean) => {
       try {
         const data = await invokeAdmin("get_paybill_balance");
         if (mounted) setSnapshot(data?.snapshot ?? null);
       } catch (err: any) {
-        if (mounted) toast({ title: "Balance unavailable", description: err.message, variant: "destructive" });
+        if (mounted && !silent) {
+          toast({ title: "Balance unavailable", description: err.message, variant: "destructive" });
+        }
       } finally {
         if (mounted) setLoading(false);
       }
-    })();
+    };
+
+    load(false);
+    // Auto-refresh snapshot every 5 seconds. Errors are silent on background polls.
+    timer = setInterval(() => load(true), 5000);
 
     return () => {
       mounted = false;
+      if (timer) clearInterval(timer);
     };
   }, []);
 
