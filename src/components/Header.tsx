@@ -14,7 +14,7 @@ const Header = () => {
         >
           <div className="relative w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/20 transition-transform group-hover:scale-105">
             <ShieldCheck className="w-5 h-5 text-primary-foreground" />
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" aria-hidden />
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-background animate-pulse" aria-hidden />
           </div>
           <div className="flex flex-col items-start">
             <span className="font-display text-lg font-bold tracking-tight leading-none">
