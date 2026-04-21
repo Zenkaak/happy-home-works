@@ -366,6 +366,60 @@ const VendorPortal = () => {
             </section>
           </>
         )}
+
+        {view === "banned" && bannedInfo && (
+          <>
+            <button
+              onClick={() => { setView("menu"); setBannedInfo(null); }}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+
+            <section className="rounded-2xl border border-destructive/40 bg-card overflow-hidden">
+              <div className="bg-destructive/90 px-6 py-7 text-center">
+                <ShieldAlert className="w-14 h-14 text-destructive-foreground mx-auto mb-3" />
+                <h2 className="font-display text-2xl font-extrabold text-destructive-foreground">
+                  Account Suspended
+                </h2>
+                <span className="inline-block mt-2 px-3 py-1 rounded-full bg-destructive-foreground/20 text-destructive-foreground text-[11px] font-bold tracking-wider">
+                  VENDOR BANNED
+                </span>
+              </div>
+              <div className="p-5 space-y-4">
+                <p className="text-sm text-foreground text-center">
+                  {bannedInfo.name ? <>Hi <span className="font-bold">{bannedInfo.name}</span>, your</> : <>Your</>} vendor
+                  account linked to <span className="font-bold">{bannedInfo.phone}</span> has been suspended by the admin team.
+                </p>
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-xs text-destructive">
+                  You cannot access the dashboard or earn commissions while suspended. If you believe this is a mistake, request a review and our team will respond shortly.
+                </div>
+                <div className="space-y-2">
+                  <a
+                    href={`https://wa.me/254112628799?text=${encodeURIComponent(
+                      `Hello DASNET, my vendor account (${bannedInfo.phone}${bannedInfo.name ? ` – ${bannedInfo.name}` : ""}) has been suspended. Please review my account.`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-3 rounded-xl gradient-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 shadow-lg shadow-primary/20"
+                  >
+                    <ShieldAlert className="w-4 h-4" />
+                    Request Account Review
+                  </a>
+                  <button
+                    onClick={() => { setView("menu"); setBannedInfo(null); }}
+                    className="w-full py-2.5 rounded-xl border border-border font-medium text-sm"
+                  >
+                    Close
+                  </button>
+                </div>
+                <p className="text-center text-[11px] text-muted-foreground">
+                  Support: WhatsApp +254 112 628 799
+                </p>
+              </div>
+            </section>
+          </>
+        )}
       </main>
       <Footer />
     </div>
