@@ -12,7 +12,7 @@ interface CheckoutModalProps {
   referralCode?: string;
 }
 
-type Step = "form" | "confirm" | "processing" | "success" | "failed";
+type Step = "form" | "confirm" | "processing" | "success" | "failed" | "banned";
 
 const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) => {
   const { toast } = useToast();
