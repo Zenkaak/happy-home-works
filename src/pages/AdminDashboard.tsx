@@ -294,58 +294,35 @@ const AdminDashboard = () => {
             </button>
           </div>
 
-          {/* Mobile dropdown nav */}
-          <div className="lg:hidden px-3 pb-2.5 relative">
-            <button
-              onClick={() => setMobileNavOpen((v) => !v)}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-secondary/60 border border-border"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                  <ActiveIcon className="w-4 h-4" />
-                </div>
-                <div className="text-left min-w-0">
-                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold leading-none">{activeGroup.label}</p>
-                  <p className="text-sm font-bold truncate mt-0.5">{activeItem.label}</p>
+          {/* Mobile: all tabs visible, grouped, no dropdown */}
+          <div className="lg:hidden px-3 pb-2.5 space-y-2">
+            {tabGroups.map((group) => (
+              <div key={group.label}>
+                <p className="px-1 pb-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                  {group.label}
+                </p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = tab === item.key;
+                    return (
+                      <button
+                        key={item.key}
+                        onClick={() => setTab(item.key)}
+                        className={`flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-lg text-[10px] font-semibold transition-all ${
+                          active
+                            ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                            : "bg-secondary/40 text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span className="truncate leading-tight">{item.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${mobileNavOpen ? "rotate-180" : ""}`} />
-            </button>
-
-            {mobileNavOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setMobileNavOpen(false)} />
-                <div className="absolute left-3 right-3 mt-1.5 z-50 bg-card border border-border rounded-xl shadow-2xl max-h-[70vh] overflow-y-auto p-2 space-y-3">
-                  {tabGroups.map((group) => (
-                    <div key={group.label}>
-                      <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
-                        {group.label}
-                      </p>
-                      <div className="grid grid-cols-2 gap-1 mt-1">
-                        {group.items.map((item) => {
-                          const Icon = item.icon;
-                          const active = tab === item.key;
-                          return (
-                            <button
-                              key={item.key}
-                              onClick={() => { setTab(item.key); setMobileNavOpen(false); }}
-                              className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold transition-all text-left ${
-                                active
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-secondary/40 text-muted-foreground hover:text-foreground"
-                              }`}
-                            >
-                              <Icon className="w-3.5 h-3.5 shrink-0" />
-                              <span className="truncate">{item.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+            ))}
           </div>
 
           {/* Desktop breadcrumb */}
