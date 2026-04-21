@@ -49,7 +49,7 @@ const AdminDashboard = () => {
   const [smsTarget, setSmsTarget] = useState<Transaction | null>(null);
   const [smsMessage, setSmsMessage] = useState("");
   const [viewTx, setViewTx] = useState<Transaction | null>(null);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  
 
   useEffect(() => {
     if (!getAdminToken()) navigate("/admin");
