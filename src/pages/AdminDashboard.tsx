@@ -95,10 +95,7 @@ const AdminDashboard = () => {
   });
 
   const handleError = (err: any) => {
-    if (err.message?.includes("expired") || err.message?.includes("Unauthorized")) {
-      localStorage.removeItem("dasnet_admin_token");
-      navigate("/admin");
-    }
+    // Never auto-logout the admin. They must explicitly click Logout.
     toast({ title: "Error", description: err.message, variant: "destructive" });
   };
 
