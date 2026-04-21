@@ -222,7 +222,6 @@ const AdminDashboard = () => {
 
   const allItems = tabGroups.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label })));
   const activeItem = allItems.find((i) => i.key === tab) ?? allItems[0];
-  const ActiveIcon = activeItem.icon;
   const activeGroup = tabGroups.find((g) => g.items.some((i) => i.key === tab)) ?? tabGroups[0];
 
   return (
