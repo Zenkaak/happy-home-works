@@ -104,29 +104,36 @@ serve(async (req) => {
 
       // ================= LOGIN =================
       case "login": {
-        // First, check raw status (bypasses approved-only filter) so we can tell
-        // a banned vendor apart from a wrong-password attempt.
-        const { data: statusRows } = await supabase.rpc("vendor_login_status", {
+        // Always return HTTP 200 so the client can read { ok, error, ... }.
+        const { data: statusRows, error: statusErr } = await supabase.rpc("vendor_login_status", {
           p_phone: formatPhone(params.phone),
           p_password: params.password,
         });
 
+        if (statusErr) {
+          return new Response(
+            JSON.stringify({ ok: false, error: `Login check failed: ${statusErr.message}` }),
+            { status: 200, headers: corsHeaders }
+          );
+        }
+
         const row = statusRows?.[0];
         if (!row) {
           return new Response(
-            JSON.stringify({ error: "Invalid credentials" }),
-            { status: 401, headers: corsHeaders }
+            JSON.stringify({ ok: false, error: "Invalid phone or password" }),
+            { status: 200, headers: corsHeaders }
           );
         }
 
         if (row.vendor_status === "banned") {
           return new Response(
             JSON.stringify({
-              error: "Your vendor account has been suspended.",
+              ok: false,
               banned: true,
               vendor_name: row.vendor_name,
+              error: "Your vendor account has been suspended.",
             }),
-            { status: 403, headers: corsHeaders }
+            { status: 200, headers: corsHeaders }
           );
         }
 
@@ -136,20 +143,22 @@ serve(async (req) => {
           p_password: params.password,
         });
 
-        if (error || !data?.[0]) {
+        const verified = data?.[0];
+        if (error || !verified) {
           return new Response(
-            JSON.stringify({ error: "Invalid credentials" }),
-            { status: 401, headers: corsHeaders }
+            JSON.stringify({ ok: false, error: error?.message || "Invalid credentials" }),
+            { status: 200, headers: corsHeaders }
           );
         }
 
         return new Response(
           JSON.stringify({
-            vendor_id: data[0].vendor_id,
-            name: data[0].vendor_name,
-            referral_code: data[0].vendor_referral_code,
+            ok: true,
+            vendor_id: verified.vendor_id,
+            name: verified.vendor_name,
+            referral_code: verified.vendor_referral_code,
           }),
-          { headers: corsHeaders }
+          { status: 200, headers: corsHeaders }
         );
       }
 
