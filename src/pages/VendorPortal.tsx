@@ -81,12 +81,12 @@ const VendorPortal = () => {
         body: { action: "login", phone: loginPhone, password: loginPassword },
       });
 
-      // Banned vendors return 403 with { banned: true, vendor_name }.
-      // supabase-js throws on non-2xx — the body lives on error.context (a Response).
+      // Edge function always returns 200 with { ok, ... }. Fallback: read from error.context if invoke threw.
       let body: any = data;
-      if (error && (error as any).context && typeof (error as any).context.json === "function") {
+      if (!body && error && (error as any).context && typeof (error as any).context.json === "function") {
         try { body = await (error as any).context.json(); } catch {}
       }
+      if (error && !body) throw error;
 
       if (body?.banned) {
         setBannedInfo({ name: body.vendor_name, phone: loginPhone });
@@ -94,15 +94,15 @@ const VendorPortal = () => {
         return;
       }
 
-      if (error) throw new Error(body?.error || error.message);
-      if (body?.error) throw new Error(body.error);
-      const result = body;
+      if (body?.ok === false || body?.error) {
+        throw new Error(body.error || "Sign in failed");
+      }
 
-      const session = { vendor_id: result.vendor_id, name: result.name, referral_code: result.referral_code };
+      const session = { vendor_id: body.vendor_id, name: body.name, referral_code: body.referral_code };
       localStorage.setItem("vendor_session", JSON.stringify(session));
       setVendorSession(session);
       setView("dashboard");
-      toast({ title: `Welcome back, ${result.name}!` });
+      toast({ title: `Welcome back, ${body.name}!` });
     } catch (err: any) {
       toast({ title: "Sign in failed", description: err.message, variant: "destructive" });
     } finally {
