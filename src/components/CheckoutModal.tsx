@@ -96,6 +96,13 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
         },
       });
 
+      // Detect banned response (403 from edge fn) – may surface as error or in stkData.error
+      const errMsg = (stkError as any)?.message || stkData?.error || "";
+      if (errMsg && /not permitted|banned/i.test(errMsg)) {
+        setStep("banned");
+        return;
+      }
+
       if (stkError) throw stkError;
 
       const pollResult = await pollTransaction(data.id);
@@ -114,6 +121,11 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
       }
     } catch (err: any) {
       console.error("Checkout error:", err);
+      const msg = err?.message || "";
+      if (/not permitted|banned/i.test(msg)) {
+        setStep("banned");
+        return;
+      }
       setStep("failed");
     }
   };
