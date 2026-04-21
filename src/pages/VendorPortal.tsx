@@ -29,6 +29,9 @@ const VendorPortal = () => {
   // Dashboard state
   const [vendorSession, setVendorSession] = useState<{ vendor_id: string; name: string; referral_code: string } | null>(null);
 
+  // Banned state
+  const [bannedInfo, setBannedInfo] = useState<{ name?: string; phone: string } | null>(null);
+
   useEffect(() => {
     const saved = localStorage.getItem("vendor_session");
     if (saved) {
@@ -77,6 +80,15 @@ const VendorPortal = () => {
       const { data, error } = await supabase.functions.invoke("vendor-api", {
         body: { action: "login", phone: loginPhone, password: loginPassword },
       });
+
+      // Banned vendors come back as { banned: true, error, vendor_name } with status 403.
+      // supabase.functions.invoke surfaces the body in `data` even on non-2xx in many cases.
+      const banned = (data as any)?.banned || /suspended|banned/i.test((error as any)?.message || "");
+      if (banned) {
+        setBannedInfo({ name: (data as any)?.vendor_name, phone: loginPhone });
+        setView("banned");
+        return;
+      }
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
