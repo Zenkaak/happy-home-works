@@ -573,6 +573,15 @@ export type Database = {
       check_stk_rate_limit: { Args: { p_phone: string }; Returns: boolean }
       hash_password: { Args: { p_password: string }; Returns: string }
       is_banned: { Args: { p_phone: string }; Returns: boolean }
+      vendor_login_status: {
+        Args: { p_password: string; p_phone: string }
+        Returns: {
+          vendor_id: string
+          vendor_name: string
+          vendor_referral_code: string
+          vendor_status: string
+        }[]
+      }
       verify_admin: {
         Args: { p_password: string; p_username: string }
         Returns: {
