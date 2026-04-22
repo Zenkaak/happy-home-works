@@ -93,11 +93,20 @@ Deno.serve(async (req) => {
     </svg>`;
 
     const font = await ensureReady();
-    // Reference Inter as font-family in SVG (defaultFontFamily not in older typings)
-    const svgWithFont = svg.replaceAll('font-family="Arial"', 'font-family="Inter"');
+    // Strip font-family from SVG so resvg falls back to defaultFontFamily,
+    // which matches whatever family name the loaded TTF declares internally.
+    const svgWithFont = svg.replace(/font-family="[^"]*"/g, "");
     const png = new Resvg(svgWithFont, {
-      font: { loadSystemFonts: false, fontBuffers: [font], defaultFontFamily: "Inter" },
+      font: {
+        loadSystemFonts: false,
+        fontBuffers: [font],
+        defaultFontFamily: "Inter",
+        serifFamily: "Inter",
+        sansSerifFamily: "Inter",
+        monospaceFamily: "Inter",
+      },
     }).render().asPng();
+    console.log(`png rendered: ${png.byteLength} bytes`);
 
     return new Response(png, {
       headers: {
