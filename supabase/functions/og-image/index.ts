@@ -22,7 +22,8 @@ const ensureReady = async (): Promise<Uint8Array> => {
   }
   await wasmReady;
   if (!fontBuf) {
-    const r = await fetch("https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.16/files/inter-latin-700-normal.woff");
+    // resvg-wasm requires TTF/OTF (no WOFF/WOFF2 support)
+    const r = await fetch("https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf");
     if (!r.ok) throw new Error(`font fetch failed: ${r.status}`);
     const ab = await r.arrayBuffer();
     fontBuf = new Uint8Array(ab);
