@@ -15,6 +15,8 @@ import ChatButton from "@/components/ChatButton";
 import { useCheckout } from "@/contexts/CheckoutContext";
 import ProductFilterBar from "@/components/ProductFilterBar";
 import VendorLeaderboard from "@/components/VendorLeaderboard";
+import TrustStrip from "@/components/TrustStrip";
+import PackageCardSkeleton from "@/components/PackageCardSkeleton";
 
 import type { Product, ServiceCategory, NetworkProvider } from "@/lib/types";
 
@@ -108,6 +110,7 @@ const Index = () => {
       </div>
 
       <Header />
+      <TrustStrip />
 
       <main className="space-y-3 pb-8 pt-4">
         <div className="px-4 space-y-2">
@@ -160,14 +163,22 @@ const Index = () => {
         </div>
 
         <div className="px-4 relative min-h-[400px]">
-          <div className={`grid grid-cols-2 gap-2.5 transition-all duration-300 ${isFetching ? "opacity-60" : "opacity-100"}`}>
-            {paginatedProducts.map((p) => {
-              const handleSelect = (prod: Product) => openCheckout(prod);
-              if (category === "data") return <PackageCard key={p.id} product={p} onSelect={handleSelect} />;
-              if (category === "kplc") return <KplcCard key={p.id} product={p} onSelect={handleSelect} />;
-              return <LoanCard key={p.id} product={p} onSelect={handleSelect} />;
-            })}
-          </div>
+          {isFetching && !products ? (
+            <div className="grid grid-cols-2 gap-2.5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <PackageCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : (
+            <div className={`grid grid-cols-2 gap-2.5 transition-all duration-300 ${isFetching ? "opacity-60" : "opacity-100"}`}>
+              {paginatedProducts.map((p) => {
+                const handleSelect = (prod: Product) => openCheckout(prod);
+                if (category === "data") return <PackageCard key={p.id} product={p} onSelect={handleSelect} />;
+                if (category === "kplc") return <KplcCard key={p.id} product={p} onSelect={handleSelect} />;
+                return <LoanCard key={p.id} product={p} onSelect={handleSelect} />;
+              })}
+            </div>
+          )}
 
           {!isFetching && filteredProducts.length === 0 && (
             <div className="text-center py-20 animate-in fade-in zoom-in">
