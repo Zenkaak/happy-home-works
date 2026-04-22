@@ -102,7 +102,10 @@ Deno.serve(async (req) => {
       headers: {
         ...corsHeaders,
         "Content-Type": "image/png",
-        "Cache-Control": "public, max-age=300, s-maxage=300",
+        // Short cache so platforms re-scrape; no-store on edge to ensure fresh runs while debugging
+        "Cache-Control": "public, max-age=120, s-maxage=0, must-revalidate",
+        "CDN-Cache-Control": "no-store",
+        "Cloudflare-CDN-Cache-Control": "no-store",
       },
     });
   } catch (e: any) {
