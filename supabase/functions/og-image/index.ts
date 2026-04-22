@@ -22,8 +22,11 @@ const ensureReady = async (): Promise<Uint8Array> => {
   }
   await wasmReady;
   if (!fontBuf) {
-    const r = await fetch("https://github.com/rsms/inter/raw/master/docs/font-files/Inter-Bold.ttf");
-    fontBuf = new Uint8Array(await r.arrayBuffer());
+    const r = await fetch("https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.16/files/inter-latin-700-normal.woff");
+    if (!r.ok) throw new Error(`font fetch failed: ${r.status}`);
+    const ab = await r.arrayBuffer();
+    fontBuf = new Uint8Array(ab);
+    console.log(`font loaded: ${fontBuf.byteLength} bytes`);
   }
   return fontBuf;
 };
