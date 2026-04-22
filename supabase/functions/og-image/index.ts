@@ -13,13 +13,19 @@ const esc = (s: string) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 let wasmReady: Promise<void> | null = null;
-const ensureWasm = () => {
+let fontBuf: Uint8Array | null = null;
+const ensureReady = async (): Promise<Uint8Array> => {
   if (!wasmReady) {
     wasmReady = fetch("https://esm.sh/@resvg/resvg-wasm@2.6.2/index_bg.wasm")
       .then((r) => r.arrayBuffer())
       .then((buf) => initWasm(buf));
   }
-  return wasmReady;
+  await wasmReady;
+  if (!fontBuf) {
+    const r = await fetch("https://github.com/rsms/inter/raw/master/docs/font-files/Inter-Bold.ttf");
+    fontBuf = new Uint8Array(await r.arrayBuffer());
+  }
+  return fontBuf;
 };
 
 Deno.serve(async (req) => {
