@@ -88,8 +88,12 @@ Deno.serve(async (req) => {
       <text x="60" y="595" font-family="Arial" font-size="14" fill="#64748b">Tap to buy at dasnet — Kenya's #1 trusted data vendor</text>
     </svg>`;
 
-    await ensureWasm();
-    const png = new Resvg(svg, { font: { loadSystemFonts: false } }).render().asPng();
+    const font = await ensureReady();
+    // Reference Inter as font-family in SVG (defaultFontFamily not in older typings)
+    const svgWithFont = svg.replaceAll('font-family="Arial"', 'font-family="Inter"');
+    const png = new Resvg(svgWithFont, {
+      font: { loadSystemFonts: false, fontBuffers: [font], defaultFontFamily: "Inter" },
+    }).render().asPng();
 
     return new Response(png, {
       headers: {
