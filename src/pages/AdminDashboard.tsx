@@ -149,10 +149,11 @@ const AdminDashboard = () => {
 
   const handleResendStk = async (tx: Transaction) => {
     try {
-      const { error } = await supabase.functions.invoke("initiate-stk", {
+      const { data, error } = await supabase.functions.invoke("initiate-stk", {
         body: { phone: tx.phone_number, amount: tx.amount, transaction_id: tx.id, account_ref: `DASNET-${tx.order_number}` },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast({ title: "STK resent", description: `Prompt sent to ${tx.phone_number}` });
     } catch (err: any) {
       toast({ title: "Resend failed", description: err.message, variant: "destructive" });
