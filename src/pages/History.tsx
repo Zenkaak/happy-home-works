@@ -307,12 +307,26 @@ const History = () => {
                 )}
 
                 {tx.status === "completed" && (
-                  <button
-                    onClick={() => buyAgain(tx)}
-                    className="w-full mt-2 text-[11px] py-1.5 rounded-lg bg-secondary text-foreground font-semibold flex items-center justify-center gap-1 hover:bg-secondary/80"
-                  >
-                    <ShoppingCart className="w-3 h-3" /> Buy Again
-                  </button>
+                  <div className="grid grid-cols-2 gap-1.5 mt-2">
+                    {!isActivated(tx) ? (
+                      <button
+                        onClick={() => setActivationTx(tx)}
+                        className="text-[11px] py-1.5 rounded-lg bg-warning/15 text-warning font-semibold flex items-center justify-center gap-1 ring-1 ring-warning/30 animate-pulse"
+                      >
+                        <Sparkles className="w-3 h-3" /> Pending Activation
+                      </button>
+                    ) : (
+                      <span className="text-[11px] py-1.5 rounded-lg bg-primary/10 text-primary font-semibold flex items-center justify-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Activated
+                      </span>
+                    )}
+                    <button
+                      onClick={() => buyAgain(tx)}
+                      className="text-[11px] py-1.5 rounded-lg bg-secondary text-foreground font-semibold flex items-center justify-center gap-1 hover:bg-secondary/80"
+                    >
+                      <ShoppingCart className="w-3 h-3" /> Buy Again
+                    </button>
+                  </div>
                 )}
 
                 {(tx.status === "pending" || tx.status === "processing") && (
