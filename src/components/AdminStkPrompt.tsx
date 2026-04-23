@@ -47,6 +47,7 @@ const AdminStkPrompt = () => {
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       setStatus("sent");
       toast({ title: "STK push sent!", description: `Prompt sent to ${formatPhoneTo254(phone)}` });
