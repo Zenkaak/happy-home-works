@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, AlertTriangle, Loader2, CheckCircle, XCircle, Wallet, ShieldCheck, Zap, Lock, Phone, Smartphone } from "lucide-react";
 import ManualPaymentModal from "@/components/ManualPaymentModal";
+import ActivationModal from "@/components/ActivationModal";
 import type { Product, Transaction } from "@/lib/types";
 import { isValidKenyanPhone, formatPhoneTo254 } from "@/lib/formatPhone";
 import { supabase } from "@/integrations/supabase/client";
@@ -162,78 +163,13 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
     );
   }
 
-  if (step === "success") {
+  if (step === "success" && transaction) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-        <div className="w-full max-w-md bg-card rounded-2xl overflow-hidden">
-          <div className="gradient-receipt p-8 text-center">
-            <CheckCircle className="w-14 h-14 text-primary-foreground mx-auto mb-3" />
-            <h2 className="font-display text-2xl font-bold text-primary-foreground">Payment Received!</h2>
-            <span className="inline-block mt-2 px-3 py-1 rounded-full bg-primary-foreground/20 text-primary-foreground text-xs font-bold">
-              COMPLETED
-            </span>
-          </div>
-          <div className="p-6">
-            <p className="text-sm text-center text-muted-foreground mb-4">
-              Thank you for your purchase! Your <strong className="text-foreground">{product.name}</strong> is being activated on {formatPhoneTo254(phoneNumber)}.
-            </p>
-            <div className="space-y-3 mb-6">
-              <h3 className="text-xs font-bold tracking-wider text-primary flex items-center gap-2">
-                📋 TRANSACTION SUMMARY
-              </h3>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Order ID</span>
-                <span className="font-medium">#{transaction?.order_number}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Service</span>
-                <span className="font-medium">{product.name}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Recipient</span>
-                <span className="font-medium">{formatPhoneTo254(phoneNumber)}</span>
-              </div>
-              <div className="flex justify-between text-sm border-t border-border pt-3">
-                <span className="text-muted-foreground">Total Paid</span>
-                <span className="text-xl font-bold">Ksh {product.price}</span>
-              </div>
-              {transaction?.mpesa_reference && (
-                <div>
-                  <p className="text-[10px] text-primary uppercase tracking-wider mb-1">M-PESA RECEIPT</p>
-                  <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
-                    <span className="text-sm font-mono">{transaction.mpesa_reference}</span>
-                    <button onClick={() => navigator.clipboard.writeText(transaction.mpesa_reference || "")} className="ml-auto text-muted-foreground hover:text-foreground">
-                      📋
-                    </button>
-                  </div>
-                </div>
-              )}
-              {transaction?.kplc_token && (
-                <div>
-                  <p className="text-[10px] text-warning uppercase tracking-wider mb-1">KPLC TOKEN</p>
-                  <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
-                    <span className="text-sm font-mono font-bold tracking-widest">{transaction.kplc_token}</span>
-                    <button onClick={() => navigator.clipboard.writeText(transaction.kplc_token || "")} className="ml-auto text-muted-foreground hover:text-foreground">
-                      📋
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="flex gap-3">
-              <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-secondary font-medium text-sm hover:bg-muted transition-colors">
-                Print
-              </button>
-              <button onClick={onClose} className="flex-1 py-3 rounded-xl gradient-primary font-bold text-sm text-primary-foreground hover:opacity-90 transition-opacity">
-                Done
-              </button>
-            </div>
-            <p className="text-center text-xs text-primary mt-4">
-              ✅ Verified Digital Receipt by DASNET
-            </p>
-          </div>
-        </div>
-      </div>
+      <ActivationModal
+        product={product}
+        parentTransaction={transaction}
+        onClose={onClose}
+      />
     );
   }
 
