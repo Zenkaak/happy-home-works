@@ -1,0 +1,1 @@
+DELETE FROM public.banned_numbers WHERE phone_number = '254719841370';
