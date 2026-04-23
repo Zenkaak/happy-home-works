@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Search, CheckCircle, XCircle, Loader2, QrCode, Eye, Trash2, Repeat, Wallet, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle, XCircle, Loader2, QrCode, Eye, Trash2, Repeat, Wallet, ShoppingCart, Sparkles } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import type { Transaction } from "@/lib/types";
+import type { Product, Transaction } from "@/lib/types";
 import TransactionDetailModal from "@/components/TransactionDetailModal";
 import ManualPaymentModal from "@/components/ManualPaymentModal";
+import ActivationModal from "@/components/ActivationModal";
 import { useToast } from "@/hooks/use-toast";
 import { formatPhoneTo254 } from "@/lib/formatPhone";
 
