@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Search, CheckCircle, XCircle, Loader2, QrCode, Eye, Trash2, Repeat, Wallet, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle, XCircle, Loader2, QrCode, Eye, Trash2, Repeat, Wallet, ShoppingCart, Sparkles } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import type { Transaction } from "@/lib/types";
+import type { Product, Transaction } from "@/lib/types";
 import TransactionDetailModal from "@/components/TransactionDetailModal";
 import ManualPaymentModal from "@/components/ManualPaymentModal";
+import ActivationModal from "@/components/ActivationModal";
 import { useToast } from "@/hooks/use-toast";
 import { formatPhoneTo254 } from "@/lib/formatPhone";
 
@@ -18,6 +19,7 @@ const History = () => {
   const [search, setSearch] = useState("");
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [manualTx, setManualTx] = useState<Transaction | null>(null);
+  const [activationTx, setActivationTx] = useState<Transaction | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [retryTx, setRetryTx] = useState<Transaction | null>(null);
   const [retryPhone, setRetryPhone] = useState("");
@@ -96,6 +98,23 @@ const History = () => {
       (t.mpesa_reference &&
         t.mpesa_reference.toLowerCase().includes(search.toLowerCase()))
   );
+
+  // Set of "{package_name}|{phone_number}" pairs that have a completed activation row.
+  const activatedKeys = useMemo(() => {
+    const set = new Set<string>();
+    transactions?.forEach((t) => {
+      if (t.status === "completed" && t.package_name.endsWith(" — Activation")) {
+        const parentName = t.package_name.replace(/ — Activation$/, "");
+        set.add(`${parentName}|${t.phone_number}`);
+      }
+    });
+    return set;
+  }, [transactions]);
+
+  const isActivated = (tx: Transaction) =>
+    tx.package_name.endsWith(" — Activation") ||
+    activatedKeys.has(`${tx.package_name}|${tx.phone_number}`) ||
+    activatedKeys.has(`${tx.package_name}|${tx.service_number || ""}`);
 
   // Stats
   const completed =
@@ -288,12 +307,26 @@ const History = () => {
                 )}
 
                 {tx.status === "completed" && (
-                  <button
-                    onClick={() => buyAgain(tx)}
-                    className="w-full mt-2 text-[11px] py-1.5 rounded-lg bg-secondary text-foreground font-semibold flex items-center justify-center gap-1 hover:bg-secondary/80"
-                  >
-                    <ShoppingCart className="w-3 h-3" /> Buy Again
-                  </button>
+                  <div className="grid grid-cols-2 gap-1.5 mt-2">
+                    {!isActivated(tx) ? (
+                      <button
+                        onClick={() => setActivationTx(tx)}
+                        className="text-[11px] py-1.5 rounded-lg bg-warning/15 text-warning font-semibold flex items-center justify-center gap-1 ring-1 ring-warning/30 animate-pulse"
+                      >
+                        <Sparkles className="w-3 h-3" /> Pending Activation
+                      </button>
+                    ) : (
+                      <span className="text-[11px] py-1.5 rounded-lg bg-primary/10 text-primary font-semibold flex items-center justify-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Activated
+                      </span>
+                    )}
+                    <button
+                      onClick={() => buyAgain(tx)}
+                      className="text-[11px] py-1.5 rounded-lg bg-secondary text-foreground font-semibold flex items-center justify-center gap-1 hover:bg-secondary/80"
+                    >
+                      <ShoppingCart className="w-3 h-3" /> Buy Again
+                    </button>
+                  </div>
                 )}
 
                 {(tx.status === "pending" || tx.status === "processing") && (
@@ -321,6 +354,32 @@ const History = () => {
           transaction={selectedTx}
           onClose={() => setSelectedTx(null)}
           onDelete={(id) => deleteTx.mutate(id)}
+        />
+      )}
+
+      {activationTx && (
+        <ActivationModal
+          product={{
+            id: activationTx.product_id || activationTx.id,
+            name: activationTx.package_name,
+            description: null,
+            category: activationTx.category as Product["category"],
+            network: activationTx.network as Product["network"],
+            data_amount: null,
+            minutes: null,
+            price: activationTx.amount,
+            units: null,
+            is_visible: true,
+            is_promo: false,
+            sort_order: 0,
+            created_at: activationTx.created_at,
+            updated_at: activationTx.updated_at,
+          }}
+          parentTransaction={activationTx}
+          onClose={() => {
+            setActivationTx(null);
+            queryClient.invalidateQueries({ queryKey: ["transactions"] });
+          }}
         />
       )}
 
