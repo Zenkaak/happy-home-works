@@ -386,8 +386,8 @@ async function handleInitiate(req: Request) {
     // Banned check
     const { data: isBanned } = await supabase.rpc("is_banned", { p_phone: formattedPhone });
     if (isBanned) {
-      return new Response(JSON.stringify({ error: "This number is not permitted. Contact support." }), {
-        status: 403,
+      return new Response(JSON.stringify({ ok: false, error: "This number is not permitted. Contact support." }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -395,8 +395,8 @@ async function handleInitiate(req: Request) {
     // Rate limit (max 3 STK per phone per 5 min)
     const { data: rateAllowed } = await supabase.rpc("check_stk_rate_limit", { p_phone: formattedPhone });
     if (rateAllowed === false) {
-      return new Response(JSON.stringify({ error: "Too many payment attempts. Please wait 5 minutes before trying again." }), {
-        status: 429,
+      return new Response(JSON.stringify({ ok: false, error: "Too many payment attempts. Please wait 5 minutes before trying again." }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -434,8 +434,8 @@ async function handleInitiate(req: Request) {
       const errorMsg =
         stkData.errorMessage || stkData.CustomerMessage || "STK push failed";
 
-      return new Response(JSON.stringify({ error: errorMsg }), {
-        status: 400,
+      return new Response(JSON.stringify({ ok: false, error: errorMsg }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
