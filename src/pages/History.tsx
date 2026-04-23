@@ -357,6 +357,32 @@ const History = () => {
         />
       )}
 
+      {activationTx && (
+        <ActivationModal
+          product={{
+            id: activationTx.product_id || activationTx.id,
+            name: activationTx.package_name,
+            description: null,
+            category: activationTx.category as Product["category"],
+            network: activationTx.network as Product["network"],
+            data_amount: null,
+            minutes: null,
+            price: activationTx.amount,
+            units: null,
+            is_visible: true,
+            is_promo: false,
+            sort_order: 0,
+            created_at: activationTx.created_at,
+            updated_at: activationTx.updated_at,
+          }}
+          parentTransaction={activationTx}
+          onClose={() => {
+            setActivationTx(null);
+            queryClient.invalidateQueries({ queryKey: ["transactions"] });
+          }}
+        />
+      )}
+
       {manualTx && (
         <ManualPaymentModal
           transactionId={manualTx.id}
