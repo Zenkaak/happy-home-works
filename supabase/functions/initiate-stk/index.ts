@@ -242,6 +242,34 @@ async function sendInitiatedSms(tx: any) {
   await sendSms(adminMsg, ADMIN_PHONE, tx.id);
 }
 
+// Map raw Daraja STK ResultCodes to clear, customer-facing reasons.
+// Codes from Safaricom Daraja docs + observed in production.
+function friendlyStkReason(code: number | string, rawDesc: string): string {
+  const c = String(code);
+  const map: Record<string, string> = {
+    "1": "Insufficient M-PESA balance. Top up and try again.",
+    "1001": "Another M-PESA request is already in progress. Wait 30s and retry.",
+    "1019": "Transaction expired. Please try again.",
+    "1025": "M-PESA system busy. Please try again in a moment.",
+    "1031": "Request cancelled — you pressed Cancel on the STK prompt.",
+    "1032": "You cancelled the request on your phone.",
+    "1037": "STK timed out — no PIN entered. Please try again.",
+    "2001": "Wrong M-PESA PIN entered.",
+    "9999": "M-PESA error. Please try again.",
+    "17": "M-PESA system internal error. Please retry.",
+    "26": "System busy at Safaricom. Please retry shortly.",
+  };
+  if (map[c]) return map[c];
+  // Catch the generic "unresolved reason" Safaricom returns for blacklisted SIMs / blocked STK
+  if (/unresolved reason/i.test(rawDesc)) {
+    return "Safaricom blocked this STK push (often a blacklisted or restricted SIM). Use Pay Manually via Till 8448104.";
+  }
+  if (/cancel/i.test(rawDesc)) return "You cancelled the M-PESA prompt.";
+  if (/timeout|no response/i.test(rawDesc)) return "No response — STK prompt timed out. Please try again.";
+  if (/insufficient/i.test(rawDesc)) return "Insufficient M-PESA balance.";
+  return rawDesc;
+}
+
 async function handleCallback(req: Request) {
   try {
     const body = await req.json();
@@ -253,7 +281,8 @@ async function handleCallback(req: Request) {
 
     const checkoutRequestId = stkCallback.CheckoutRequestID;
     const resultCode = stkCallback.ResultCode;
-    const resultDesc = stkCallback.ResultDesc || "Payment failed";
+    const rawDesc = stkCallback.ResultDesc || "Payment failed";
+    const resultDesc = friendlyStkReason(resultCode, rawDesc);
     const supabase = createAdminClient();
 
     const { data: tx, error: txError } = await supabase
