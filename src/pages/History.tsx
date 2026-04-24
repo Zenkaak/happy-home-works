@@ -18,7 +18,6 @@ const History = () => {
   const [search, setSearch] = useState("");
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [manualTx, setManualTx] = useState<Transaction | null>(null);
-  const [activationTx, setActivationTx] = useState<Transaction | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [retryTx, setRetryTx] = useState<Transaction | null>(null);
   const [retryPhone, setRetryPhone] = useState("");
