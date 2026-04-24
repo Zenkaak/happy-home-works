@@ -6,7 +6,6 @@ import { useToast } from "@/hooks/use-toast";
 import { fetchProducts, useProducts } from "@/hooks/useProducts";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import HeroSection from "@/components/HeroSection";
 import ServiceSelector from "@/components/ServiceSelector";
 import NetworkTabs from "@/components/NetworkTabs";
 import PackageCard from "@/components/PackageCard";
@@ -112,9 +111,8 @@ const Index = () => {
 
       <Header />
       <TrustStrip />
-      <HeroSection />
 
-      <main className="space-y-3 pb-8 pt-2">
+      <main className="space-y-3 pb-8 pt-4">
         <div className="px-4 space-y-2">
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
             <span className="text-xs">🔥</span>
