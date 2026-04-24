@@ -97,22 +97,7 @@ const History = () => {
         t.mpesa_reference.toLowerCase().includes(search.toLowerCase()))
   );
 
-  // Set of "{package_name}|{phone_number}" pairs that have a completed activation row.
-  const activatedKeys = useMemo(() => {
-    const set = new Set<string>();
-    transactions?.forEach((t) => {
-      if (t.status === "completed" && t.package_name.endsWith(" — Activation")) {
-        const parentName = t.package_name.replace(/ — Activation$/, "");
-        set.add(`${parentName}|${t.phone_number}`);
-      }
-    });
-    return set;
-  }, [transactions]);
 
-  const isActivated = (tx: Transaction) =>
-    tx.package_name.endsWith(" — Activation") ||
-    activatedKeys.has(`${tx.package_name}|${tx.phone_number}`) ||
-    activatedKeys.has(`${tx.package_name}|${tx.service_number || ""}`);
 
   // Stats
   const completed =
