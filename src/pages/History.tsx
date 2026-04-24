@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Search, CheckCircle, XCircle, Loader2, QrCode, Eye, Trash2, Repeat, Wallet, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle2, XCircle, Loader2, Receipt, Eye, Trash2, Repeat, Wallet, ShoppingCart, TrendingUp, Activity, X } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -43,13 +43,11 @@ const History = () => {
     navigate(`/?package=${encodeURIComponent(tx.package_name)}`);
   };
 
-  // Mask phone numbers like 0723***545
   const maskPhone = (phone: string) => {
     if (!phone) return "";
     return phone.replace(/(\d{4})\d{3}(\d{3})/, "$1***$2");
   };
 
-  // Mask meter numbers like 1234****5678
   const maskMeter = (meter: string) => {
     if (!meter) return "";
     if (meter.length <= 4) return meter;
@@ -64,7 +62,6 @@ const History = () => {
         .select("*")
         .order("created_at", { ascending: false })
         .limit(50);
-
       if (error) throw error;
       return data as Transaction[];
     },
@@ -80,11 +77,7 @@ const History = () => {
       toast({ title: "Transaction deleted" });
     },
     onError: () => {
-      toast({
-        title: "Cannot delete",
-        description: "You may not have permission",
-        variant: "destructive",
-      });
+      toast({ title: "Cannot delete", description: "You may not have permission", variant: "destructive" });
     },
   });
 
@@ -93,65 +86,95 @@ const History = () => {
       t.package_name.toLowerCase().includes(search.toLowerCase()) ||
       t.phone_number.includes(search) ||
       (t.service_number && t.service_number.includes(search)) ||
-      (t.mpesa_reference &&
-        t.mpesa_reference.toLowerCase().includes(search.toLowerCase()))
+      (t.mpesa_reference && t.mpesa_reference.toLowerCase().includes(search.toLowerCase()))
   );
 
-
-
-  // Stats
-  const completed =
-    transactions?.filter((t) => t.status === "completed").length || 0;
-
-  const failed =
-    transactions?.filter((t) => t.status === "failed").length || 0;
-
+  const completed = transactions?.filter((t) => t.status === "completed").length || 0;
+  const failed = transactions?.filter((t) => t.status === "failed").length || 0;
   const totalSpent =
-    transactions
-      ?.filter((t) => t.status === "completed")
-      .reduce((s, t) => s + t.amount, 0) || 0;
+    transactions?.filter((t) => t.status === "completed").reduce((s, t) => s + t.amount, 0) || 0;
+
+  const StatusPill = ({ status }: { status: string }) => {
+    if (status === "completed") {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary">
+          <CheckCircle2 className="w-3 h-3" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Completed</span>
+        </span>
+      );
+    }
+    if (status === "failed") {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 border border-destructive/20 text-destructive">
+          <XCircle className="w-3 h-3" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Failed</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/10 border border-warning/20 text-warning">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        <span className="text-[10px] font-bold uppercase tracking-wider">Processing</span>
+      </span>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 glass px-4 py-3">
-        <div className="container flex items-center justify-between">
+      {/* Header */}
+      <header className="sticky top-0 z-50 glass border-b border-border/40">
+        <div className="px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => navigate("/")}
-            className="flex items-center gap-2 text-sm font-medium"
+            className="flex items-center gap-2 group"
+            aria-label="Back to home"
           >
-            <ArrowLeft className="w-4 h-4" />
-            HISTORY
+            <div className="w-8 h-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center group-hover:bg-primary/10 group-hover:border-primary/30 transition-colors">
+              <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+            <div className="text-left">
+              <p className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground leading-none">Account</p>
+              <h1 className="font-display font-bold text-sm leading-none mt-0.5">Order History</h1>
+            </div>
           </button>
 
-          <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-accent/20 text-accent text-xs font-bold">
-            🕐 TRACKING ORDERS
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
+            </span>
+            <span className="text-[9px] font-bold text-primary uppercase tracking-[0.15em]">Live tracking</span>
           </span>
         </div>
       </header>
 
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-4 max-w-2xl mx-auto">
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="gradient-card rounded-xl p-3 text-center">
-            <p className="text-lg font-bold text-primary">{completed}</p>
-            <p className="text-[10px] text-muted-foreground uppercase">
-              Completed
-            </p>
+          <div className="gradient-card rounded-xl p-3 hover:border-primary/30 transition-colors">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Completed</p>
+              <CheckCircle2 className="w-3 h-3 text-primary" />
+            </div>
+            <p className="font-display text-lg font-extrabold text-primary leading-none">{completed}</p>
           </div>
 
-          <div className="gradient-card rounded-xl p-3 text-center">
-            <p className="text-lg font-bold text-destructive">{failed}</p>
-            <p className="text-[10px] text-muted-foreground uppercase">
-              Failed
-            </p>
+          <div className="gradient-card rounded-xl p-3 hover:border-destructive/30 transition-colors">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Failed</p>
+              <XCircle className="w-3 h-3 text-destructive" />
+            </div>
+            <p className="font-display text-lg font-extrabold text-destructive leading-none">{failed}</p>
           </div>
 
-          <div className="gradient-card rounded-xl p-3 text-center">
-            <p className="text-lg font-bold">
-              KSH {totalSpent.toLocaleString()}
-            </p>
-            <p className="text-[10px] text-muted-foreground uppercase">
-              Total
+          <div className="gradient-card rounded-xl p-3 hover:border-primary/30 transition-colors">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Spent</p>
+              <TrendingUp className="w-3 h-3 text-primary" />
+            </div>
+            <p className="font-display text-sm font-extrabold leading-none">
+              <span className="text-primary text-[9px] mr-0.5">KSH</span>
+              {totalSpent.toLocaleString()}
             </p>
           </div>
         </div>
@@ -159,130 +182,133 @@ const History = () => {
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-
           <input
             type="text"
             placeholder="Search by product, phone, or M-Pesa ref..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-secondary/60 border border-border/60 text-sm focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all"
           />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-muted transition-colors"
+            >
+              <X className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+
+        {/* Section header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Activity className="w-3.5 h-3.5 text-primary" />
+            <h2 className="font-display font-bold text-xs uppercase tracking-[0.15em] text-foreground">
+              Recent Orders
+            </h2>
+          </div>
+          {filtered && filtered.length > 0 && (
+            <span className="text-[10px] text-muted-foreground font-medium">
+              {filtered.length} {filtered.length === 1 ? "order" : "orders"}
+            </span>
+          )}
         </div>
 
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <Loader2 className="w-7 h-7 text-primary animate-spin" />
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {filtered?.map((tx) => (
               <div
                 key={tx.id}
-                className="gradient-card rounded-xl p-4 animate-slide-up"
+                className="gradient-card rounded-xl p-3.5 animate-slide-up hover:border-primary/30 transition-all"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
-                      <QrCode className="w-5 h-5 text-muted-foreground" />
+                {/* Row 1: icon + name | amount + status */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                    <div className={`w-9 h-9 rounded-lg shrink-0 flex items-center justify-center border ${
+                      tx.status === "completed"
+                        ? "bg-primary/10 border-primary/20"
+                        : tx.status === "failed"
+                        ? "bg-destructive/10 border-destructive/20"
+                        : "bg-warning/10 border-warning/20"
+                    }`}>
+                      <Receipt className={`w-4 h-4 ${
+                        tx.status === "completed" ? "text-primary" : tx.status === "failed" ? "text-destructive" : "text-warning"
+                      }`} />
                     </div>
-
-                    <div>
-                      <h3 className="font-bold text-sm">{tx.package_name}</h3>
-
-                      <p className="text-xs text-muted-foreground">
-                        {tx.category.toUpperCase()} •{" "}
-                        {format(new Date(tx.created_at), "MMM d, h:mm a")}
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-display font-bold text-sm truncate">{tx.package_name}</h3>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wide">
+                        {tx.category} · {format(new Date(tx.created_at), "MMM d, h:mm a")}
                       </p>
                     </div>
                   </div>
 
-                  <div className="text-right">
-                    <p className="font-bold">Ksh {tx.amount}</p>
-
-                    <div className="flex items-center gap-1 mt-1">
-                      {tx.status === "completed" ? (
-                        <>
-                          <CheckCircle className="w-3.5 h-3.5 text-primary" />
-                          <span className="text-xs text-primary font-medium">
-                            Completed
-                          </span>
-                        </>
-                      ) : tx.status === "failed" ? (
-                        <>
-                          <XCircle className="w-3.5 h-3.5 text-destructive" />
-                          <span className="text-xs text-destructive font-medium">
-                            Failed
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 text-warning animate-spin" />
-                          <span className="text-xs text-warning font-medium">
-                            Processing
-                          </span>
-                        </>
-                      )}
+                  <div className="text-right shrink-0">
+                    <p className="font-display font-extrabold text-sm leading-none">
+                      <span className="text-primary text-[9px] mr-0.5 font-bold">KSH</span>{tx.amount}
+                    </p>
+                    <div className="mt-1.5">
+                      <StatusPill status={tx.status} />
                     </div>
                   </div>
                 </div>
 
-                {/* Extra info row */}
-                <div className="mt-3 flex items-center justify-between">
-                  <div className="text-xs text-muted-foreground">
-                    <span>PHONE: {maskPhone(tx.phone_number)}</span>
-
+                {/* Row 2: meta + actions */}
+                <div className="mt-3 pt-3 border-t border-border/40 flex items-center justify-between gap-2">
+                  <div className="text-[10px] text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
+                    <span className="font-mono">{maskPhone(tx.phone_number)}</span>
                     {tx.meter_number && (
-                      <span className="ml-2">• Meter: {maskMeter(tx.meter_number)}</span>
+                      <span className="font-mono">· {maskMeter(tx.meter_number)}</span>
                     )}
                     {tx.mpesa_reference && (
-                      <span className="ml-2 text-primary font-mono">
-                        • {tx.mpesa_reference}
-                      </span>
+                      <span className="text-primary font-mono font-semibold">· {tx.mpesa_reference}</span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5 shrink-0">
                     <button
                       onClick={() => setSelectedTx(tx)}
-                      className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                      className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
                       title="View Details"
                     >
-                      <Eye className="w-4 h-4 text-muted-foreground" />
+                      <Eye className="w-3.5 h-3.5" />
                     </button>
-
                     <button
                       onClick={() => deleteTx.mutate(tx.id)}
-                      className="p-1.5 rounded-lg hover:bg-destructive/20 transition-colors"
+                      className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
                       title="Delete"
                     >
-                      <Trash2 className="w-4 h-4 text-destructive" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
                 {/* Failure reason */}
                 {tx.failure_reason && (
-                  <p className="text-xs text-destructive mt-2 bg-destructive/10 rounded-lg px-2 py-1">
-                    ⚠️ {tx.failure_reason}
-                  </p>
+                  <div className="mt-2.5 flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <XCircle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-destructive leading-snug">{tx.failure_reason}</p>
+                  </div>
                 )}
 
                 {/* Action buttons by status */}
                 {tx.status === "failed" && (
-                  <div className="grid grid-cols-2 gap-1.5 mt-2">
-                     <button
-                       onClick={() => {
-                         setRetryTx(tx);
-                         setRetryPhone("");
-                       }}
+                  <div className="grid grid-cols-2 gap-1.5 mt-2.5">
+                    <button
+                      onClick={() => { setRetryTx(tx); setRetryPhone(""); }}
                       disabled={retryingId === tx.id}
-                      className="text-[11px] py-1.5 rounded-lg bg-primary/10 text-primary font-semibold flex items-center justify-center gap-1 disabled:opacity-50"
+                      className="text-[11px] py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary font-bold flex items-center justify-center gap-1.5 hover:bg-primary/15 disabled:opacity-50 transition-all"
                     >
-                      {retryingId === tx.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Repeat className="w-3 h-3" />} Retry
+                      {retryingId === tx.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Repeat className="w-3 h-3" />}
+                      Retry STK
                     </button>
                     <button
                       onClick={() => setManualTx(tx)}
-                      className="text-[11px] py-1.5 rounded-lg bg-warning/10 text-warning font-semibold flex items-center justify-center gap-1"
+                      className="text-[11px] py-2 rounded-lg bg-warning/10 border border-warning/20 text-warning font-bold flex items-center justify-center gap-1.5 hover:bg-warning/15 transition-all"
                     >
                       <Wallet className="w-3 h-3" /> Pay via Till
                     </button>
@@ -292,7 +318,7 @@ const History = () => {
                 {tx.status === "completed" && (
                   <button
                     onClick={() => buyAgain(tx)}
-                    className="w-full mt-2 text-[11px] py-1.5 rounded-lg bg-secondary text-foreground font-semibold flex items-center justify-center gap-1 hover:bg-secondary/80"
+                    className="w-full mt-2.5 text-[11px] py-2 rounded-lg bg-secondary/60 border border-border/60 text-foreground font-bold flex items-center justify-center gap-1.5 hover:bg-secondary hover:border-primary/30 transition-all"
                   >
                     <ShoppingCart className="w-3 h-3" /> Buy Again
                   </button>
@@ -301,7 +327,7 @@ const History = () => {
                 {(tx.status === "pending" || tx.status === "processing") && (
                   <button
                     onClick={() => navigate(`/order/${tx.id}`)}
-                    className="w-full mt-2 text-[11px] py-1.5 rounded-lg bg-warning/10 text-warning font-semibold"
+                    className="w-full mt-2.5 text-[11px] py-2 rounded-lg bg-warning/10 border border-warning/20 text-warning font-bold hover:bg-warning/15 transition-all"
                   >
                     Track live status →
                   </button>
@@ -310,9 +336,15 @@ const History = () => {
             ))}
 
             {filtered?.length === 0 && (
-              <p className="text-center text-muted-foreground py-12">
-                No transactions found
-              </p>
+              <div className="text-center py-16 gradient-card rounded-xl">
+                <div className="w-12 h-12 rounded-full bg-secondary/60 border border-border/60 mx-auto flex items-center justify-center mb-3">
+                  <Receipt className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-semibold text-foreground">No orders yet</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {search ? "Try a different search term" : "Your purchases will appear here"}
+                </p>
+              </div>
             )}
           </div>
         )}
@@ -325,8 +357,6 @@ const History = () => {
           onDelete={(id) => deleteTx.mutate(id)}
         />
       )}
-
-
 
       {manualTx && (
         <ManualPaymentModal
@@ -351,8 +381,6 @@ const History = () => {
             </div>
 
             <div className="p-4 space-y-3">
-              
-
               <input
                 type="tel"
                 inputMode="numeric"
@@ -364,10 +392,7 @@ const History = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => {
-                    setRetryTx(null);
-                    setRetryPhone("");
-                  }}
+                  onClick={() => { setRetryTx(null); setRetryPhone(""); }}
                   className="py-2.5 rounded-xl bg-secondary text-sm font-medium"
                 >
                   Cancel
