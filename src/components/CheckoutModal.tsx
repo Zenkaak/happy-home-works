@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { X, AlertTriangle, Loader2, CheckCircle, XCircle, Wallet, ShieldCheck, Zap, Lock, Phone, Smartphone } from "lucide-react";
+import { X, AlertTriangle, Loader2, CheckCircle, XCircle, Wallet, ShieldCheck, Zap, Lock, Phone, Smartphone, Sparkles } from "lucide-react";
 import ManualPaymentModal from "@/components/ManualPaymentModal";
-import ActivationModal from "@/components/ActivationModal";
 import type { Product, Transaction } from "@/lib/types";
 import { isValidKenyanPhone, formatPhoneTo254 } from "@/lib/formatPhone";
 import { supabase } from "@/integrations/supabase/client";
@@ -165,11 +164,52 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
 
   if (step === "success" && transaction) {
     return (
-      <ActivationModal
-        product={product}
-        parentTransaction={transaction}
-        onClose={onClose}
-      />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+        <div className="relative w-full max-w-md gradient-card rounded-2xl p-8 text-center overflow-hidden border border-primary/40 animate-scale-in shadow-[0_0_60px_-10px_hsl(var(--primary)/0.6)]">
+          {/* Flashing background pulse */}
+          <div className="pointer-events-none absolute inset-0 bg-primary/20 animate-pulse" />
+          <div className="pointer-events-none absolute -top-16 -left-16 w-40 h-40 rounded-full bg-primary/30 blur-3xl animate-pulse" />
+          <div className="pointer-events-none absolute -bottom-16 -right-16 w-40 h-40 rounded-full bg-primary/30 blur-3xl animate-pulse" />
+
+          <div className="relative">
+            <div className="relative mx-auto w-20 h-20 mb-4">
+              <div className="absolute inset-0 rounded-full bg-primary/40 animate-ping" />
+              <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse" />
+              <div className="relative w-20 h-20 rounded-full gradient-primary flex items-center justify-center shadow-lg shadow-primary/50">
+                <CheckCircle className="w-11 h-11 text-primary-foreground" />
+              </div>
+            </div>
+
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 border border-primary/30 mb-3 animate-pulse">
+              <Sparkles className="w-3 h-3 text-primary" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Payment Confirmed</span>
+            </div>
+
+            <h2 className="font-display text-2xl font-bold mb-1">{product.name}</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              KES <span className="text-primary font-bold">{product.price}</span> received successfully
+            </p>
+
+            {transaction.mpesa_reference && (
+              <div className="rounded-xl bg-secondary/50 border border-border px-3 py-2 mb-4">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">M-Pesa Ref</p>
+                <p className="text-sm font-mono font-bold text-primary">{transaction.mpesa_reference}</p>
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground mb-5">
+              Your purchase is being delivered to <span className="font-mono text-foreground">{formatPhoneTo254(phoneNumber)}</span>. You'll receive an SMS shortly.
+            </p>
+
+            <button
+              onClick={onClose}
+              className="w-full py-3 rounded-xl gradient-primary text-primary-foreground font-bold text-sm shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
     );
   }
 
