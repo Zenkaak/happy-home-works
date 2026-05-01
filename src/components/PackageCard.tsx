@@ -19,7 +19,7 @@ const PackageCard = ({ product, onSelect }: PackageCardProps) => (
     )}
 
     <div className="flex items-center gap-1.5 mb-2">
-      <div className="w-6 h-6 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+      <div className="fire-icon fire-square w-6 h-6 bg-primary/10 border border-primary/20 shrink-0 group-hover:bg-primary/20 transition-colors">
         <Wifi className="w-3 h-3 text-primary" />
       </div>
       <h3 className="font-display font-bold text-[12px] text-foreground truncate flex-1">{product.name}</h3>
