@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { X, AlertTriangle, Loader2, CheckCircle, XCircle, Wallet, ShieldCheck, Zap, Lock, Phone, Smartphone } from "lucide-react";
+import { X, AlertTriangle, Loader2, CheckCircle, XCircle, Wallet, ShieldCheck, Zap, Lock, Phone, Smartphone, Sparkles } from "lucide-react";
 import ManualPaymentModal from "@/components/ManualPaymentModal";
-import ActivationModal from "@/components/ActivationModal";
 import type { Product, Transaction } from "@/lib/types";
 import { isValidKenyanPhone, formatPhoneTo254 } from "@/lib/formatPhone";
 import { supabase } from "@/integrations/supabase/client";
