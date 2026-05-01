@@ -26,7 +26,7 @@ const ServiceSelector = ({ selected, onChange }: ServiceSelectorProps) => (
               : "gradient-card hover:border-muted-foreground/20"
           }`}
         >
-          <div className={`w-10 h-10 rounded-xl mx-auto mb-2 flex items-center justify-center transition-colors ${
+          <div className={`fire-icon fire-square w-10 h-10 mx-auto mb-2 transition-colors ${
             active
               ? "bg-primary/20 border border-primary/30"
               : "bg-secondary"
