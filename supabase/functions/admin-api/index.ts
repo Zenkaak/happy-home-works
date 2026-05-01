@@ -161,7 +161,7 @@ serve(async (req) => {
     const adminId = await verifyAdmin(supabase, adminToken);
     if (!adminId) return json({ error: "Invalid or expired session" }, 401);
 
-    const params = body || {};
+    const { action: _omitAction, ...params } = (body || {}) as Record<string, unknown>;
 
     switch (action) {
       case "update_vendor": {
@@ -370,7 +370,12 @@ serve(async (req) => {
         return json({ error: "Unknown action" }, 400);
     }
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    return json({ error: msg }, 500);
+    const msg = error instanceof Error
+      ? error.message
+      : (error && typeof error === "object" && "message" in (error as any))
+        ? String((error as any).message)
+        : (typeof error === "string" ? error : JSON.stringify(error));
+    console.error("admin-api error:", error);
+    return json({ error: msg || "Unknown error" }, 500);
   }
 });
