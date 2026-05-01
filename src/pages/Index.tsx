@@ -26,6 +26,8 @@ const Index = () => {
   const navigate = useNavigate();
   const referralCode = searchParams.get("ref") || undefined;
   const { openCheckout } = useCheckout();
+  
+  // State management
   const [category, setCategory] = useState<ServiceCategory>("data");
   const [network, setNetwork] = useState<NetworkProvider>("safaricom");
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,14 +52,24 @@ const Index = () => {
     });
   }, [queryClient]);
 
-  const { data: products, isFetching } = useProducts(
+  // Data Fetching
+  const { data: products, isFetching, isError } = useProducts(
     category,
     category === "data" ? network : undefined
   );
 
+  // Debug log to catch data mismatches in console
+  useEffect(() => {
+    if (products) {
+      console.log(`Loaded ${products.length} products for ${category} - ${network}`);
+    }
+  }, [products, category, network]);
+
   const filteredProducts = useMemo(() => {
     if (!products) return [];
-    let filtered = products;
+    let filtered = [...products];
+
+    // Search filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -67,14 +79,22 @@ const Index = () => {
           (p.description && p.description.toLowerCase().includes(q))
       );
     }
+
+    // Price range filter
     if (priceRange) {
       filtered = filtered.filter(
         (p) => p.price >= priceRange[0] && p.price <= priceRange[1]
       );
     }
 
-    // For data: split data-only (left) vs data+minutes (right) and interleave
-    // so the 2-column grid shows data-only on left, voice combos on right.
+    // Provider check (Extra safety layer for "No packages" issue)
+    if (category === "data") {
+      filtered = filtered.filter(
+        (p) => p.provider?.toLowerCase() === network.toLowerCase()
+      );
+    }
+
+    // Interleaving logic for 2-column grid layout
     if (category === "data") {
       const dataOnly = filtered.filter((p) => !p.minutes);
       const withMinutes = filtered.filter((p) => !!p.minutes);
@@ -88,7 +108,7 @@ const Index = () => {
     }
 
     return filtered;
-  }, [products, searchQuery, priceRange, category]);
+  }, [products, searchQuery, priceRange, category, network]);
 
   const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE);
   const paginatedProducts = useMemo(
@@ -96,7 +116,10 @@ const Index = () => {
     [filteredProducts, page]
   );
 
-  useEffect(() => { setPage(1); }, [searchQuery, priceRange, category, network]);
+  // Reset to first page when filters change
+  useEffect(() => { 
+    setPage(1); 
+  }, [searchQuery, priceRange, category, network]);
 
   const handleCategoryChange = (cat: ServiceCategory) => {
     setCategory(cat);
@@ -104,7 +127,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
-
+      {/* Top Loading Bar */}
       <div className={`fixed top-0 left-0 w-full h-[2px] z-50 transition-opacity duration-300 ${isFetching ? "opacity-100" : "opacity-0"}`}>
         <div className="h-full bg-primary animate-pulse w-full" />
       </div>
@@ -169,7 +192,8 @@ const Index = () => {
         </div>
 
         <div className="px-4 relative min-h-[400px]">
-          {isFetching && !products ? (
+          {/* Skeleton state during initial load */}
+          {isFetching && (!products || products.length === 0) ? (
             <div className="grid grid-cols-2 gap-2.5">
               {Array.from({ length: 8 }).map((_, i) => (
                 <PackageCardSkeleton key={i} />
@@ -186,14 +210,29 @@ const Index = () => {
             </div>
           )}
 
-          {!isFetching && filteredProducts.length === 0 && (
+          {/* Error State */}
+          {isError && (
+            <div className="text-center py-20">
+              <p className="text-red-400 text-sm font-medium">Failed to load packages. Please check your connection.</p>
+              <button 
+                onClick={() => queryClient.invalidateQueries({ queryKey: ["products"] })}
+                className="mt-4 text-xs text-primary underline"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isFetching && !isError && filteredProducts.length === 0 && (
             <div className="text-center py-20 animate-in fade-in zoom-in">
-              <p className="text-muted-foreground">
-                {searchQuery || priceRange ? "No packages match your filters" : "No packages available"}
+              <p className="text-muted-foreground text-sm">
+                {searchQuery || priceRange ? "No packages match your filters" : "No packages available right now"}
               </p>
             </div>
           )}
 
+          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-6">
               <button
@@ -204,12 +243,12 @@ const Index = () => {
                 Previous
               </button>
               <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                   let pageNum: number;
-                  if (totalPages <= 7) pageNum = i + 1;
-                  else if (page <= 4) pageNum = i + 1;
-                  else if (page >= totalPages - 3) pageNum = totalPages - 6 + i;
-                  else pageNum = page - 3 + i;
+                  if (totalPages <= 5) pageNum = i + 1;
+                  else if (page <= 3) pageNum = i + 1;
+                  else if (page >= totalPages - 2) pageNum = totalPages - 4 + i;
+                  else pageNum = page - 2 + i;
                   return (
                     <button
                       key={pageNum}
@@ -238,7 +277,6 @@ const Index = () => {
       </main>
 
       <VendorLeaderboard />
-
       <Footer />
       <ChatButton />
     </div>
