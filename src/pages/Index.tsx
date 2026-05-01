@@ -58,10 +58,11 @@ const Index = () => {
     category === "data" ? network : undefined
   );
 
-  // Debug log to catch data mismatches in console
+  // Debug log to check database structure vs state
   useEffect(() => {
-    if (products) {
-      console.log(`Loaded ${products.length} products for ${category} - ${network}`);
+    if (products && products.length > 0) {
+      console.log("DB Keys check:", Object.keys(products[0]));
+      console.log(`Loaded ${products.length} for ${category} - ${network}`);
     }
   }, [products, category, network]);
 
@@ -87,17 +88,19 @@ const Index = () => {
       );
     }
 
-    // Provider check (Extra safety layer for "No packages" issue)
+    // FIXED: Changed 'provider' to 'network' to match your DB schema
     if (category === "data") {
       filtered = filtered.filter(
-        (p) => p.provider?.toLowerCase() === network.toLowerCase()
+        (p) => (p.network || p.provider)?.toLowerCase() === network.toLowerCase()
       );
     }
 
     // Interleaving logic for 2-column grid layout
     if (category === "data") {
-      const dataOnly = filtered.filter((p) => !p.minutes);
-      const withMinutes = filtered.filter((p) => !!p.minutes);
+      // Logic adjusted to handle "Enter your minutes" text or nulls
+      const dataOnly = filtered.filter((p) => !p.minutes || p.minutes.includes("Enter"));
+      const withMinutes = filtered.filter((p) => p.minutes && !p.minutes.includes("Enter"));
+      
       const interleaved: typeof filtered = [];
       const max = Math.max(dataOnly.length, withMinutes.length);
       for (let i = 0; i < max; i++) {
@@ -116,7 +119,6 @@ const Index = () => {
     [filteredProducts, page]
   );
 
-  // Reset to first page when filters change
   useEffect(() => { 
     setPage(1); 
   }, [searchQuery, priceRange, category, network]);
@@ -127,7 +129,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
-      {/* Top Loading Bar */}
       <div className={`fixed top-0 left-0 w-full h-[2px] z-50 transition-opacity duration-300 ${isFetching ? "opacity-100" : "opacity-0"}`}>
         <div className="h-full bg-primary animate-pulse w-full" />
       </div>
@@ -137,7 +138,6 @@ const Index = () => {
 
       <main className="space-y-3 pb-8 pt-3">
         <div className="px-4 space-y-2">
-          {/* Promo strip */}
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 backdrop-blur-sm">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
@@ -148,7 +148,6 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Vendor CTA */}
           <button
             onClick={() => navigate("/vendor")}
             className="group w-full relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-r from-primary/15 via-accent/5 to-primary/15 p-3 hover:border-primary/60 hover:shadow-[0_8px_24px_-12px_hsl(var(--primary)/0.4)] transition-all"
@@ -192,7 +191,6 @@ const Index = () => {
         </div>
 
         <div className="px-4 relative min-h-[400px]">
-          {/* Skeleton state during initial load */}
           {isFetching && (!products || products.length === 0) ? (
             <div className="grid grid-cols-2 gap-2.5">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -210,7 +208,6 @@ const Index = () => {
             </div>
           )}
 
-          {/* Error State */}
           {isError && (
             <div className="text-center py-20">
               <p className="text-red-400 text-sm font-medium">Failed to load packages. Please check your connection.</p>
@@ -223,7 +220,6 @@ const Index = () => {
             </div>
           )}
 
-          {/* Empty State */}
           {!isFetching && !isError && filteredProducts.length === 0 && (
             <div className="text-center py-20 animate-in fade-in zoom-in">
               <p className="text-muted-foreground text-sm">
@@ -232,7 +228,6 @@ const Index = () => {
             </div>
           )}
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-6">
               <button
