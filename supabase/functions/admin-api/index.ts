@@ -370,7 +370,12 @@ serve(async (req) => {
         return json({ error: "Unknown action" }, 400);
     }
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    return json({ error: msg }, 500);
+    const msg = error instanceof Error
+      ? error.message
+      : (error && typeof error === "object" && "message" in (error as any))
+        ? String((error as any).message)
+        : (typeof error === "string" ? error : JSON.stringify(error));
+    console.error("admin-api error:", error);
+    return json({ error: msg || "Unknown error" }, 500);
   }
 });
