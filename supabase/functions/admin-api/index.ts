@@ -161,7 +161,7 @@ serve(async (req) => {
     const adminId = await verifyAdmin(supabase, adminToken);
     if (!adminId) return json({ error: "Invalid or expired session" }, 401);
 
-    const params = body || {};
+    const { action: _omitAction, ...params } = (body || {}) as Record<string, unknown>;
 
     switch (action) {
       case "update_vendor": {
