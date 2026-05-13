@@ -147,96 +147,47 @@ async function sendSms(message: string, phone: string, txId?: string) {
 }
 
 async function sendSuccessSms(tx: any) {
-  const service = getServiceLabel(tx);
-  const date = formatDate();
   const orderNo = tx.order_number ? `#${tx.order_number}` : "";
+  const amount = Number(tx.amount).toLocaleString();
 
-  const userMsg = [
-    `DASNET ORDER COMPLETED ${orderNo}`.trim(),
-    `Service: ${service}`,
-    `Package: ${tx.package_name}`,
-    `Amount: KSH ${Number(tx.amount).toLocaleString()}`,
-    tx.mpesa_reference ? `Ref: ${tx.mpesa_reference}` : null,
-    `Time: ${date}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const userMsg =
+    `DASNET ${orderNo}: ${tx.package_name} delivered. KSH ${amount} received` +
+    (tx.mpesa_reference ? ` (Ref ${tx.mpesa_reference})` : "") +
+    `. Thank you.`;
 
-  const adminMsg = [
-    `[DASNET] ORDER COMPLETED ${orderNo}`.trim(),
-    `Customer: ${tx.phone_number}`,
-    `Service: ${service}`,
-    `Package: ${tx.package_name}`,
-    `Amount: KSH ${Number(tx.amount).toLocaleString()}`,
-    tx.mpesa_reference ? `Ref: ${tx.mpesa_reference}` : null,
-    `Time: ${date}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const adminMsg =
+    `[DASNET] ${orderNo} COMPLETED — ${tx.phone_number} | ${tx.package_name} | KSH ${amount}` +
+    (tx.mpesa_reference ? ` | ${tx.mpesa_reference}` : "");
 
   await sendSms(userMsg, tx.phone_number, tx.id);
   await sendSms(adminMsg, ADMIN_PHONE, tx.id);
 }
 
 async function sendFailureSms(tx: any) {
-  const service = getServiceLabel(tx);
-  const date = formatDate();
   const orderNo = tx.order_number ? `#${tx.order_number}` : "";
+  const amount = Number(tx.amount).toLocaleString();
   const reason = tx.failure_reason || "Payment not completed";
 
-  const userMsg = [
-    `DASNET ORDER FAILED ${orderNo}`.trim(),
-    `Service: ${service}`,
-    `Package: ${tx.package_name}`,
-    `Amount: KSH ${Number(tx.amount).toLocaleString()}`,
-    `Reason: ${reason}`,
-    ``,
-    `To complete your purchase, send KSH ${Number(tx.amount).toLocaleString()} via M-PESA:`,
-    `Lipa na M-PESA > Buy Goods`,
-    `Till: 8448104 (Dasnet Ventures)`,
-    `Then reply with the M-PESA code.`,
-  ].join("\n");
+  const userMsg =
+    `DASNET ${orderNo}: ${tx.package_name} (KSH ${amount}) failed — ${reason}. ` +
+    `Try again: https://dasnet.vercel.app`;
 
-  const adminMsg = [
-    `[DASNET] ORDER FAILED ${orderNo}`.trim(),
-    `Customer: ${tx.phone_number}`,
-    `Service: ${service}`,
-    `Package: ${tx.package_name}`,
-    `Amount: KSH ${Number(tx.amount).toLocaleString()}`,
-    `Reason: ${reason}`,
-    `Time: ${date}`,
-  ].join("\n");
+  const adminMsg =
+    `[DASNET] ${orderNo} FAILED — ${tx.phone_number} | ${tx.package_name} | KSH ${amount} | ${reason}`;
 
   await sendSms(userMsg, tx.phone_number, tx.id);
   await sendSms(adminMsg, ADMIN_PHONE, tx.id);
 }
 
 async function sendInitiatedSms(tx: any) {
-  const service = getServiceLabel(tx);
-  const date = formatDate();
   const orderNo = tx.order_number ? `#${tx.order_number}` : "";
+  const amount = Number(tx.amount).toLocaleString();
 
-  const userMsg = [
-    `DASNET PAYMENT STARTED ${orderNo}`.trim(),
-    `Service: ${service}`,
-    `Package: ${tx.package_name}`,
-    `Amount: KSH ${Number(tx.amount).toLocaleString()}`,
-    `Time: ${date}`,
-    `Complete the M-PESA prompt on your phone.`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const userMsg =
+    `DASNET ${orderNo}: STK sent for ${tx.package_name} (KSH ${amount}). Enter M-PESA PIN to complete.`;
 
-  const adminMsg = [
-    `[DASNET] PAYMENT STARTED ${orderNo}`.trim(),
-    `Customer: ${tx.phone_number}`,
-    `Service: ${service}`,
-    `Package: ${tx.package_name}`,
-    `Amount: KSH ${Number(tx.amount).toLocaleString()}`,
-    `Time: ${date}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const adminMsg =
+    `[DASNET] ${orderNo} STK SENT — ${tx.phone_number} | ${tx.package_name} | KSH ${amount}`;
 
   await sendSms(userMsg, tx.phone_number, tx.id);
   await sendSms(adminMsg, ADMIN_PHONE, tx.id);

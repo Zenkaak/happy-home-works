@@ -75,7 +75,7 @@ serve(async (req) => {
         await supabase.functions.invoke("send-sms", {
           body: {
             phone: ADMIN_PHONE,
-            message: `[DASNET] MANUAL PAYMENT\nFrom: ${phone_number}\nAmount: KSH ${amount}\nCode: ${code}\nPackage: ${package_name || "n/a"}\nVerify in admin.`,
+            message: `[DASNET] MANUAL PAY — ${phone_number} | KSH ${amount} | ${code} | ${package_name || "n/a"}`,
           },
         });
       } catch (_) {}
@@ -123,7 +123,7 @@ serve(async (req) => {
         await supabase.functions.invoke("send-sms", {
           body: {
             phone: mp.phone_number,
-            message: `DASNET: Payment verified! Ref: ${mp.mpesa_code}. Your ${mp.package_name || "order"} is being delivered.`,
+            message: `DASNET: Payment verified (Ref ${mp.mpesa_code}). ${mp.package_name || "Your order"} is being delivered. Thank you.`,
           },
         });
       } catch (_) {}
@@ -148,7 +148,7 @@ serve(async (req) => {
           await supabase.functions.invoke("send-sms", {
             body: {
               phone: mp.phone_number,
-              message: `DASNET: Your manual payment (${mp.mpesa_code}) could not be verified. Reason: ${admin_notes || "Invalid code"}. Contact support.`,
+              message: `DASNET: Payment ${mp.mpesa_code} not verified — ${admin_notes || "invalid code"}. Try again: https://dasnet.vercel.app`,
             },
           });
         } catch (_) {}

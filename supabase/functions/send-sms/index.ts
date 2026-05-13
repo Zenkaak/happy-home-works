@@ -6,6 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-admin-token",
 };
 
+const SENDER_ID = "PROCALL";
+const OTS_ENDPOINT = "https://sms.ots.co.ke/api/v3/sms/send";
+
 function formatPhone(phone: string): string {
   const cleaned = phone.replace(/[^0-9]/g, "");
   if (cleaned.startsWith("0") && cleaned.length === 10) return "254" + cleaned.slice(1);
@@ -14,33 +17,27 @@ function formatPhone(phone: string): string {
   return cleaned;
 }
 
-async function sendViaAfricasTalking(phone: string, message: string) {
-  const apiKey = Deno.env.get("AT_API_KEY");
-  const username = Deno.env.get("AT_USERNAME");
+async function sendViaOts(phone: string, message: string) {
+  const apiKey = Deno.env.get("OTS_API_KEY");
+  if (!apiKey) throw new Error("OTS_API_KEY not configured");
 
-  if (!apiKey || !username) throw new Error("Africa's Talking credentials not configured");
-
-  const params = new URLSearchParams({
-    username,
-    to: "+" + formatPhone(phone),
-    message,
-  });
-
-  const url = username === "sandbox"
-    ? "https://api.sandbox.africastalking.com/version1/messaging"
-    : "https://api.africastalking.com/version1/messaging";
-
-  const res = await fetch(url, {
+  const res = await fetch(OTS_ENDPOINT, {
     method: "POST",
     headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
       Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-      apiKey,
     },
-    body: params.toString(),
+    body: JSON.stringify({
+      recipient: formatPhone(phone),
+      sender_id: SENDER_ID,
+      type: "plain",
+      message,
+    }),
   });
 
-  return await res.json();
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
 }
 
 serve(async (req) => {
@@ -81,11 +78,9 @@ serve(async (req) => {
       });
     }
 
-    const data = await sendViaAfricasTalking(phone, message);
-    const recipient = data?.SMSMessageData?.Recipients?.[0];
-    const success = recipient?.status === "Success";
+    const result = await sendViaOts(phone, message);
 
-    return new Response(JSON.stringify({ success, data }), {
+    return new Response(JSON.stringify({ success: result.ok, data: result.data }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
