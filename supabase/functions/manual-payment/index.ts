@@ -123,7 +123,7 @@ serve(async (req) => {
         await supabase.functions.invoke("send-sms", {
           body: {
             phone: mp.phone_number,
-            message: `DASNET: Payment verified! Ref: ${mp.mpesa_code}. Your ${mp.package_name || "order"} is being delivered.`,
+            message: `DASNET: Payment verified (Ref ${mp.mpesa_code}). ${mp.package_name || "Your order"} is being delivered. Thank you.`,
           },
         });
       } catch (_) {}
