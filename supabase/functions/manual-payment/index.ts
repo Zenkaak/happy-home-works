@@ -75,7 +75,7 @@ serve(async (req) => {
         await supabase.functions.invoke("send-sms", {
           body: {
             phone: ADMIN_PHONE,
-            message: `[DASNET] MANUAL PAYMENT\nFrom: ${phone_number}\nAmount: KSH ${amount}\nCode: ${code}\nPackage: ${package_name || "n/a"}\nVerify in admin.`,
+            message: `[DASNET] MANUAL PAY — ${phone_number} | KSH ${amount} | ${code} | ${package_name || "n/a"}`,
           },
         });
       } catch (_) {}
