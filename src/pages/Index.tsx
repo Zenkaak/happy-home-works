@@ -91,7 +91,7 @@ const Index = () => {
     // FIXED: Changed 'provider' to 'network' to match your DB schema
     if (category === "data") {
       filtered = filtered.filter(
-        (p) => (p.network || p.provider)?.toLowerCase() === network.toLowerCase()
+        (p) => p.network?.toLowerCase() === network.toLowerCase()
       );
     }
 
