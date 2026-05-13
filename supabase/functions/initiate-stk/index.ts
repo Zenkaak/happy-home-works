@@ -147,50 +147,95 @@ async function sendSms(message: string, phone: string, txId?: string) {
 }
 
 async function sendSuccessSms(tx: any) {
+  const service = getServiceLabel(tx);
+  const date = formatDate();
   const orderNo = tx.order_number ? `#${tx.order_number}` : "";
   const amount = Number(tx.amount).toLocaleString();
 
-  const userMsg =
-    `DASNET ${orderNo}: ${tx.package_name} delivered. KSH ${amount} received` +
-    (tx.mpesa_reference ? ` (Ref ${tx.mpesa_reference})` : "") +
-    `. Thank you.`;
+  const userLines = [
+    `[DASNET] ORDER COMPLETED ${orderNo}`.trim(),
+    `Service: ${service}`,
+    `Package: ${tx.package_name}`,
+    `Amount: KSH ${amount}`,
+    tx.mpesa_reference ? `Ref: ${tx.mpesa_reference}` : null,
+    tx.category === "kplc" && tx.meter_number ? `Meter: ${tx.meter_number}` : null,
+    tx.category === "kplc" && tx.kplc_token ? `Token: ${tx.kplc_token}` : null,
+    `Time: ${date}`,
+  ].filter(Boolean);
 
-  const adminMsg =
-    `[DASNET] ${orderNo} COMPLETED — ${tx.phone_number} | ${tx.package_name} | KSH ${amount}` +
-    (tx.mpesa_reference ? ` | ${tx.mpesa_reference}` : "");
+  const adminLines = [
+    `[DASNET] ORDER COMPLETED ${orderNo}`.trim(),
+    `Customer: ${tx.phone_number}`,
+    `Service: ${service}`,
+    `Package: ${tx.package_name}`,
+    `Amount: KSH ${amount}`,
+    tx.mpesa_reference ? `Ref: ${tx.mpesa_reference}` : null,
+    tx.category === "kplc" && tx.meter_number ? `Meter: ${tx.meter_number}` : null,
+    tx.category === "kplc" && tx.kplc_token ? `Token: ${tx.kplc_token}` : null,
+    `Time: ${date}`,
+  ].filter(Boolean);
 
-  await sendSms(userMsg, tx.phone_number, tx.id);
-  await sendSms(adminMsg, ADMIN_PHONE, tx.id);
+  await sendSms(userLines.join("\n"), tx.phone_number, tx.id);
+  await sendSms(adminLines.join("\n"), ADMIN_PHONE, tx.id);
 }
 
 async function sendFailureSms(tx: any) {
+  const service = getServiceLabel(tx);
+  const date = formatDate();
   const orderNo = tx.order_number ? `#${tx.order_number}` : "";
   const amount = Number(tx.amount).toLocaleString();
   const reason = tx.failure_reason || "Payment not completed";
 
-  const userMsg =
-    `DASNET ${orderNo}: ${tx.package_name} (KSH ${amount}) failed — ${reason}. ` +
-    `Try again: https://dasnet.vercel.app`;
+  const userLines = [
+    `[DASNET] ORDER FAILED ${orderNo}`.trim(),
+    `Service: ${service}`,
+    `Package: ${tx.package_name}`,
+    `Amount: KSH ${amount}`,
+    `Reason: ${reason}`,
+    `Time: ${date}`,
+    `Try again: https://dasnet.vercel.app`,
+  ];
 
-  const adminMsg =
-    `[DASNET] ${orderNo} FAILED — ${tx.phone_number} | ${tx.package_name} | KSH ${amount} | ${reason}`;
+  const adminLines = [
+    `[DASNET] ORDER FAILED ${orderNo}`.trim(),
+    `Customer: ${tx.phone_number}`,
+    `Service: ${service}`,
+    `Package: ${tx.package_name}`,
+    `Amount: KSH ${amount}`,
+    `Reason: ${reason}`,
+    `Time: ${date}`,
+  ];
 
-  await sendSms(userMsg, tx.phone_number, tx.id);
-  await sendSms(adminMsg, ADMIN_PHONE, tx.id);
+  await sendSms(userLines.join("\n"), tx.phone_number, tx.id);
+  await sendSms(adminLines.join("\n"), ADMIN_PHONE, tx.id);
 }
 
 async function sendInitiatedSms(tx: any) {
+  const service = getServiceLabel(tx);
+  const date = formatDate();
   const orderNo = tx.order_number ? `#${tx.order_number}` : "";
   const amount = Number(tx.amount).toLocaleString();
 
-  const userMsg =
-    `DASNET ${orderNo}: STK sent for ${tx.package_name} (KSH ${amount}). Enter M-PESA PIN to complete.`;
+  const userLines = [
+    `[DASNET] PAYMENT STARTED ${orderNo}`.trim(),
+    `Service: ${service}`,
+    `Package: ${tx.package_name}`,
+    `Amount: KSH ${amount}`,
+    `Time: ${date}`,
+    `Complete the M-PESA prompt on your phone.`,
+  ];
 
-  const adminMsg =
-    `[DASNET] ${orderNo} STK SENT — ${tx.phone_number} | ${tx.package_name} | KSH ${amount}`;
+  const adminLines = [
+    `[DASNET] PAYMENT STARTED ${orderNo}`.trim(),
+    `Customer: ${tx.phone_number}`,
+    `Service: ${service}`,
+    `Package: ${tx.package_name}`,
+    `Amount: KSH ${amount}`,
+    `Time: ${date}`,
+  ];
 
-  await sendSms(userMsg, tx.phone_number, tx.id);
-  await sendSms(adminMsg, ADMIN_PHONE, tx.id);
+  await sendSms(userLines.join("\n"), tx.phone_number, tx.id);
+  await sendSms(adminLines.join("\n"), ADMIN_PHONE, tx.id);
 }
 
 // Map raw Daraja STK ResultCodes to clear, customer-facing reasons.
