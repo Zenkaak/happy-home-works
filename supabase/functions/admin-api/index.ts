@@ -214,10 +214,33 @@ serve(async (req) => {
         if (error) throw error;
         return json({ count: count ?? 0 });
       }
+      case "list_broadcast_contacts": {
+        const search = (params?.search || "").toString().trim();
+        let q = supabase.from("broadcast_contacts").select("id, phone_number, created_at").order("created_at", { ascending: false }).limit(500);
+        if (search) q = q.ilike("phone_number", `%${search}%`);
+        const { data, error } = await q;
+        if (error) throw error;
+        return json({ contacts: data ?? [] });
+      }
+      case "delete_broadcast_contact": {
+        const { error } = await supabase.from("broadcast_contacts").delete().eq("id", params.id);
+        if (error) throw error;
+        return json({ success: true });
+      }
+      case "get_sms_logs": {
+        const { data, error } = await supabase
+          .from("sms_logs")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(200);
+        if (error) throw error;
+        return json({ logs: data ?? [] });
+      }
       case "broadcast_sms": {
         const { data: contacts, error: cErr } = await supabase.from("broadcast_contacts").select("phone_number");
         if (cErr) throw cErr;
 
+        const batchId = `broadcast-${Date.now()}`;
         let successCount = 0;
         let failCount = 0;
         for (const contact of contacts || []) {
@@ -233,12 +256,12 @@ serve(async (req) => {
               body: JSON.stringify({ phone: contact.phone_number, message: params.message }),
             });
             const smsData = await smsRes.json();
-            const ok = smsRes.ok && !smsData?.error;
+            const ok = smsRes.ok && !smsData?.error && smsData?.success !== false;
             await supabase.from("sms_logs").insert({
               phone_number: contact.phone_number,
               message: params.message,
               status: ok ? "sent" : "failed",
-              batch_id: `broadcast-${Date.now()}`,
+              batch_id: batchId,
             });
             if (ok) successCount += 1;
             else failCount += 1;
