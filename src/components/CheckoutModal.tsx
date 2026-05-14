@@ -111,8 +111,10 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
       setTransaction(pollResult);
 
       if (pollResult.status === "completed") {
+        playSuccess();
         setStep("success");
       } else if (pollResult.status === "failed") {
+        playFailure();
         setStep("failed");
       } else {
         toast({
