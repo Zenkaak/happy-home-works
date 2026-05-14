@@ -92,7 +92,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
           phone: payPhone,
           amount: product.price,
           transaction_id: data.id,
-          account_ref: `DASNET-${data.order_number}`,
+          account_ref: buildAccountRef({ category: product.category, packageName: product.name, dataAmount: product.data_amount }),
         },
       });
 
