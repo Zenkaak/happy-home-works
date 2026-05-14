@@ -5,6 +5,8 @@ import { CheckCircle2, XCircle, Loader2, ArrowLeft, Repeat, Wallet, Home } from 
 import ManualPaymentModal from "@/components/ManualPaymentModal";
 import type { Transaction } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { buildAccountRef } from "@/lib/accountRef";
+import { playSuccess, playFailure } from "@/lib/notifySound";
 
 const OrderStatus = () => {
   const { id } = useParams();
