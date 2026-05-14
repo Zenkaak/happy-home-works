@@ -33,7 +33,21 @@ const OrderStatus = () => {
       .channel(`tx-${id}`)
       .on("postgres_changes",
         { event: "UPDATE", schema: "public", table: "transactions", filter: `id=eq.${id}` },
-        (payload) => { if (mounted) setTx(payload.new as Transaction); }
+        (payload) => {
+          if (!mounted) return;
+          const next = payload.new as Transaction;
+          const prev = payload.old as Transaction | undefined;
+          if (prev?.status !== next.status) {
+            if (next.status === "completed") {
+              playSuccess();
+              toast({ title: "Order completed", description: next.package_name });
+            } else if (next.status === "failed") {
+              playFailure();
+              toast({ title: "Order failed", description: next.failure_reason || "Payment not completed", variant: "destructive" });
+            }
+          }
+          setTx(next);
+        }
       )
       .subscribe();
 
