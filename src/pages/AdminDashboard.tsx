@@ -57,6 +57,27 @@ const AdminDashboard = () => {
     if (!getAdminToken()) navigate("/admin");
   }, [navigate]);
 
+  // In-app notification + chime when a new transaction comes in
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-new-tx")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "transactions" },
+        (payload) => {
+          const tx = payload.new as Transaction;
+          playNotify();
+          toast({
+            title: `New order #${tx.order_number ?? ""}`.trim(),
+            description: `${tx.package_name} • KSH ${Number(tx.amount).toLocaleString()} • ${tx.phone_number}`,
+          });
+          queryClient.invalidateQueries({ queryKey: ["admin-transactions"] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [toast, queryClient]);
+
   const { data: transactions } = useQuery({
     queryKey: ["admin-transactions"],
     queryFn: async () => {
