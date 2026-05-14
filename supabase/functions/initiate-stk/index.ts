@@ -145,20 +145,7 @@ async function sendSuccessSms(tx: any) {
     `Time: ${date}`,
   ].filter(Boolean);
 
-  const adminLines = [
-    `[DASNET] ORDER COMPLETED ${orderNo}`.trim(),
-    `Customer: ${tx.phone_number}`,
-    `Service: ${service}`,
-    `Package: ${tx.package_name}`,
-    `Amount: KSH ${amount}`,
-    tx.mpesa_reference ? `Ref: ${tx.mpesa_reference}` : null,
-    tx.category === "kplc" && tx.meter_number ? `Meter: ${tx.meter_number}` : null,
-    tx.category === "kplc" && tx.kplc_token ? `Token: ${tx.kplc_token}` : null,
-    `Time: ${date}`,
-  ].filter(Boolean);
-
   await sendSms(userLines.join("\n"), tx.phone_number, tx.id);
-  await sendSms(adminLines.join("\n"), ADMIN_PHONE, tx.id);
 }
 
 async function sendFailureSms(tx: any) {
@@ -178,18 +165,7 @@ async function sendFailureSms(tx: any) {
     `Try again: https://dasnet.vercel.app`,
   ];
 
-  const adminLines = [
-    `[DASNET] ORDER FAILED ${orderNo}`.trim(),
-    `Customer: ${tx.phone_number}`,
-    `Service: ${service}`,
-    `Package: ${tx.package_name}`,
-    `Amount: KSH ${amount}`,
-    `Reason: ${reason}`,
-    `Time: ${date}`,
-  ];
-
   await sendSms(userLines.join("\n"), tx.phone_number, tx.id);
-  await sendSms(adminLines.join("\n"), ADMIN_PHONE, tx.id);
 }
 
 async function sendInitiatedSms(tx: any) {
@@ -207,17 +183,7 @@ async function sendInitiatedSms(tx: any) {
     `Complete the M-PESA prompt on your phone.`,
   ];
 
-  const adminLines = [
-    `[DASNET] PAYMENT STARTED ${orderNo}`.trim(),
-    `Customer: ${tx.phone_number}`,
-    `Service: ${service}`,
-    `Package: ${tx.package_name}`,
-    `Amount: KSH ${amount}`,
-    `Time: ${date}`,
-  ];
-
   await sendSms(userLines.join("\n"), tx.phone_number, tx.id);
-  await sendSms(adminLines.join("\n"), ADMIN_PHONE, tx.id);
 }
 
 // Map raw Daraja STK ResultCodes to clear, customer-facing reasons.
