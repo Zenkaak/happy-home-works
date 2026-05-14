@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { MessageSquare, CheckCircle, XCircle, Clock, RefreshCw } from "lucide-react";
+import { CheckCircle, XCircle, Clock, RefreshCw } from "lucide-react";
 
 interface SmsLog {
   id: string;
@@ -14,17 +14,20 @@ interface SmsLog {
   batch_id: string | null;
 }
 
+const getAdminToken = () => localStorage.getItem("dasnet_admin_token");
+
 const AdminSmsLogs = () => {
   const { data: smsLogs, isLoading, refetch } = useQuery({
     queryKey: ["admin-sms-logs"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sms_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
+      const token = getAdminToken();
+      if (!token) return [];
+      const { data, error } = await supabase.functions.invoke("admin-api", {
+        body: { action: "get_sms_logs" },
+        headers: { "x-admin-token": token },
+      });
       if (error) throw error;
-      return data as SmsLog[];
+      return (data?.logs ?? []) as SmsLog[];
     },
   });
 
@@ -41,7 +44,6 @@ const AdminSmsLogs = () => {
 
   return (
     <div className="space-y-4">
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="gradient-card rounded-xl p-3 text-center">
           <p className="text-lg font-bold">{smsLogs?.length || 0}</p>
@@ -64,7 +66,6 @@ const AdminSmsLogs = () => {
         <RefreshCw className="w-4 h-4" /> Refresh Logs
       </button>
 
-      {/* SMS List */}
       {isLoading ? (
         <div className="text-center py-8 text-muted-foreground text-sm">Loading SMS logs...</div>
       ) : smsLogs?.length === 0 ? (
@@ -82,9 +83,9 @@ const AdminSmsLogs = () => {
                   {format(new Date(log.created_at), "MMM d, HH:mm")}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground line-clamp-2">{log.message}</p>
+              <p className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-line">{log.message}</p>
               {log.batch_id && (
-                <span className="text-[10px] text-primary font-mono mt-1 inline-block">Batch: {log.batch_id.slice(0, 8)}</span>
+                <span className="text-[10px] text-primary font-mono mt-1 inline-block">Batch: {log.batch_id.slice(0, 16)}</span>
               )}
             </div>
           ))}
