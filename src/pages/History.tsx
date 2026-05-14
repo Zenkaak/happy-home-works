@@ -10,6 +10,7 @@ import TransactionDetailModal from "@/components/TransactionDetailModal";
 import ManualPaymentModal from "@/components/ManualPaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { formatPhoneTo254 } from "@/lib/formatPhone";
+import { buildAccountRef } from "@/lib/accountRef";
 
 const History = () => {
   const navigate = useNavigate();
