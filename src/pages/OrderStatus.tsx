@@ -53,7 +53,7 @@ const OrderStatus = () => {
           phone: tx.phone_number,
           amount: tx.amount,
           transaction_id: tx.id,
-          account_ref: `DASNET-${tx.order_number}`,
+          account_ref: buildAccountRef({ category: tx.category, packageName: tx.package_name }),
         },
       });
       if (error) throw error;
