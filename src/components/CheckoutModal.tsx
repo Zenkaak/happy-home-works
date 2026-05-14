@@ -5,6 +5,8 @@ import type { Product, Transaction } from "@/lib/types";
 import { isValidKenyanPhone, formatPhoneTo254 } from "@/lib/formatPhone";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { buildAccountRef } from "@/lib/accountRef";
+import { playSuccess, playFailure } from "@/lib/notifySound";
 
 interface CheckoutModalProps {
   product: Product;
