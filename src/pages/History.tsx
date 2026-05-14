@@ -10,6 +10,7 @@ import TransactionDetailModal from "@/components/TransactionDetailModal";
 import ManualPaymentModal from "@/components/ManualPaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { formatPhoneTo254 } from "@/lib/formatPhone";
+import { buildAccountRef } from "@/lib/accountRef";
 
 const History = () => {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ const History = () => {
     setRetryingId(tx.id);
     try {
       const { data, error } = await supabase.functions.invoke("initiate-stk", {
-        body: { phone: tx.phone_number, amount: tx.amount, transaction_id: tx.id, account_ref: `DASNET-${tx.order_number}` },
+        body: { phone: tx.phone_number, amount: tx.amount, transaction_id: tx.id, account_ref: buildAccountRef({ category: tx.category, packageName: tx.package_name }) },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

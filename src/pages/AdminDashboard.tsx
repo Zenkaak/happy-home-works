@@ -24,6 +24,8 @@ import AdminVendorManager from "@/components/admin/AdminVendorManager";
 import AdminWithdrawals from "@/components/admin/AdminWithdrawals";
 import AdminManualPayments from "@/components/admin/AdminManualPayments";
 import AdminPaybillTools from "@/components/admin/AdminPaybillTools";
+import { buildAccountRef } from "@/lib/accountRef";
+import { playNotify } from "@/lib/notifySound";
 
 const getAdminToken = () => localStorage.getItem("dasnet_admin_token");
 
@@ -54,6 +56,27 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (!getAdminToken()) navigate("/admin");
   }, [navigate]);
+
+  // In-app notification + chime when a new transaction comes in
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-new-tx")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "transactions" },
+        (payload) => {
+          const tx = payload.new as Transaction;
+          playNotify();
+          toast({
+            title: `New order #${tx.order_number ?? ""}`.trim(),
+            description: `${tx.package_name} • KSH ${Number(tx.amount).toLocaleString()} • ${tx.phone_number}`,
+          });
+          queryClient.invalidateQueries({ queryKey: ["admin-transactions"] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [toast, queryClient]);
 
   const { data: transactions } = useQuery({
     queryKey: ["admin-transactions"],
@@ -150,7 +173,7 @@ const AdminDashboard = () => {
   const handleResendStk = async (tx: Transaction) => {
     try {
       const { data, error } = await supabase.functions.invoke("initiate-stk", {
-        body: { phone: tx.phone_number, amount: tx.amount, transaction_id: tx.id, account_ref: `DASNET-${tx.order_number}` },
+        body: { phone: tx.phone_number, amount: tx.amount, transaction_id: tx.id, account_ref: buildAccountRef({ category: tx.category, packageName: tx.package_name }) },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

@@ -5,6 +5,8 @@ import { CheckCircle2, XCircle, Loader2, ArrowLeft, Repeat, Wallet, Home } from 
 import ManualPaymentModal from "@/components/ManualPaymentModal";
 import type { Transaction } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { buildAccountRef } from "@/lib/accountRef";
+import { playSuccess, playFailure } from "@/lib/notifySound";
 
 const OrderStatus = () => {
   const { id } = useParams();
@@ -31,7 +33,21 @@ const OrderStatus = () => {
       .channel(`tx-${id}`)
       .on("postgres_changes",
         { event: "UPDATE", schema: "public", table: "transactions", filter: `id=eq.${id}` },
-        (payload) => { if (mounted) setTx(payload.new as Transaction); }
+        (payload) => {
+          if (!mounted) return;
+          const next = payload.new as Transaction;
+          const prev = payload.old as Transaction | undefined;
+          if (prev?.status !== next.status) {
+            if (next.status === "completed") {
+              playSuccess();
+              toast({ title: "Order completed", description: next.package_name });
+            } else if (next.status === "failed") {
+              playFailure();
+              toast({ title: "Order failed", description: next.failure_reason || "Payment not completed", variant: "destructive" });
+            }
+          }
+          setTx(next);
+        }
       )
       .subscribe();
 
@@ -53,7 +69,7 @@ const OrderStatus = () => {
           phone: tx.phone_number,
           amount: tx.amount,
           transaction_id: tx.id,
-          account_ref: `DASNET-${tx.order_number}`,
+          account_ref: buildAccountRef({ category: tx.category, packageName: tx.package_name }),
         },
       });
       if (error) throw error;

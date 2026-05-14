@@ -5,6 +5,8 @@ import type { Product, Transaction } from "@/lib/types";
 import { isValidKenyanPhone, formatPhoneTo254 } from "@/lib/formatPhone";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { buildAccountRef } from "@/lib/accountRef";
+import { playSuccess, playFailure } from "@/lib/notifySound";
 
 interface CheckoutModalProps {
   product: Product;
@@ -92,7 +94,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
           phone: payPhone,
           amount: product.price,
           transaction_id: data.id,
-          account_ref: `DASNET-${data.order_number}`,
+          account_ref: buildAccountRef({ category: product.category, packageName: product.name, dataAmount: product.data_amount }),
         },
       });
 
@@ -109,8 +111,10 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
       setTransaction(pollResult);
 
       if (pollResult.status === "completed") {
+        playSuccess();
         setStep("success");
       } else if (pollResult.status === "failed") {
+        playFailure();
         setStep("failed");
       } else {
         toast({
