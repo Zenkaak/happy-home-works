@@ -77,13 +77,11 @@ function getServiceLabel(tx: any): string {
 }
 
 async function sendSms(message: string, phone: string, txId?: string) {
-  const apiKey = Deno.env.get("AT_API_KEY");
-  const username = Deno.env.get("AT_USERNAME");
-  const senderId = Deno.env.get("AT_SENDER_ID");
+  const apiKey = Deno.env.get("OTS_API_KEY");
   const supabase = createAdminClient();
 
-  if (!apiKey || !username) {
-    console.error("[SMS] Africa's Talking credentials not set");
+  if (!apiKey) {
+    console.error("[SMS] OTS_API_KEY not set");
     await supabase.from("sms_logs").insert({
       phone_number: phone,
       message,
@@ -94,45 +92,29 @@ async function sendSms(message: string, phone: string, txId?: string) {
   }
 
   try {
-    const sendRequest = async (includeSenderId: boolean) => {
-      const params = new URLSearchParams({
-        username,
-        to: "+" + formatPhoneTo254(phone),
+    const res = await fetch("https://sms.ots.co.ke/api/v3/sms/send", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        recipient: formatPhoneTo254(phone),
+        sender_id: "PROCALL",
+        type: "plain",
         message,
-      });
-      if (includeSenderId && senderId) params.append("from", senderId);
+      }),
+    });
 
-      const url = username === "sandbox"
-        ? "https://api.sandbox.africastalking.com/version1/messaging"
-        : "https://api.africastalking.com/version1/messaging";
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/x-www-form-urlencoded",
-          apiKey,
-        },
-        body: params.toString(),
-      });
-
-      return await res.json();
-    };
-
-    let result = await sendRequest(true);
-    if (JSON.stringify(result).includes("InvalidSenderId")) {
-      console.warn("[SMS] sender id rejected, retrying without sender id");
-      result = await sendRequest(false);
-    }
-
-    const recipient = result?.SMSMessageData?.Recipients?.[0];
-    const success = recipient?.status === "Success";
-    console.log(`[SMS] To ${phone}: ${recipient?.status || "unknown"} — ${recipient?.statusCode || ""}`, result?.SMSMessageData?.Message);
+    const data = await res.json().catch(() => ({}));
+    const success = res.ok;
+    console.log(`[SMS/OTS] To ${phone}: ${res.status}`, data);
 
     await supabase.from("sms_logs").insert({
       phone_number: phone,
       message,
-      status: success ? "sent" : (recipient?.status || "failed"),
+      status: success ? "sent" : "failed",
       transaction_id: txId || null,
     });
   } catch (error) {
