@@ -62,6 +62,13 @@ const Header = () => {
               <VolumeX className="w-5 h-5 text-muted-foreground" />
             )}
           </button>
+          <button
+            onClick={() => navigate("/admin")}
+            className="p-2.5 rounded-lg hover:bg-secondary transition-colors"
+            aria-label="Admin"
+          >
+            <User className="w-5 h-5 text-muted-foreground" />
+          </button>
         </div>
       </div>
     </header>
