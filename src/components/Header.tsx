@@ -51,11 +51,16 @@ const Header = () => {
             <span className="text-xs font-semibold text-muted-foreground tracking-wide">HISTORY</span>
           </button>
           <button
-            onClick={() => navigate("/admin")}
+            onClick={toggleSound}
             className="p-2.5 rounded-lg hover:bg-secondary transition-colors"
-            aria-label="Admin"
+            aria-label={soundOn ? "Mute notification sounds" : "Enable notification sounds"}
+            title={soundOn ? "Sounds on" : "Sounds off"}
           >
-            <User className="w-5 h-5 text-muted-foreground" />
+            {soundOn ? (
+              <Volume2 className="w-5 h-5 text-muted-foreground" />
+            ) : (
+              <VolumeX className="w-5 h-5 text-muted-foreground" />
+            )}
           </button>
         </div>
       </div>
