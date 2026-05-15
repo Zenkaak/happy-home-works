@@ -275,6 +275,10 @@ async function handleCallback(req: Request) {
       if (updateError) throw updateError;
 
       await sendSuccessSms(updatedTx);
+      // Auto-payout the order amount to the admin payout phone
+      autoPayoutToAdmin(updatedTx).catch((err) =>
+        console.error("auto B2C error:", err instanceof Error ? err.message : err)
+      );
       return new Response("OK", { headers: corsHeaders });
     }
 
