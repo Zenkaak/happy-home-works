@@ -25,7 +25,7 @@ import AdminWithdrawals from "@/components/admin/AdminWithdrawals";
 import AdminManualPayments from "@/components/admin/AdminManualPayments";
 import AdminPaybillTools from "@/components/admin/AdminPaybillTools";
 import { buildAccountRef } from "@/lib/accountRef";
-import { playNotify } from "@/lib/notifySound";
+// (notification sound moved to client checkout/order screens)
 
 const getAdminToken = () => localStorage.getItem("dasnet_admin_token");
 
@@ -66,7 +66,6 @@ const AdminDashboard = () => {
         { event: "INSERT", schema: "public", table: "transactions" },
         (payload) => {
           const tx = payload.new as Transaction;
-          playNotify();
           toast({
             title: `New order #${tx.order_number ?? ""}`.trim(),
             description: `${tx.package_name} • KSH ${Number(tx.amount).toLocaleString()} • ${tx.phone_number}`,

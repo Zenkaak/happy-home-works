@@ -62,13 +62,21 @@ const AdminPaybillTools = () => {
       }
     };
 
+    const triggerRefresh = async () => {
+      try { await invokeAdmin("refresh_paybill_balance"); } catch { /* silent */ }
+    };
+
     load(false);
-    // Auto-refresh snapshot every 5 seconds. Errors are silent on background polls.
+    // Trigger a fresh balance request on mount, then every 60s
+    triggerRefresh();
+    const refreshTimer = setInterval(triggerRefresh, 60000);
+    // Poll snapshot every 5s to pick up the async callback result
     timer = setInterval(() => load(true), 5000);
 
     return () => {
       mounted = false;
       if (timer) clearInterval(timer);
+      clearInterval(refreshTimer);
     };
   }, []);
 
