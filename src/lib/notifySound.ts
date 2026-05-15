@@ -41,6 +41,7 @@ function getCtx(): AudioContext | null {
 }
 
 function beep(freq: number, start: number, dur = 0.18) {
+  if (!isNotifySoundEnabled()) return;
   const c = getCtx();
   if (!c) return;
   const t = c.currentTime + start;
