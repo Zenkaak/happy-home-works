@@ -1,8 +1,24 @@
-import { Clock, User, ShieldCheck } from "lucide-react";
+import { Clock, User, ShieldCheck, Volume2, VolumeX } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { isNotifySoundEnabled, setNotifySoundEnabled } from "@/lib/notifySound";
 
 const Header = () => {
   const navigate = useNavigate();
+  const [soundOn, setSoundOn] = useState(true);
+
+  useEffect(() => {
+    setSoundOn(isNotifySoundEnabled());
+    const onChange = () => setSoundOn(isNotifySoundEnabled());
+    window.addEventListener("dasnet:notify-sound-changed", onChange);
+    return () => window.removeEventListener("dasnet:notify-sound-changed", onChange);
+  }, []);
+
+  const toggleSound = () => {
+    const next = !soundOn;
+    setNotifySoundEnabled(next);
+    setSoundOn(next);
+  };
 
   return (
     <header className="sticky top-0 z-50 glass px-4 py-3">
