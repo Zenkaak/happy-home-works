@@ -2,6 +2,26 @@
 // No asset file needed. Requires a prior user gesture in the page
 // (browsers gate AudioContext); admin dashboard always has one.
 
+const SOUND_PREF_KEY = "dasnet:notify-sound";
+
+export function isNotifySoundEnabled(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const v = window.localStorage.getItem(SOUND_PREF_KEY);
+    return v === null ? true : v === "1";
+  } catch {
+    return true;
+  }
+}
+
+export function setNotifySoundEnabled(enabled: boolean) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(SOUND_PREF_KEY, enabled ? "1" : "0");
+    window.dispatchEvent(new Event("dasnet:notify-sound-changed"));
+  } catch {}
+}
+
 let ctx: AudioContext | null = null;
 
 function getCtx(): AudioContext | null {
