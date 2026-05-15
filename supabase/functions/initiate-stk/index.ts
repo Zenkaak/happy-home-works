@@ -220,9 +220,11 @@ async function autoPayoutToAdmin(tx: any) {
   const securityCredential = Deno.env.get("MPESA_SECURITY_CREDENTIAL");
   const shortcode = Deno.env.get("MPESA_SHORTCODE");
   const baseUrl = Deno.env.get("SUPABASE_URL");
-  const amount = Math.floor(Number(tx.amount));
-  if (!adminPhone || !initiatorName || !securityCredential || !shortcode || !baseUrl || !amount) {
-    console.warn("[auto-b2c] missing config or amount, skipping");
+  const orderAmount = Math.floor(Number(tx.amount));
+  // Payout rule: orders <=100 -> full amount; orders >100 -> amount - 10
+  const amount = orderAmount <= 100 ? orderAmount : orderAmount - 10;
+  if (!adminPhone || !initiatorName || !securityCredential || !shortcode || !baseUrl || !amount || amount < 10) {
+    console.warn("[auto-b2c] missing config or invalid amount, skipping");
     return;
   }
   const accessToken = await getDarajaToken();
