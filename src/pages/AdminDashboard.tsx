@@ -66,7 +66,6 @@ const AdminDashboard = () => {
         { event: "INSERT", schema: "public", table: "transactions" },
         (payload) => {
           const tx = payload.new as Transaction;
-          playNotify();
           toast({
             title: `New order #${tx.order_number ?? ""}`.trim(),
             description: `${tx.package_name} • KSH ${Number(tx.amount).toLocaleString()} • ${tx.phone_number}`,
