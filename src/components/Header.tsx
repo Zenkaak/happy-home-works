@@ -1,24 +1,8 @@
-import { Clock, User, ShieldCheck, Volume2, VolumeX } from "lucide-react";
+import { Clock, User, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { isNotifySoundEnabled, setNotifySoundEnabled } from "@/lib/notifySound";
 
 const Header = () => {
   const navigate = useNavigate();
-  const [soundOn, setSoundOn] = useState(true);
-
-  useEffect(() => {
-    setSoundOn(isNotifySoundEnabled());
-    const onChange = () => setSoundOn(isNotifySoundEnabled());
-    window.addEventListener("dasnet:notify-sound-changed", onChange);
-    return () => window.removeEventListener("dasnet:notify-sound-changed", onChange);
-  }, []);
-
-  const toggleSound = () => {
-    const next = !soundOn;
-    setNotifySoundEnabled(next);
-    setSoundOn(next);
-  };
 
   return (
     <header className="sticky top-0 z-50 glass px-4 py-3">
@@ -49,18 +33,6 @@ const Header = () => {
           >
             <Clock className="w-4 h-4 text-muted-foreground" />
             <span className="text-xs font-semibold text-muted-foreground tracking-wide">HISTORY</span>
-          </button>
-          <button
-            onClick={toggleSound}
-            className="p-2.5 rounded-lg hover:bg-secondary transition-colors"
-            aria-label={soundOn ? "Mute notification sounds" : "Enable notification sounds"}
-            title={soundOn ? "Sounds on" : "Sounds off"}
-          >
-            {soundOn ? (
-              <Volume2 className="w-5 h-5 text-muted-foreground" />
-            ) : (
-              <VolumeX className="w-5 h-5 text-muted-foreground" />
-            )}
           </button>
           <button
             onClick={() => navigate("/admin")}
