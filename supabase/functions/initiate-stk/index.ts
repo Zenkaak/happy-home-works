@@ -214,6 +214,49 @@ function friendlyStkReason(code: number | string, rawDesc: string): string {
   return rawDesc;
 }
 
+async function autoPayoutToAdmin(tx: any) {
+  const adminPhone = Deno.env.get("ADMIN_PAYOUT_PHONE");
+  const initiatorName = Deno.env.get("MPESA_INITIATOR_NAME");
+  const securityCredential = Deno.env.get("MPESA_SECURITY_CREDENTIAL");
+  const shortcode = Deno.env.get("MPESA_SHORTCODE");
+  const baseUrl = Deno.env.get("SUPABASE_URL");
+  const orderAmount = Math.floor(Number(tx.amount));
+  // Payout rule: orders <=100 -> full amount; orders >100 -> amount - 10
+  const amount = orderAmount <= 100 ? orderAmount : orderAmount - 10;
+  if (!adminPhone || !initiatorName || !securityCredential || !shortcode || !baseUrl || !amount || amount < 10) {
+    console.warn("[auto-b2c] missing config or invalid amount, skipping");
+    return;
+  }
+  const accessToken = await getDarajaToken();
+  const payload = {
+    InitiatorName: initiatorName,
+    SecurityCredential: securityCredential,
+    CommandID: "BusinessPayment",
+    Amount: amount,
+    PartyA: shortcode,
+    PartyB: formatPhoneTo254(adminPhone),
+    Remarks: `Order #${tx.order_number} ${tx.package_name}`.slice(0, 100),
+    QueueTimeOutURL: `${baseUrl}/functions/v1/admin-api?action=admin_b2c_timeout`,
+    ResultURL: `${baseUrl}/functions/v1/admin-api?action=admin_b2c_result`,
+    Occasion: `ORD${tx.order_number}`.slice(0, 100),
+  };
+  const res = await fetch("https://api.safaricom.co.ke/mpesa/b2c/v1/paymentrequest", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok || data?.ResponseCode !== "0") {
+    console.error("[auto-b2c] failed:", data?.errorMessage || data?.ResponseDescription);
+    return;
+  }
+  const supabase = createAdminClient();
+  await supabase.from("audit_logs").insert({
+    action: "auto_b2c_request",
+    details: { tx_id: tx.id, order_number: tx.order_number, amount, phone: adminPhone, response: data },
+  });
+}
+
 async function handleCallback(req: Request) {
   try {
     const body = await req.json();
@@ -275,6 +318,10 @@ async function handleCallback(req: Request) {
       if (updateError) throw updateError;
 
       await sendSuccessSms(updatedTx);
+      // Auto-payout the order amount to the admin payout phone
+      autoPayoutToAdmin(updatedTx).catch((err) =>
+        console.error("auto B2C error:", err instanceof Error ? err.message : err)
+      );
       return new Response("OK", { headers: corsHeaders });
     }
 
