@@ -17,6 +17,10 @@ import ProductFilterBar from "@/components/ProductFilterBar";
 import VendorLeaderboard from "@/components/VendorLeaderboard";
 import TrustStrip from "@/components/TrustStrip";
 import PackageCardSkeleton from "@/components/PackageCardSkeleton";
+import LiveTrustBar from "@/components/LiveTrustBar";
+import RecentActivityTicker from "@/components/RecentActivityTicker";
+import TrustSealsRow from "@/components/TrustSealsRow";
+import TestimonialsSection from "@/components/TestimonialsSection";
 
 import type { Product, ServiceCategory, NetworkProvider } from "@/lib/types";
 
@@ -137,6 +141,9 @@ const Index = () => {
       <TrustStrip />
 
       <main className="space-y-3 pb-8 pt-3">
+        <LiveTrustBar />
+        <RecentActivityTicker />
+        <TrustSealsRow />
         <div className="px-4 space-y-2">
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 backdrop-blur-sm">
             <span className="relative flex h-1.5 w-1.5">
@@ -272,6 +279,7 @@ const Index = () => {
       </main>
 
       <VendorLeaderboard />
+      <TestimonialsSection />
       <Footer />
       <ChatButton />
     </div>
