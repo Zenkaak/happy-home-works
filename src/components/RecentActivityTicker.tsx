@@ -21,12 +21,12 @@ const maskName = (phone: string) => {
   return FALLBACK_NAMES[seed % FALLBACK_NAMES.length];
 };
 
-const timeAgo = (iso: string) => {
-  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return `${Math.max(1, Math.floor(diff))}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+const freshAgo = (i: number) => {
+  // Always recent: cycle through "just now", seconds, and a few minutes
+  const cycle = i % 8;
+  if (cycle === 0) return "just now";
+  if (cycle < 4) return `${cycle * 7 + 3}s ago`;
+  return `${cycle - 3}m ago`;
 };
 
 const buildFallback = (): Item[] => {
