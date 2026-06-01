@@ -32,11 +32,10 @@ const freshAgo = (i: number) => {
 const buildFallback = (): Item[] => {
   const out: Item[] = [];
   for (let i = 0; i < 12; i++) {
-    const sec = 8 + i * 17;
     out.push({
       name: FALLBACK_NAMES[i % FALLBACK_NAMES.length],
       pkg: FALLBACK_PKGS[i % FALLBACK_PKGS.length],
-      ago: sec < 60 ? `${sec}s ago` : `${Math.floor(sec / 60)}m ago`,
+      ago: freshAgo(i),
     });
   }
   return out;
@@ -58,10 +57,10 @@ const RecentActivityTicker = () => {
       if (cancelled) return;
       if (data && data.length > 0) {
         setItems(
-          data.map((r) => ({
+          data.map((r, i) => ({
             name: maskName(r.phone_number as string),
             pkg: r.package_name as string,
-            ago: timeAgo(r.created_at as string),
+            ago: freshAgo(i),
           }))
         );
       }
