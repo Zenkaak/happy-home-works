@@ -21,22 +21,21 @@ const maskName = (phone: string) => {
   return FALLBACK_NAMES[seed % FALLBACK_NAMES.length];
 };
 
-const timeAgo = (iso: string) => {
-  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return `${Math.max(1, Math.floor(diff))}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+const freshAgo = (i: number) => {
+  // Always recent: cycle through "just now", seconds, and a few minutes
+  const cycle = i % 8;
+  if (cycle === 0) return "just now";
+  if (cycle < 4) return `${cycle * 7 + 3}s ago`;
+  return `${cycle - 3}m ago`;
 };
 
 const buildFallback = (): Item[] => {
   const out: Item[] = [];
   for (let i = 0; i < 12; i++) {
-    const sec = 8 + i * 17;
     out.push({
       name: FALLBACK_NAMES[i % FALLBACK_NAMES.length],
       pkg: FALLBACK_PKGS[i % FALLBACK_PKGS.length],
-      ago: sec < 60 ? `${sec}s ago` : `${Math.floor(sec / 60)}m ago`,
+      ago: freshAgo(i),
     });
   }
   return out;
@@ -58,10 +57,10 @@ const RecentActivityTicker = () => {
       if (cancelled) return;
       if (data && data.length > 0) {
         setItems(
-          data.map((r) => ({
+          data.map((r, i) => ({
             name: maskName(r.phone_number as string),
             pkg: r.package_name as string,
-            ago: timeAgo(r.created_at as string),
+            ago: freshAgo(i),
           }))
         );
       }
@@ -97,7 +96,7 @@ const RecentActivityTicker = () => {
             <span className="font-bold">{current.pkg}</span>
           </p>
         </div>
-        <span className="text-[10px] text-muted-foreground font-medium shrink-0">{current.ago}</span>
+        <span className="text-[10px] text-muted-foreground font-medium shrink-0">{freshAgo(idx)}</span>
       </div>
     </div>
   );

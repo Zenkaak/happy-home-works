@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Search, CheckCircle2, XCircle, Loader2, Receipt, Eye, Trash2, Repeat, Wallet, ShoppingCart, TrendingUp, Activity, X } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle2, XCircle, Loader2, Receipt, Eye, Trash2, Repeat, Wallet, ShoppingCart, Activity, X } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -92,8 +92,6 @@ const History = () => {
 
   const completed = transactions?.filter((t) => t.status === "completed").length || 0;
   const failed = transactions?.filter((t) => t.status === "failed").length || 0;
-  const totalSpent =
-    transactions?.filter((t) => t.status === "completed").reduce((s, t) => s + t.amount, 0) || 0;
 
   const StatusPill = ({ status }: { status: string }) => {
     if (status === "completed") {
@@ -151,7 +149,7 @@ const History = () => {
 
       <div className="p-4 space-y-4 max-w-2xl mx-auto">
         {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <div className="gradient-card rounded-xl p-3 hover:border-primary/30 transition-colors">
             <div className="flex items-center justify-between mb-1">
               <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Completed</p>
@@ -166,17 +164,6 @@ const History = () => {
               <XCircle className="w-3 h-3 text-destructive" />
             </div>
             <p className="font-display text-lg font-extrabold text-destructive leading-none">{failed}</p>
-          </div>
-
-          <div className="gradient-card rounded-xl p-3 hover:border-primary/30 transition-colors">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Spent</p>
-              <TrendingUp className="w-3 h-3 text-primary" />
-            </div>
-            <p className="font-display text-sm font-extrabold leading-none">
-              <span className="text-primary text-[9px] mr-0.5">KSH</span>
-              {totalSpent.toLocaleString()}
-            </p>
           </div>
         </div>
 
