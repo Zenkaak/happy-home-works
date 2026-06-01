@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Search, CheckCircle2, XCircle, Loader2, Receipt, Eye, Trash2, Repeat, Wallet, ShoppingCart, TrendingUp, Activity, X } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle2, XCircle, Loader2, Receipt, Eye, Trash2, Repeat, Wallet, ShoppingCart, Activity, X } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
