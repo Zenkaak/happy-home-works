@@ -96,7 +96,7 @@ const RecentActivityTicker = () => {
             <span className="font-bold">{current.pkg}</span>
           </p>
         </div>
-        <span className="text-[10px] text-muted-foreground font-medium shrink-0">{current.ago}</span>
+        <span className="text-[10px] text-muted-foreground font-medium shrink-0">{freshAgo(idx)}</span>
       </div>
     </div>
   );
