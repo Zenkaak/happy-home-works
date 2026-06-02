@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Edit3, Trash2, Save, Plus, X } from "lucide-react";
+import { Edit3, Trash2, Save, Plus, X, Share2, Check } from "lucide-react";
 import type { Product } from "@/lib/types";
+import { APP_PUBLIC_URL } from "@/lib/siteUrl";
 
 interface AdminProductManagerProps {
   products: Product[] | undefined;
