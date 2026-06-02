@@ -27,7 +27,27 @@ const emptyProduct = {
 const AdminProductManager = ({ products, onUpdateProduct, onDeleteProduct, onCreateProduct }: AdminProductManagerProps) => {
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [newProduct, setNewProduct] = useState(emptyProduct);
+
+  const handleShare = async (p: Product) => {
+    const base = typeof window !== "undefined" ? window.location.origin : APP_PUBLIC_URL;
+    const url = `${base}/?product=${p.id}`;
+    const shareText = `${p.name} — KSH ${p.price}`;
+    try {
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        await (navigator as any).share({ title: p.name, text: shareText, url });
+        return;
+      }
+    } catch {}
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(p.id);
+      setTimeout(() => setCopiedId((c) => (c === p.id ? null : c)), 1500);
+    } catch {
+      window.prompt("Copy product link", url);
+    }
+  };
 
   const handleCreate = () => {
     if (!newProduct.name || newProduct.price <= 0) return;
