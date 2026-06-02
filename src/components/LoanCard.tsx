@@ -1,5 +1,6 @@
 import { TrendingUp } from "lucide-react";
 import type { Product } from "@/lib/types";
+import ShareProductButton from "@/components/ShareProductButton";
 
 interface LoanCardProps {
   product: Product;
