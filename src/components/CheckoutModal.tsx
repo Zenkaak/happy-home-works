@@ -22,12 +22,15 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   const [phoneNumber, setPhoneNumber] = useState("");
   const [serviceNumber, setServiceNumber] = useState("");
   const [meterNumber, setMeterNumber] = useState("");
+  const [buyForOther, setBuyForOther] = useState(false);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [showManual, setShowManual] = useState(false);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
 
+  const isSafaricomData = product.category === "data" && product.network === "safaricom";
   const needsPaymentNumber =
-    product.category === "data" && product.network !== "safaricom";
+    (product.category === "data" && product.network !== "safaricom") ||
+    (isSafaricomData && buyForOther);
   const needsMeter = product.category === "kplc";
   const isLoan = product.category === "loans";
   const modalMaxHeight = viewportHeight ? `${Math.max(viewportHeight - 12, 320)}px` : "calc(100dvh - 0.75rem)";
