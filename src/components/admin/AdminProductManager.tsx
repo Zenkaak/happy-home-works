@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Edit3, Trash2, Save, Plus, X } from "lucide-react";
+import { Edit3, Trash2, Save, Plus, X, Share2, Check } from "lucide-react";
 import type { Product } from "@/lib/types";
+import { APP_PUBLIC_URL } from "@/lib/siteUrl";
 
 interface AdminProductManagerProps {
   products: Product[] | undefined;
@@ -26,7 +27,27 @@ const emptyProduct = {
 const AdminProductManager = ({ products, onUpdateProduct, onDeleteProduct, onCreateProduct }: AdminProductManagerProps) => {
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [newProduct, setNewProduct] = useState(emptyProduct);
+
+  const handleShare = async (p: Product) => {
+    const base = typeof window !== "undefined" ? window.location.origin : APP_PUBLIC_URL;
+    const url = `${base}/?product=${p.id}`;
+    const shareText = `${p.name} — KSH ${p.price}`;
+    try {
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        await (navigator as any).share({ title: p.name, text: shareText, url });
+        return;
+      }
+    } catch {}
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(p.id);
+      setTimeout(() => setCopiedId((c) => (c === p.id ? null : c)), 1500);
+    } catch {
+      window.prompt("Copy product link", url);
+    }
+  };
 
   const handleCreate = () => {
     if (!newProduct.name || newProduct.price <= 0) return;
@@ -175,6 +196,17 @@ const AdminProductManager = ({ products, onUpdateProduct, onDeleteProduct, onCre
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm text-primary">KSH {p.price}</span>
+                <button
+                  onClick={() => handleShare(p)}
+                  className="p-2 rounded-lg hover:bg-secondary"
+                  title="Copy share link"
+                >
+                  {copiedId === p.id ? (
+                    <Check className="w-4 h-4 text-primary" />
+                  ) : (
+                    <Share2 className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </button>
                 <button onClick={() => setEditProduct(p)} className="p-2 rounded-lg hover:bg-secondary">
                   <Edit3 className="w-4 h-4 text-muted-foreground" />
                 </button>

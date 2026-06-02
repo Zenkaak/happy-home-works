@@ -22,12 +22,15 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   const [phoneNumber, setPhoneNumber] = useState("");
   const [serviceNumber, setServiceNumber] = useState("");
   const [meterNumber, setMeterNumber] = useState("");
+  const [buyForOther, setBuyForOther] = useState(false);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [showManual, setShowManual] = useState(false);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
 
+  const isSafaricomData = product.category === "data" && product.network === "safaricom";
   const needsPaymentNumber =
-    product.category === "data" && product.network !== "safaricom";
+    (product.category === "data" && product.network !== "safaricom") ||
+    (isSafaricomData && buyForOther);
   const needsMeter = product.category === "kplc";
   const isLoan = product.category === "loans";
   const modalMaxHeight = viewportHeight ? `${Math.max(viewportHeight - 12, 320)}px` : "calc(100dvh - 0.75rem)";
@@ -431,6 +434,20 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
           {step === "form" && (
             <>
               <div className="space-y-3">
+                {isSafaricomData && (
+                  <label className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-secondary/40 border border-border/60 cursor-pointer">
+                    <span className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                      <Smartphone className="w-3.5 h-3.5 text-primary" />
+                      Buy for another number
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={buyForOther}
+                      onChange={(e) => setBuyForOther(e.target.checked)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                  </label>
+                )}
                 {needsPaymentNumber && (
                   <div>
                     <label className="block text-[11px] text-foreground/80 mb-1.5 font-semibold flex items-center gap-1.5">
@@ -455,7 +472,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
                     {product.category === "kplc"
                       ? "M-Pesa Payment Number"
                       : needsPaymentNumber
-                      ? `${product.network === "airtel" ? "Airtel" : "Telkom"} Receiving Number`
+                      ? `${product.network === "airtel" ? "Airtel" : product.network === "telkom" ? "Telkom" : "Safaricom"} Receiving Number`
                       : "Phone Number"}
                   </label>
                   <input
