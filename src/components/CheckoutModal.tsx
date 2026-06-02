@@ -458,7 +458,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
                     {product.category === "kplc"
                       ? "M-Pesa Payment Number"
                       : needsPaymentNumber
-                      ? `${product.network === "airtel" ? "Airtel" : "Telkom"} Receiving Number`
+                      ? `${product.network === "airtel" ? "Airtel" : product.network === "telkom" ? "Telkom" : "Safaricom"} Receiving Number`
                       : "Phone Number"}
                   </label>
                   <input
