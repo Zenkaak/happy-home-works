@@ -11,7 +11,7 @@ interface Props {
 const ShareProductButton = ({ product, className = "" }: Props) => {
   const [copied, setCopied] = useState(false);
 
-  const handle = async (e: React.MouseEvent) => {
+  const handle = async (e: React.MouseEvent | React.KeyboardEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const result = await shareProduct(product);
@@ -22,19 +22,21 @@ const ShareProductButton = ({ product, className = "" }: Props) => {
   };
 
   return (
-    <button
-      type="button"
+    <span
+      role="button"
+      tabIndex={0}
       onClick={handle}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handle(e); }}
       aria-label="Share product link"
       title="Share link"
-      className={`absolute top-1 right-1 z-10 p-1.5 rounded-md bg-background/70 backdrop-blur-sm border border-border/50 hover:bg-background hover:border-primary/40 transition-colors ${className}`}
+      className={`absolute top-1 right-1 z-10 p-1.5 rounded-md bg-background/70 backdrop-blur-sm border border-border/50 hover:bg-background hover:border-primary/40 transition-colors cursor-pointer ${className}`}
     >
       {copied ? (
         <Check className="w-3 h-3 text-primary" />
       ) : (
         <Share2 className="w-3 h-3 text-muted-foreground" />
       )}
-    </button>
+    </span>
   );
 };
 
