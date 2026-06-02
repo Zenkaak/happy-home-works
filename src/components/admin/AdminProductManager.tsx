@@ -196,6 +196,17 @@ const AdminProductManager = ({ products, onUpdateProduct, onDeleteProduct, onCre
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm text-primary">KSH {p.price}</span>
+                <button
+                  onClick={() => handleShare(p)}
+                  className="p-2 rounded-lg hover:bg-secondary"
+                  title="Copy share link"
+                >
+                  {copiedId === p.id ? (
+                    <Check className="w-4 h-4 text-primary" />
+                  ) : (
+                    <Share2 className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </button>
                 <button onClick={() => setEditProduct(p)} className="p-2 rounded-lg hover:bg-secondary">
                   <Edit3 className="w-4 h-4 text-muted-foreground" />
                 </button>
