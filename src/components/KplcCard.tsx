@@ -1,5 +1,6 @@
 import { Zap } from "lucide-react";
 import type { Product } from "@/lib/types";
+import ShareProductButton from "@/components/ShareProductButton";
 
 interface KplcCardProps {
   product: Product;
