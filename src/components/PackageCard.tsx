@@ -1,5 +1,6 @@
 import { Wifi, Flame, Phone } from "lucide-react";
 import type { Product } from "@/lib/types";
+import ShareProductButton from "@/components/ShareProductButton";
 
 interface PackageCardProps {
   product: Product;
