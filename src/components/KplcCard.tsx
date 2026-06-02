@@ -1,5 +1,6 @@
 import { Zap } from "lucide-react";
 import type { Product } from "@/lib/types";
+import ShareProductButton from "@/components/ShareProductButton";
 
 interface KplcCardProps {
   product: Product;
@@ -9,8 +10,9 @@ interface KplcCardProps {
 const KplcCard = ({ product, onSelect }: KplcCardProps) => (
   <button
     onClick={() => onSelect(product)}
-    className="gradient-card rounded-xl p-3 text-left transition-all hover:border-warning/40 hover:shadow-[0_8px_24px_-12px_hsl(var(--warning)/0.4)] hover:-translate-y-0.5 group animate-slide-up"
+    className="relative gradient-card rounded-xl p-3 text-left transition-all hover:border-warning/40 hover:shadow-[0_8px_24px_-12px_hsl(var(--warning)/0.4)] hover:-translate-y-0.5 group animate-slide-up"
   >
+    <ShareProductButton product={product} />
     <div className="flex items-center gap-1.5 mb-2">
       <div className="w-6 h-6 rounded-lg bg-warning/10 border border-warning/20 flex items-center justify-center shrink-0 group-hover:bg-warning/20 transition-colors">
         <Zap className="w-3 h-3 text-warning" />
