@@ -9,11 +9,8 @@ const FALLBACK_NAMES = [
   "Daniel K.", "Grace W.", "John M.", "Lucy N.", "Kevin O.", "Joyce M.",
   "Ann W.", "Samuel K.", "Mercy A.", "Paul O.", "Caroline W.", "David M.",
 ];
-const FALLBACK_PKGS = [
-  "1.5GB Safaricom", "5GB Safaricom", "10GB Safaricom", "2GB Airtel",
-  "KPLC Tokens KES 200", "Fuliza upgrade", "1GB + 30min", "8GB Weekly",
-  "20GB Monthly", "350MB Daily", "KPLC Tokens KES 500",
-];
+// Populated from real DB products on mount; kept as a last-resort fallback only.
+let FALLBACK_PKGS: string[] = ["KPLC Tokens KES 200", "Fuliza Upgrade"];
 
 const maskName = (phone: string) => {
   // Use last 3 digits as deterministic name seed
@@ -29,41 +26,53 @@ const freshAgo = (i: number) => {
   return `${cycle - 3}m ago`;
 };
 
-const buildFallback = (): Item[] => {
-  const out: Item[] = [];
-  for (let i = 0; i < 12; i++) {
-    out.push({
-      name: FALLBACK_NAMES[i % FALLBACK_NAMES.length],
-      pkg: FALLBACK_PKGS[i % FALLBACK_PKGS.length],
-      ago: freshAgo(i),
-    });
-  }
-  return out;
-};
 
 const RecentActivityTicker = () => {
-  const [items, setItems] = useState<Item[]>(buildFallback());
+  const [items, setItems] = useState<Item[]>([]);
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const { data } = await supabase
+      // Load real product names so the ticker never invents packages we don't sell
+      const { data: products } = await supabase
+        .from("products")
+        .select("name")
+        .eq("is_visible", true);
+      const pkgPool =
+        products && products.length > 0
+          ? products.map((p) => p.name as string)
+          : FALLBACK_PKGS;
+      if (products && products.length > 0) FALLBACK_PKGS = pkgPool;
+
+      const { data: txns } = await supabase
         .from("transactions")
         .select("package_name, phone_number, created_at")
         .eq("status", "completed")
         .order("created_at", { ascending: false })
         .limit(20);
       if (cancelled) return;
-      if (data && data.length > 0) {
-        setItems(
-          data.map((r, i) => ({
-            name: maskName(r.phone_number as string),
-            pkg: r.package_name as string,
-            ago: freshAgo(i),
-          }))
-        );
+
+      const valid = new Set(pkgPool);
+      const fromTxns = (txns ?? [])
+        .filter((r) => r.package_name && valid.has(r.package_name as string))
+        .map((r, i) => ({
+          name: maskName(r.phone_number as string),
+          pkg: r.package_name as string,
+          ago: freshAgo(i),
+        }));
+
+      const filled: Item[] = [...fromTxns];
+      let i = filled.length;
+      while (filled.length < 12) {
+        filled.push({
+          name: FALLBACK_NAMES[i % FALLBACK_NAMES.length],
+          pkg: pkgPool[i % pkgPool.length],
+          ago: freshAgo(i),
+        });
+        i++;
       }
+      setItems(filled);
     };
     load();
     const refresh = setInterval(load, 30000);
@@ -72,6 +81,7 @@ const RecentActivityTicker = () => {
       clearInterval(refresh);
     };
   }, []);
+
 
   useEffect(() => {
     const id = setInterval(() => setIdx((i) => (i + 1) % Math.max(1, items.length)), 3500);
