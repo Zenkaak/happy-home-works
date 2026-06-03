@@ -143,39 +143,7 @@ const Index = () => {
       <main className="space-y-3 pb-8 pt-3">
         <LiveTrustBar />
         <RecentActivityTicker />
-        <TrustSealsRow />
-        <div className="px-4 space-y-2">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 backdrop-blur-sm">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
-            </span>
-            <p className="text-[11px] text-primary font-semibold tracking-wide">
-              Cheapest data bundles in Kenya — instant delivery, 24/7
-            </p>
-          </div>
 
-          <button
-            onClick={() => navigate("/vendor")}
-            className="group w-full relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-r from-primary/15 via-accent/5 to-primary/15 p-3 hover:border-primary/60 hover:shadow-[0_8px_24px_-12px_hsl(var(--primary)/0.4)] transition-all"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-            <div className="relative flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center shadow-sm shadow-primary/20">
-                  <span className="text-base">💼</span>
-                </div>
-                <div className="text-left">
-                  <p className="text-xs font-bold text-foreground leading-tight">Become a DASNET Vendor</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Earn 10% commission on every sale</p>
-                </div>
-              </div>
-              <span className="text-[10px] font-bold text-primary uppercase tracking-[0.12em] px-2.5 py-1.5 rounded-md bg-primary/10 border border-primary/20 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                Apply →
-              </span>
-            </div>
-          </button>
-        </div>
 
         <ServiceSelector selected={category} onChange={handleCategoryChange} />
 
