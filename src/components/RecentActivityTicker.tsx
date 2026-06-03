@@ -26,17 +26,6 @@ const freshAgo = (i: number) => {
   return `${cycle - 3}m ago`;
 };
 
-const buildFallback = (): Item[] => {
-  const out: Item[] = [];
-  for (let i = 0; i < 12; i++) {
-    out.push({
-      name: FALLBACK_NAMES[i % FALLBACK_NAMES.length],
-      pkg: FALLBACK_PKGS[i % FALLBACK_PKGS.length],
-      ago: freshAgo(i),
-    });
-  }
-  return out;
-};
 
 const RecentActivityTicker = () => {
   const [items, setItems] = useState<Item[]>([]);
