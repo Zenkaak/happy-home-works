@@ -27,7 +27,7 @@ import type { Product, ServiceCategory, NetworkProvider } from "@/lib/types";
 const Index = () => {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  
   const referralCode = searchParams.get("ref") || undefined;
   const { openCheckout } = useCheckout();
   
