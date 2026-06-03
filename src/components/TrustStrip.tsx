@@ -1,11 +1,11 @@
-import { Zap, ShieldCheck, Headphones, BadgeCheck } from "lucide-react";
+import { Zap, ShieldCheck, Headphones } from "lucide-react";
 
 const items = [
   { icon: Zap, label: "Avg delivery", value: "12s" },
   { icon: ShieldCheck, label: "Secured by", value: "M-Pesa" },
   { icon: Headphones, label: "Support", value: "24/7" },
-  { icon: BadgeCheck, label: "Verified", value: "Vendor" },
 ];
+
 
 const TrustStrip = () => (
   <div className="border-b border-border/50 bg-secondary/30 backdrop-blur-sm overflow-hidden">
