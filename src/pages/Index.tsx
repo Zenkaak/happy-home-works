@@ -29,15 +29,21 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   
   const referralCode = searchParams.get("ref") || undefined;
+  const tabParam = searchParams.get("tab");
+  const initialCategory: ServiceCategory =
+    tabParam === "kplc" || tabParam === "loans" || tabParam === "data"
+      ? (tabParam as ServiceCategory)
+      : "data";
   const { openCheckout } = useCheckout();
   
   // State management
-  const [category, setCategory] = useState<ServiceCategory>("data");
+  const [category, setCategory] = useState<ServiceCategory>(initialCategory);
   const [network, setNetwork] = useState<NetworkProvider>("safaricom");
   const [searchQuery, setSearchQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number] | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 30;
+
 
   // Prefetch all categories on mount for instant switching
   useEffect(() => {
