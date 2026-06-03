@@ -39,28 +39,51 @@ const buildFallback = (): Item[] => {
 };
 
 const RecentActivityTicker = () => {
-  const [items, setItems] = useState<Item[]>(buildFallback());
+  const [items, setItems] = useState<Item[]>([]);
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const { data } = await supabase
+      // Load real product names so the ticker never invents packages we don't sell
+      const { data: products } = await supabase
+        .from("products")
+        .select("name")
+        .eq("is_visible", true);
+      const pkgPool =
+        products && products.length > 0
+          ? products.map((p) => p.name as string)
+          : FALLBACK_PKGS;
+      if (products && products.length > 0) FALLBACK_PKGS = pkgPool;
+
+      const { data: txns } = await supabase
         .from("transactions")
         .select("package_name, phone_number, created_at")
         .eq("status", "completed")
         .order("created_at", { ascending: false })
         .limit(20);
       if (cancelled) return;
-      if (data && data.length > 0) {
-        setItems(
-          data.map((r, i) => ({
-            name: maskName(r.phone_number as string),
-            pkg: r.package_name as string,
-            ago: freshAgo(i),
-          }))
-        );
+
+      const valid = new Set(pkgPool);
+      const fromTxns = (txns ?? [])
+        .filter((r) => r.package_name && valid.has(r.package_name as string))
+        .map((r, i) => ({
+          name: maskName(r.phone_number as string),
+          pkg: r.package_name as string,
+          ago: freshAgo(i),
+        }));
+
+      const filled: Item[] = [...fromTxns];
+      let i = filled.length;
+      while (filled.length < 12) {
+        filled.push({
+          name: FALLBACK_NAMES[i % FALLBACK_NAMES.length],
+          pkg: pkgPool[i % pkgPool.length],
+          ago: freshAgo(i),
+        });
+        i++;
       }
+      setItems(filled);
     };
     load();
     const refresh = setInterval(load, 30000);
@@ -69,6 +92,7 @@ const RecentActivityTicker = () => {
       clearInterval(refresh);
     };
   }, []);
+
 
   useEffect(() => {
     const id = setInterval(() => setIdx((i) => (i + 1) % Math.max(1, items.length)), 3500);
