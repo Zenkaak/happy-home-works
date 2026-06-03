@@ -9,11 +9,8 @@ const FALLBACK_NAMES = [
   "Daniel K.", "Grace W.", "John M.", "Lucy N.", "Kevin O.", "Joyce M.",
   "Ann W.", "Samuel K.", "Mercy A.", "Paul O.", "Caroline W.", "David M.",
 ];
-const FALLBACK_PKGS = [
-  "1.5GB Safaricom", "5GB Safaricom", "10GB Safaricom", "2GB Airtel",
-  "KPLC Tokens KES 200", "Fuliza upgrade", "1GB + 30min", "8GB Weekly",
-  "20GB Monthly", "350MB Daily", "KPLC Tokens KES 500",
-];
+// Populated from real DB products on mount; kept as a last-resort fallback only.
+let FALLBACK_PKGS: string[] = ["KPLC Tokens KES 200", "Fuliza Upgrade"];
 
 const maskName = (phone: string) => {
   // Use last 3 digits as deterministic name seed
