@@ -1,4 +1,4 @@
-import { Zap, ShieldCheck, Headphones, BadgeCheck } from "lucide-react";
+import { Zap, ShieldCheck, Headphones } from "lucide-react";
 
 const items = [
   { icon: Zap, label: "Avg delivery", value: "12s" },
