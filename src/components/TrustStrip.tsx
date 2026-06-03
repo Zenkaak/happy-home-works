@@ -5,7 +5,7 @@ const items = [
   { icon: ShieldCheck, label: "Secured by", value: "M-Pesa" },
   { icon: Headphones, label: "Support", value: "24/7" },
 ];
-void BadgeCheck;
+
 
 const TrustStrip = () => (
   <div className="border-b border-border/50 bg-secondary/30 backdrop-blur-sm overflow-hidden">
