@@ -1,53 +1,64 @@
 import { APP_PUBLIC_URL } from "@/lib/siteUrl";
 import type { Product } from "@/lib/types";
 
-// Try to shrink the URL via is.gd (no auth, CORS-friendly). Falls back to raw URL.
-async function shortenUrl(longUrl: string): Promise<string> {
-  try {
-    const res = await fetch(
-      `https://is.gd/create.php?format=simple&url=${encodeURIComponent(longUrl)}`,
-      { method: "GET" }
-    );
-    if (!res.ok) return longUrl;
-    const text = (await res.text()).trim();
-    return text.startsWith("http") ? text : longUrl;
-  } catch {
-    return longUrl;
-  }
+function loanLimitFromName(name: string): string | null {
+  // e.g. "Up to 5K Limit" -> "5,000", "Premium 100K Limit" -> "100,000"
+  const m = name.match(/(\d+)\s*K/i);
+  if (!m) return null;
+  return (parseInt(m[1], 10) * 1000).toLocaleString();
 }
 
 function buildCampaignText(p: Product, url: string): string {
   const price = `KSH ${p.price.toLocaleString()}`;
-  let headline = "";
+  let lines: string[] = [];
+
   switch (p.category) {
     case "data": {
       const net = (p.network ?? "").toString();
       const netName = net ? net.charAt(0).toUpperCase() + net.slice(1) : "";
-      headline = `⚡ ${p.name}${netName ? ` (${netName})` : ""} — only ${price}`;
+      lines = [
+        `⚡ ${p.name}${netName ? ` (${netName})` : ""} — only ${price}`,
+        "Instant delivery. No expiry. Pay with M-Pesa.",
+        `Grab yours 👉 ${url}`,
+        "— DASNET, Kenya's cheapest bundles.",
+      ];
       break;
     }
     case "kplc":
-      headline = `💡 KPLC Tokens ${price} — instant delivery to your meter`;
+      lines = [
+        `💡 KPLC Tokens worth ${price}`,
+        "Delivered to your meter in seconds. Pay via M-Pesa.",
+        `Buy now 👉 ${url}`,
+        "— DASNET Power, anytime.",
+      ];
       break;
-    case "loans":
-      headline = `💸 ${p.name} — unlock up to ${price} in minutes`;
+    case "loans": {
+      const limit = loanLimitFromName(p.name);
+      lines = [
+        limit
+          ? `💸 Upgrade your Fuliza / M-Shwari / KCB limit up to KSH ${limit}`
+          : `💸 ${p.name}`,
+        `One-time activation fee: ${price}. Approved in minutes.`,
+        `Activate now 👉 ${url}`,
+        "— DASNET Loans, hassle-free.",
+      ];
       break;
+    }
     default:
-      headline = `🔥 ${p.name} — ${price}`;
+      lines = [
+        `🔥 ${p.name} — ${price}`,
+        "Pay with M-Pesa, delivered instantly.",
+        `Order now 👉 ${url}`,
+        "— DASNET, your everyday plug.",
+      ];
   }
 
-  return [
-    headline,
-    "Pay with M-Pesa, delivered in seconds. No expiry.",
-    `Grab yours 👉 ${url}`,
-    "— DASNET, Kenya's cheapest bundles.",
-  ].join("\n");
+  return lines.join("\n");
 }
 
 export async function shareProduct(p: Product): Promise<"shared" | "copied" | "failed"> {
   const base = typeof window !== "undefined" ? window.location.origin : APP_PUBLIC_URL;
-  const longUrl = `${base}/?product=${p.id}`;
-  const url = await shortenUrl(longUrl);
+  const url = `${base}/?product=${p.id}`;
   const text = buildCampaignText(p, url);
 
   try {
@@ -56,7 +67,7 @@ export async function shareProduct(p: Product): Promise<"shared" | "copied" | "f
       return "shared";
     }
   } catch {
-    // user cancelled or share failed — fall through to clipboard
+    // user cancelled — fall through to clipboard
   }
   try {
     await navigator.clipboard.writeText(text);
