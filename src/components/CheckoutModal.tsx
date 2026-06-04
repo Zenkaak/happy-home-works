@@ -414,7 +414,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
                 )}
               </div>
               <div className="text-right">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{isLoan ? "Activation Fee" : "Total"}</p>
                 <p className="font-display text-2xl font-extrabold text-foreground leading-none mt-0.5">
                   <span className="text-xs text-muted-foreground font-medium">KSH</span> {product.price}
                 </p>
@@ -426,10 +426,11 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
             <div className="flex items-start gap-2.5 bg-warning/10 rounded-xl p-3 border border-warning/30">
               <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
               <p className="text-xs text-warning/90 leading-relaxed">
-                You are upgrading your Fuliza/M-Shwari/KCB limit. {product.description}
+                <span className="font-bold">KSH {product.price}</span> is the one-time activation fee — NOT your new loan limit. {product.description}
               </p>
             </div>
           )}
+
 
           {step === "form" && (
             <>
