@@ -8,7 +8,7 @@ import {
   LayoutDashboard, BarChart3, ShoppingBag, Package,
   Wallet, Banknote, Receipt, Smartphone,
   Users, MessageCircle, Megaphone, MessageSquare, Send,
-  LogOut,
+  Settings as SettingsIcon, LogOut,
 } from "lucide-react";
 import AdminStkPrompt from "@/components/AdminStkPrompt";
 import TransactionDetailModal from "@/components/TransactionDetailModal";
@@ -24,6 +24,7 @@ import AdminVendorManager from "@/components/admin/AdminVendorManager";
 import AdminWithdrawals from "@/components/admin/AdminWithdrawals";
 import AdminManualPayments from "@/components/admin/AdminManualPayments";
 import AdminPaybillTools from "@/components/admin/AdminPaybillTools";
+import AdminSettings from "@/components/admin/AdminSettings";
 import { buildAccountRef } from "@/lib/accountRef";
 // (notification sound moved to client checkout/order screens)
 
@@ -41,7 +42,7 @@ const adminApi = async (action: string, params: Record<string, any> = {}) => {
   return data;
 };
 
-type TabKey = "overview" | "charts" | "products" | "transactions" | "vendors" | "withdrawals" | "manual_pay" | "sms_logs" | "broadcast" | "stk" | "announcements" | "chat" | "paybill";
+type TabKey = "overview" | "charts" | "products" | "transactions" | "vendors" | "withdrawals" | "manual_pay" | "sms_logs" | "broadcast" | "stk" | "announcements" | "chat" | "paybill" | "settings";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -241,6 +242,12 @@ const AdminDashboard = () => {
         { key: "broadcast", label: "Broadcast", icon: Send },
       ],
     },
+    {
+      label: "System",
+      items: [
+        { key: "settings", label: "Settings", icon: SettingsIcon },
+      ],
+    },
   ];
 
   const allItems = tabGroups.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label })));
@@ -417,6 +424,7 @@ const AdminDashboard = () => {
             <AdminStkPrompt />
           </div>
         )}
+        {tab === "settings" && <AdminSettings />}
         </main>
       </div>
 

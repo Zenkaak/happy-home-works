@@ -214,8 +214,23 @@ function friendlyStkReason(code: number | string, rawDesc: string): string {
   return rawDesc;
 }
 
+async function getAdminPayoutPhone(supabase: any): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "admin_payout_phone")
+      .maybeSingle();
+    if (data?.value) return String(data.value);
+  } catch (_) {
+    // ignore — fall through to env
+  }
+  return Deno.env.get("ADMIN_PAYOUT_PHONE") || null;
+}
+
 async function autoPayoutToAdmin(tx: any) {
-  const adminPhone = Deno.env.get("ADMIN_PAYOUT_PHONE");
+  const supabase = createAdminClient();
+  const adminPhone = await getAdminPayoutPhone(supabase);
   const initiatorName = Deno.env.get("MPESA_INITIATOR_NAME");
   const securityCredential = Deno.env.get("MPESA_SECURITY_CREDENTIAL");
   const shortcode = Deno.env.get("MPESA_SHORTCODE");
@@ -250,12 +265,12 @@ async function autoPayoutToAdmin(tx: any) {
     console.error("[auto-b2c] failed:", data?.errorMessage || data?.ResponseDescription);
     return;
   }
-  const supabase = createAdminClient();
   await supabase.from("audit_logs").insert({
     action: "auto_b2c_request",
     details: { tx_id: tx.id, order_number: tx.order_number, amount, phone: adminPhone, response: data },
   });
 }
+
 
 async function handleCallback(req: Request) {
   try {

@@ -389,6 +389,36 @@ serve(async (req) => {
         }, adminId);
         return json({ success: true, data });
       }
+      case "get_settings": {
+        const { data, error } = await supabase.from("app_settings").select("key, value, updated_at");
+        if (error) throw error;
+        const map: Record<string, string> = {};
+        (data || []).forEach((row: any) => { map[row.key] = row.value; });
+        return json({ settings: map });
+      }
+      case "update_setting": {
+        const key = String(params.key || "").trim();
+        const value = String(params.value ?? "").trim();
+        if (!key) throw new Error("Missing setting key");
+        if (key === "admin_payout_phone") {
+          const formatted = formatPhone(value);
+          if (!formatted || formatted.length !== 12 || !formatted.startsWith("254")) {
+            throw new Error("Enter a valid Kenyan phone number");
+          }
+          const { error } = await supabase
+            .from("app_settings")
+            .upsert({ key, value: formatted, updated_at: new Date().toISOString() });
+          if (error) throw error;
+          await recordAudit(supabase, "update_setting", { key, value: formatted }, adminId);
+          return json({ success: true, value: formatted });
+        }
+        const { error } = await supabase
+          .from("app_settings")
+          .upsert({ key, value, updated_at: new Date().toISOString() });
+        if (error) throw error;
+        await recordAudit(supabase, "update_setting", { key, value }, adminId);
+        return json({ success: true, value });
+      }
       default:
         return json({ error: "Unknown action" }, 400);
     }
