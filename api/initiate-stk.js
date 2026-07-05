@@ -101,7 +101,7 @@ module.exports = async function handler(req, res) {
       BusinessShortCode: shortcode,
       Password:          password,
       Timestamp:         ts,
-      TransactionType:   "CustomerPayBillOnline",
+      TransactionType:   "CustomerBuyGoodsOnline",
       Amount:            Math.ceil(Number(amount)),
       PartyA:            phone254,
       PartyB:            shortcode,
