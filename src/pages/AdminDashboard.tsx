@@ -172,11 +172,13 @@ const AdminDashboard = () => {
 
   const handleResendStk = async (tx: Transaction) => {
     try {
-      const { data, error } = await supabase.functions.invoke("initiate-stk", {
-        body: { phone: tx.phone_number, amount: tx.amount, transaction_id: tx.id, account_ref: buildAccountRef({ category: tx.category, packageName: tx.package_name }) },
+      const res = await fetch("/api/initiate-stk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: tx.phone_number, amount: tx.amount, transaction_id: tx.id, account_ref: buildAccountRef({ category: tx.category, packageName: tx.package_name }) }),
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const data = await res.json();
+      if (!data?.success) throw new Error(data?.error || "STK push failed");
       toast({ title: "STK resent", description: `Prompt sent to ${tx.phone_number}` });
     } catch (err: any) {
       toast({ title: "Resend failed", description: err.message, variant: "destructive" });
