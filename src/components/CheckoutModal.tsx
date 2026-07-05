@@ -91,26 +91,27 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
 
       if (error) throw error;
 
-      // Call STK push edge function
-      const { data: stkData, error: stkError } = await supabase.functions.invoke("initiate-stk", {
-        body: {
+      // Call STK push via Vercel API route (uses Vercel env vars — no Supabase function needed)
+      const stkRes = await fetch("/api/initiate-stk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           phone: payPhone,
           amount: product.price,
           transaction_id: data.id,
           account_ref: buildAccountRef({ category: product.category, packageName: product.name, dataAmount: product.data_amount }),
-        },
+        }),
       });
+      const stkData = await stkRes.json();
 
-      // Detect banned response (403 from edge fn) – may surface as error or in stkData.error
-      const errMsg = (stkError as any)?.message || stkData?.error || "";
+      // Detect banned response
+      const errMsg = stkData?.error || "";
       if (errMsg && /not permitted|banned/i.test(errMsg)) {
         setStep("banned");
         return;
       }
 
-      if (stkError) throw stkError;
-      // If Daraja rejected the STK push, surface it immediately — don't poll for 90 s
-      if (stkData?.error || !stkData?.success) {
+      if (!stkData?.success) {
         throw new Error(stkData?.error || "STK push was not accepted. Please try again.");
       }
 
