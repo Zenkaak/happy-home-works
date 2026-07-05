@@ -12,7 +12,6 @@ const DARAJA_AUTH_URL =
   "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
 const DARAJA_STK_URL =
   "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
-const ADMIN_PHONE = "254751414437";
 
 const createAdminClient = () =>
   createClient(
@@ -20,16 +19,30 @@ const createAdminClient = () =>
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-async function getDarajaToken(): Promise<string> {
-  const consumerKey = Deno.env.get("DARAJA_CONSUMER_KEY")!;
-  const consumerSecret = Deno.env.get("DARAJA_CONSUMER_SECRET")!;
-  const credentials = base64Encode(`${consumerKey}:${consumerSecret}`);
+// ---------------------------------------------------------------------------
+// Settings helper — reads all app_settings rows into a flat map.
+// Falls back to empty object on error so nothing breaks if the table is empty.
+// ---------------------------------------------------------------------------
+async function getSettings(supabase: any): Promise<Record<string, string>> {
+  try {
+    const { data } = await supabase.from("app_settings").select("key, value");
+    const map: Record<string, string> = {};
+    (data || []).forEach((row: any) => { if (row.key) map[row.key] = row.value; });
+    return map;
+  } catch {
+    return {};
+  }
+}
 
+// ---------------------------------------------------------------------------
+// Daraja token — accepts credentials so callers can use DB-overridden values.
+// ---------------------------------------------------------------------------
+async function getDarajaToken(consumerKey: string, consumerSecret: string): Promise<string> {
+  const credentials = base64Encode(`${consumerKey}:${consumerSecret}`);
   const res = await fetch(DARAJA_AUTH_URL, {
     method: "GET",
     headers: { Authorization: `Basic ${credentials}` },
   });
-
   const data = await res.json();
   if (!data.access_token) throw new Error("Failed to get Daraja access token");
   return data.access_token;
@@ -38,30 +51,20 @@ async function getDarajaToken(): Promise<string> {
 function getTimestamp(): string {
   const now = new Date();
   const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(
-    now.getDate()
-  )}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 }
 
 function formatPhoneTo254(phone: string): string {
   const cleaned = phone.replace(/[^0-9]/g, "");
-  if (cleaned.startsWith("0") && cleaned.length === 10) {
-    return `254${cleaned.slice(1)}`;
-  }
-  if (cleaned.startsWith("254") && cleaned.length === 12) {
-    return cleaned;
-  }
+  if (cleaned.startsWith("0") && cleaned.length === 10) return `254${cleaned.slice(1)}`;
+  if (cleaned.startsWith("254") && cleaned.length === 12) return cleaned;
   return cleaned;
 }
 
 function formatDate(): string {
   return new Date().toLocaleString("en-KE", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: true,
     timeZone: "Africa/Nairobi",
   });
 }
@@ -76,17 +79,17 @@ function getServiceLabel(tx: any): string {
   return tx.category;
 }
 
-async function sendSms(message: string, phone: string, txId?: string) {
-  const apiKey = Deno.env.get("OTS_API_KEY");
+// ---------------------------------------------------------------------------
+// SMS sender — accepts optional apiKey override from settings.
+// ---------------------------------------------------------------------------
+async function sendSms(message: string, phone: string, txId?: string, apiKeyOverride?: string) {
   const supabase = createAdminClient();
+  const apiKey = apiKeyOverride || Deno.env.get("OTS_API_KEY");
 
   if (!apiKey) {
     console.error("[SMS] OTS_API_KEY not set");
     await supabase.from("sms_logs").insert({
-      phone_number: phone,
-      message,
-      status: "failed_no_credentials",
-      transaction_id: txId || null,
+      phone_number: phone, message, status: "failed_no_credentials", transaction_id: txId || null,
     });
     return;
   }
@@ -106,24 +109,18 @@ async function sendSms(message: string, phone: string, txId?: string) {
         message,
       }),
     });
-
     const data = await res.json().catch(() => ({}));
     const success = res.ok;
     console.log(`[SMS/OTS] To ${phone}: ${res.status}`, data);
-
     await supabase.from("sms_logs").insert({
-      phone_number: phone,
-      message,
+      phone_number: phone, message,
       status: success ? "sent" : "failed",
       transaction_id: txId || null,
     });
   } catch (error) {
     console.error("[SMS] send failed:", error);
     await supabase.from("sms_logs").insert({
-      phone_number: phone,
-      message,
-      status: "error",
-      transaction_id: txId || null,
+      phone_number: phone, message, status: "error", transaction_id: txId || null,
     });
   }
 }
@@ -131,12 +128,11 @@ async function sendSms(message: string, phone: string, txId?: string) {
 const SITE_URL = "https://hitechz.vercel.app";
 const SUPPORT_LINE = "Support: 0751 414 437";
 
-async function sendSuccessSms(tx: any) {
+async function sendSuccessSms(tx: any, apiKey?: string) {
   const service = getServiceLabel(tx);
   const date = formatDate();
   const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
   const amount = Number(tx.amount).toLocaleString();
-
   const lines = [
     `DASNET — Order Confirmed${orderNo}`,
     ``,
@@ -152,17 +148,15 @@ async function sendSuccessSms(tx: any) {
     `Thank you for choosing DASNET.`,
     SUPPORT_LINE,
   ].filter(Boolean);
-
-  await sendSms(lines.join("\n"), tx.phone_number, tx.id);
+  await sendSms(lines.join("\n"), tx.phone_number, tx.id, apiKey);
 }
 
-async function sendFailureSms(tx: any) {
+async function sendFailureSms(tx: any, apiKey?: string) {
   const service = getServiceLabel(tx);
   const date = formatDate();
   const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
   const amount = Number(tx.amount).toLocaleString();
   const reason = tx.failure_reason || "Payment was not completed";
-
   const lines = [
     `DASNET — Order Unsuccessful${orderNo}`,
     ``,
@@ -177,15 +171,13 @@ async function sendFailureSms(tx: any) {
     SITE_URL,
     SUPPORT_LINE,
   ];
-
-  await sendSms(lines.join("\n"), tx.phone_number, tx.id);
+  await sendSms(lines.join("\n"), tx.phone_number, tx.id, apiKey);
 }
 
-async function sendInitiatedSms(tx: any) {
+async function sendInitiatedSms(tx: any, apiKey?: string) {
   const service = getServiceLabel(tx);
   const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
   const amount = Number(tx.amount).toLocaleString();
-
   const lines = [
     `DASNET — Payment Request Sent${orderNo}`,
     ``,
@@ -197,12 +189,9 @@ async function sendInitiatedSms(tx: any) {
     `Please enter your M-PESA PIN to complete the payment. Delivery is instant on confirmation.`,
     SUPPORT_LINE,
   ];
-
-  await sendSms(lines.join("\n"), tx.phone_number, tx.id);
+  await sendSms(lines.join("\n"), tx.phone_number, tx.id, apiKey);
 }
 
-// Map raw Daraja STK ResultCodes to clear, customer-facing reasons.
-// Codes from Safaricom Daraja docs + observed in production.
 function friendlyStkReason(code: number | string, rawDesc: string): string {
   const c = String(code);
   const map: Record<string, string> = {
@@ -219,48 +208,43 @@ function friendlyStkReason(code: number | string, rawDesc: string): string {
     "26": "System busy at Safaricom. Please retry shortly.",
   };
   if (map[c]) return map[c];
-  // Catch the generic "unresolved reason" Safaricom returns for blacklisted SIMs / blocked STK
-  if (/unresolved reason/i.test(rawDesc)) {
-    return "Safaricom blocked this STK push (often a blacklisted or restricted SIM). Use Pay Manually via Till 8448104.";
-  }
-  if (/agent.*store|store.*agent/i.test(rawDesc)) {
-    return "Payment configuration error — please use Pay Manually via Till 8448104 or contact support.";
-  }
+  if (/unresolved reason/i.test(rawDesc)) return "Safaricom blocked this STK push (often a blacklisted or restricted SIM). Use Pay Manually via Till 8448104.";
+  if (/agent.*store|store.*agent/i.test(rawDesc)) return "Payment configuration error — please use Pay Manually via Till 8448104 or contact support.";
   if (/cancel/i.test(rawDesc)) return "You cancelled the M-PESA prompt.";
   if (/timeout|no response/i.test(rawDesc)) return "No response — STK prompt timed out. Please try again.";
   if (/insufficient/i.test(rawDesc)) return "Insufficient M-PESA balance.";
   return rawDesc;
 }
 
-async function getAdminPayoutPhone(supabase: any): Promise<string | null> {
-  try {
-    const { data } = await supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "admin_payout_phone")
-      .maybeSingle();
-    if (data?.value) return String(data.value);
-  } catch (_) {
-    // ignore — fall through to env
-  }
+async function getAdminPayoutPhone(supabase: any, settings: Record<string, string>): Promise<string | null> {
+  if (settings.admin_payout_phone) return settings.admin_payout_phone;
   return Deno.env.get("ADMIN_PAYOUT_PHONE") || null;
 }
 
-async function autoPayoutToAdmin(tx: any) {
+async function autoPayoutToAdmin(tx: any, settings: Record<string, string>) {
   const supabase = createAdminClient();
-  const adminPhone = await getAdminPayoutPhone(supabase);
-  const initiatorName = Deno.env.get("MPESA_INITIATOR_NAME");
-  const securityCredential = Deno.env.get("MPESA_SECURITY_CREDENTIAL");
-  const shortcode = Deno.env.get("MPESA_SHORTCODE");
+  const adminPhone = await getAdminPayoutPhone(supabase, settings);
+  const initiatorName = settings.mpesa_initiator_name || Deno.env.get("MPESA_INITIATOR_NAME");
+  const securityCredential = settings.mpesa_security_credential || Deno.env.get("MPESA_SECURITY_CREDENTIAL");
+  const shortcode = settings.mpesa_shortcode || Deno.env.get("MPESA_SHORTCODE");
+  const consumerKey = settings.daraja_consumer_key || Deno.env.get("DARAJA_CONSUMER_KEY")!;
+  const consumerSecret = settings.daraja_consumer_secret || Deno.env.get("DARAJA_CONSUMER_SECRET")!;
   const baseUrl = Deno.env.get("SUPABASE_URL");
   const orderAmount = Math.floor(Number(tx.amount));
-  // Payout rule: orders <=100 -> full amount; orders >100 -> amount - 10
   const amount = orderAmount <= 100 ? orderAmount : orderAmount - 10;
+
   if (!adminPhone || !initiatorName || !securityCredential || !shortcode || !baseUrl || !amount || amount < 10) {
     console.warn("[auto-b2c] missing config or invalid amount, skipping");
     return;
   }
-  const accessToken = await getDarajaToken();
+
+  // Check auto_payout_enabled setting
+  if (settings.auto_payout_enabled === "false") {
+    console.log("[auto-b2c] auto payout disabled by settings");
+    return;
+  }
+
+  const accessToken = await getDarajaToken(consumerKey, consumerSecret);
   const payload = {
     InitiatorName: initiatorName,
     SecurityCredential: securityCredential,
@@ -289,21 +273,25 @@ async function autoPayoutToAdmin(tx: any) {
   });
 }
 
-
+// ---------------------------------------------------------------------------
+// Callback handler — called by Safaricom after STK completes/fails.
+// ---------------------------------------------------------------------------
 async function handleCallback(req: Request) {
   try {
     const body = await req.json();
     const stkCallback = body.Body?.stkCallback;
-
-    if (!stkCallback) {
-      return new Response("Invalid callback", { status: 400, headers: corsHeaders });
-    }
+    if (!stkCallback) return new Response("Invalid callback", { status: 400, headers: corsHeaders });
 
     const checkoutRequestId = stkCallback.CheckoutRequestID;
     const resultCode = stkCallback.ResultCode;
     const rawDesc = stkCallback.ResultDesc || "Payment failed";
     const resultDesc = friendlyStkReason(resultCode, rawDesc);
     const supabase = createAdminClient();
+
+    // Load settings once for this callback
+    const settings = await getSettings(supabase);
+    const otsApiKey = settings.ots_api_key || undefined;
+    const adminNotifyPhone = settings.admin_notify_phone || null;
 
     const { data: tx, error: txError } = await supabase
       .from("transactions")
@@ -312,20 +300,17 @@ async function handleCallback(req: Request) {
       .maybeSingle();
 
     if (txError) throw txError;
-
     if (!tx) {
       console.error("Transaction not found for checkout:", checkoutRequestId);
       return new Response("OK", { headers: corsHeaders });
     }
-
     if (tx.status === "completed" || tx.status === "failed") {
       return new Response("OK", { headers: corsHeaders });
     }
 
     if (resultCode === 0 || resultCode === "0") {
       const callbackMetadata = stkCallback.CallbackMetadata?.Item || [];
-      const getValue = (name: string) =>
-        callbackMetadata.find((item: any) => item.Name === name)?.Value;
+      const getValue = (name: string) => callbackMetadata.find((item: any) => item.Name === name)?.Value;
 
       const updatedTx = {
         ...tx,
@@ -340,41 +325,35 @@ async function handleCallback(req: Request) {
 
       const { error: updateError } = await supabase
         .from("transactions")
-        .update({
-          status: updatedTx.status,
-          mpesa_reference: updatedTx.mpesa_reference,
-          kplc_token: updatedTx.kplc_token,
-          failure_reason: null,
-        })
+        .update({ status: updatedTx.status, mpesa_reference: updatedTx.mpesa_reference, kplc_token: updatedTx.kplc_token, failure_reason: null })
         .eq("id", tx.id);
-
       if (updateError) throw updateError;
 
-      await sendSuccessSms(updatedTx);
-      // Auto-payout the order amount to the admin payout phone
-      autoPayoutToAdmin(updatedTx).catch((err) =>
+      // Customer confirmation SMS
+      await sendSuccessSms(updatedTx, otsApiKey);
+
+      // Admin notification SMS
+      if (adminNotifyPhone) {
+        const amt = Number(updatedTx.amount).toLocaleString("en-KE");
+        const orderNo = updatedTx.order_number ? ` #${updatedTx.order_number}` : "";
+        await sendSms(`Order completed${orderNo} KSH ${amt}`, adminNotifyPhone, updatedTx.id, otsApiKey);
+      }
+
+      // Auto B2C payout
+      autoPayoutToAdmin(updatedTx, settings).catch((err) =>
         console.error("auto B2C error:", err instanceof Error ? err.message : err)
       );
       return new Response("OK", { headers: corsHeaders });
     }
 
-    const failedTx = {
-      ...tx,
-      status: "failed",
-      failure_reason: resultDesc,
-    };
-
+    const failedTx = { ...tx, status: "failed", failure_reason: resultDesc };
     const { error: updateError } = await supabase
       .from("transactions")
-      .update({
-        status: "failed",
-        failure_reason: resultDesc,
-      })
+      .update({ status: "failed", failure_reason: resultDesc })
       .eq("id", tx.id);
-
     if (updateError) throw updateError;
 
-    await sendFailureSms(failedTx);
+    await sendFailureSms(failedTx, otsApiKey);
     return new Response("OK", { headers: corsHeaders });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
@@ -383,12 +362,21 @@ async function handleCallback(req: Request) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Initiate handler — triggered by the frontend to start an STK push.
+// ---------------------------------------------------------------------------
 async function handleInitiate(req: Request) {
   try {
-    const consumerKey = Deno.env.get("DARAJA_CONSUMER_KEY");
-    const consumerSecret = Deno.env.get("DARAJA_CONSUMER_SECRET");
-    const passkey = Deno.env.get("DARAJA_PASSKEY");
-    const shortcode = Deno.env.get("MPESA_SHORTCODE");
+    const supabase = createAdminClient();
+    const settings = await getSettings(supabase);
+
+    // Credentials: DB settings override env vars
+    const consumerKey = settings.daraja_consumer_key || Deno.env.get("DARAJA_CONSUMER_KEY");
+    const consumerSecret = settings.daraja_consumer_secret || Deno.env.get("DARAJA_CONSUMER_SECRET");
+    const passkey = settings.daraja_passkey || Deno.env.get("DARAJA_PASSKEY");
+    const shortcode = settings.mpesa_shortcode || Deno.env.get("MPESA_SHORTCODE");
+    const transactionType = settings.transaction_type || "CustomerPayBillOnline";
+    const otsApiKey = settings.ots_api_key || undefined;
     const projectUrl = Deno.env.get("SUPABASE_URL");
 
     if (!consumerKey || !consumerSecret || !passkey || !shortcode || !projectUrl) {
@@ -396,23 +384,19 @@ async function handleInitiate(req: Request) {
     }
 
     const { phone, amount, transaction_id, account_ref } = await req.json();
-
     if (!phone || !amount || !transaction_id) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const formattedPhone = formatPhoneTo254(phone);
-    const supabase = createAdminClient();
 
     // Banned check
     const { data: isBanned } = await supabase.rpc("is_banned", { p_phone: formattedPhone });
     if (isBanned) {
       return new Response(JSON.stringify({ ok: false, error: "This number is not permitted. Contact support." }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -420,20 +404,19 @@ async function handleInitiate(req: Request) {
     const { data: rateAllowed } = await supabase.rpc("check_stk_rate_limit", { p_phone: formattedPhone });
     if (rateAllowed === false) {
       return new Response(JSON.stringify({ ok: false, error: "Too many payment attempts. Please wait 5 minutes before trying again." }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const timestamp = getTimestamp();
     const password = base64Encode(`${shortcode}${passkey}${timestamp}`);
-    const accessToken = await getDarajaToken();
+    const accessToken = await getDarajaToken(consumerKey, consumerSecret);
 
     const stkPayload = {
       BusinessShortCode: shortcode,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: "CustomerBuyGoodsOnline",
+      TransactionType: transactionType,
       Amount: Number(amount),
       PartyA: formattedPhone,
       PartyB: shortcode,
@@ -445,40 +428,27 @@ async function handleInitiate(req: Request) {
 
     const stkResponse = await fetch(DARAJA_STK_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(stkPayload),
     });
-
     const stkData = await stkResponse.json();
 
     if (stkData.ResponseCode !== "0") {
-      const errorMsg =
-        stkData.errorMessage || stkData.CustomerMessage || "STK push failed";
-
+      const errorMsg = stkData.errorMessage || stkData.CustomerMessage || "STK push failed";
       return new Response(JSON.stringify({ ok: false, error: errorMsg }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const { data: updatedTx, error: updateError } = await supabase
       .from("transactions")
-      .update({
-        stk_checkout_id: stkData.CheckoutRequestID,
-        status: "processing",
-        failure_reason: null,
-      })
+      .update({ stk_checkout_id: stkData.CheckoutRequestID, status: "processing", failure_reason: null })
       .eq("id", transaction_id)
       .select("*")
       .single();
-
     if (updateError) throw updateError;
 
-    // Notify customer that the payment prompt was sent
-    sendInitiatedSms(updatedTx).catch((e: unknown) =>
+    sendInitiatedSms(updatedTx, otsApiKey).catch((e: unknown) =>
       console.error("initiate SMS error:", e instanceof Error ? e.message : e)
     );
 
@@ -488,21 +458,14 @@ async function handleInitiate(req: Request) {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const { pathname } = new URL(req.url);
-  if (pathname.endsWith("/callback")) {
-    return handleCallback(req);
-  }
-
+  if (pathname.endsWith("/callback")) return handleCallback(req);
   return handleInitiate(req);
 });
