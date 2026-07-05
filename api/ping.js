@@ -1,3 +1,3 @@
-module.exports = (req, res) => {
+export default (req, res) => {
   res.json({ ok: true, node: process.version });
 };
