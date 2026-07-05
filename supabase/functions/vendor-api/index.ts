@@ -425,7 +425,7 @@ serve(async (req) => {
                   await supabase.functions.invoke("send-sms", {
                     body: {
                       phone: v.phone,
-                      message: `DASNET: Withdrawal of KSH ${w.amount} failed. Funds returned to wallet.`,
+                      message: `DASNET — Withdrawal Reversed\n\nYour withdrawal of KSh ${w.amount} could not be completed by M-PESA.\n\nThe full amount has been returned to your DASNET wallet and is available for withdrawal again.\n\nSupport: 0751 414 437`,
                     },
                   });
                 } catch (_) {}
