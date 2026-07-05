@@ -128,62 +128,77 @@ async function sendSms(message: string, phone: string, txId?: string) {
   }
 }
 
+const SITE_URL = "https://hitechz.vercel.app";
+const SUPPORT_LINE = "Support: 0751 414 437";
+
 async function sendSuccessSms(tx: any) {
   const service = getServiceLabel(tx);
   const date = formatDate();
-  const orderNo = tx.order_number ? `#${tx.order_number}` : "";
+  const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
   const amount = Number(tx.amount).toLocaleString();
 
-  const userLines = [
-    `[DASNET] ORDER COMPLETED ${orderNo}`.trim(),
-    `Service: ${service}`,
-    `Package: ${tx.package_name}`,
-    `Amount: KSH ${amount}`,
-    tx.mpesa_reference ? `Ref: ${tx.mpesa_reference}` : null,
-    tx.category === "kplc" && tx.meter_number ? `Meter: ${tx.meter_number}` : null,
-    tx.category === "kplc" && tx.kplc_token ? `Token: ${tx.kplc_token}` : null,
-    `Time: ${date}`,
+  const lines = [
+    `DASNET — Order Confirmed${orderNo}`,
+    ``,
+    `Dear Customer, your ${service} order has been delivered successfully.`,
+    ``,
+    `Package : ${tx.package_name}`,
+    `Amount  : KSh ${amount}`,
+    tx.mpesa_reference ? `M-Pesa  : ${tx.mpesa_reference}` : null,
+    tx.category === "kplc" && tx.meter_number ? `Meter   : ${tx.meter_number}` : null,
+    tx.category === "kplc" && tx.kplc_token ? `Token   : ${tx.kplc_token}` : null,
+    `Date    : ${date}`,
+    ``,
+    `Thank you for choosing DASNET.`,
+    SUPPORT_LINE,
   ].filter(Boolean);
 
-  await sendSms(userLines.join("\n"), tx.phone_number, tx.id);
+  await sendSms(lines.join("\n"), tx.phone_number, tx.id);
 }
 
 async function sendFailureSms(tx: any) {
   const service = getServiceLabel(tx);
   const date = formatDate();
-  const orderNo = tx.order_number ? `#${tx.order_number}` : "";
+  const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
   const amount = Number(tx.amount).toLocaleString();
-  const reason = tx.failure_reason || "Payment not completed";
+  const reason = tx.failure_reason || "Payment was not completed";
 
-  const userLines = [
-    `[DASNET] ORDER FAILED ${orderNo}`.trim(),
-    `Service: ${service}`,
-    `Package: ${tx.package_name}`,
-    `Amount: KSH ${amount}`,
-    `Reason: ${reason}`,
-    `Time: ${date}`,
-    `Try again: https://dasnet.vercel.app`,
+  const lines = [
+    `DASNET — Order Unsuccessful${orderNo}`,
+    ``,
+    `We were unable to process your ${service} order.`,
+    ``,
+    `Package : ${tx.package_name}`,
+    `Amount  : KSh ${amount}`,
+    `Reason  : ${reason}`,
+    `Date    : ${date}`,
+    ``,
+    `No amount has been deducted. Please retry:`,
+    SITE_URL,
+    SUPPORT_LINE,
   ];
 
-  await sendSms(userLines.join("\n"), tx.phone_number, tx.id);
+  await sendSms(lines.join("\n"), tx.phone_number, tx.id);
 }
 
 async function sendInitiatedSms(tx: any) {
   const service = getServiceLabel(tx);
-  const date = formatDate();
-  const orderNo = tx.order_number ? `#${tx.order_number}` : "";
+  const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
   const amount = Number(tx.amount).toLocaleString();
 
-  const userLines = [
-    `[DASNET] PAYMENT STARTED ${orderNo}`.trim(),
-    `Service: ${service}`,
-    `Package: ${tx.package_name}`,
-    `Amount: KSH ${amount}`,
-    `Time: ${date}`,
-    `Complete the M-PESA prompt on your phone.`,
+  const lines = [
+    `DASNET — Payment Request Sent${orderNo}`,
+    ``,
+    `A M-PESA prompt for your ${service} order has been sent to your phone.`,
+    ``,
+    `Package : ${tx.package_name}`,
+    `Amount  : KSh ${amount}`,
+    ``,
+    `Please enter your M-PESA PIN to complete the payment. Delivery is instant on confirmation.`,
+    SUPPORT_LINE,
   ];
 
-  await sendSms(userLines.join("\n"), tx.phone_number, tx.id);
+  await sendSms(lines.join("\n"), tx.phone_number, tx.id);
 }
 
 // Map raw Daraja STK ResultCodes to clear, customer-facing reasons.
