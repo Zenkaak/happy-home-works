@@ -109,6 +109,10 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
       }
 
       if (stkError) throw stkError;
+      // If Daraja rejected the STK push, surface it immediately — don't poll for 90 s
+      if (stkData?.error || !stkData?.success) {
+        throw new Error(stkData?.error || "STK push was not accepted. Please try again.");
+      }
 
       const pollResult = await pollTransaction(data.id);
       setTransaction(pollResult);
