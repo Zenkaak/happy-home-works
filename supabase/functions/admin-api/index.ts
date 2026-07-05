@@ -389,6 +389,34 @@ serve(async (req) => {
         }, adminId);
         return json({ success: true, data });
       }
+      case "send_test_sms": {
+        const phone = String(params.phone || "").trim();
+        if (!phone) throw new Error("Phone number required");
+        // Read OTS key from app_settings first, fall back to env var
+        const { data: settingsRows } = await supabase.from("app_settings").select("key, value");
+        const settingsMap: Record<string, string> = {};
+        (settingsRows || []).forEach((row: any) => { settingsMap[row.key] = row.value; });
+        const otsApiKey = settingsMap.ots_api_key || Deno.env.get("OTS_API_KEY");
+        if (!otsApiKey) throw new Error("OTS_API_KEY not configured. Set it in Settings → SMS Gateway first.");
+        const formatted = phone.replace(/[^0-9]/g, "");
+        const phone254 = formatted.startsWith("0") && formatted.length === 10
+          ? `254${formatted.slice(1)}`
+          : formatted;
+        const message = "DASNET Admin Test — your notification SMS is working correctly. Every completed order will alert this number.";
+        const smsRes = await fetch("https://sms.ots.co.ke/api/v3/sms/send", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${otsApiKey}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ recipient: phone254, sender_id: "PROCALL", type: "plain", message }),
+        });
+        const smsData = await smsRes.json().catch(() => ({}));
+        if (!smsRes.ok) throw new Error(smsData?.message || smsData?.error || "SMS sending failed");
+        await recordAudit(supabase, "test_sms_sent", { phone: phone254, response: smsData }, adminId);
+        return json({ success: true });
+      }
       case "get_settings": {
         const { data, error } = await supabase.from("app_settings").select("key, value, updated_at");
         if (error) throw error;
