@@ -348,7 +348,7 @@ serve(async (req) => {
             await supabase.functions.invoke("send-sms", {
               body: {
                 phone: vendor.mpesa_payout,
-                message: `Hi ${vendor.name}, your withdrawal of KSH ${amt} is being processed. You'll receive M-Pesa shortly.`,
+                message: `DASNET — Withdrawal Processing\n\nHi ${vendor.name}, your withdrawal request of KSh ${amt} has been approved and sent to M-PESA.\n\nYou will receive the funds on ${vendor.mpesa_payout} shortly.\n\nThank you for partnering with DASNET.`,
               },
             });
           } catch (_) {}
