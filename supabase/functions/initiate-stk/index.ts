@@ -433,7 +433,7 @@ async function handleInitiate(req: Request) {
       BusinessShortCode: shortcode,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: "CustomerBuyGoodsOnline",
+      TransactionType: "CustomerPayBillOnline",
       Amount: Number(amount),
       PartyA: formattedPhone,
       PartyB: shortcode,
