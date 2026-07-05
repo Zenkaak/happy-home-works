@@ -192,7 +192,17 @@ const AdminSettings = () => {
   });
 
   const testSms = useMutation({
-    mutationFn: async (phone: string) => await adminApi("send_test_sms", { phone }),
+    mutationFn: async (phone: string) => {
+      const token = getAdminToken();
+      const res = await fetch("/api/test-sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, admin_token: token }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return data;
+    },
     onSuccess: () => toast({ title: "Test SMS sent!", description: "Check your phone — the message should arrive within seconds." }),
     onError: (err: any) => toast({ title: "Test SMS failed", description: err.message, variant: "destructive" }),
   });
