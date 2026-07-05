@@ -52,6 +52,14 @@ const Index = ({ initialCategory }: IndexProps = {}) => {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 30;
 
+  // Keep category/network in sync when the route changes
+  useEffect(() => {
+    setCategory(routeCategory);
+  }, [routeCategory, location.pathname]);
+  useEffect(() => {
+    if (routeCategory === "data") setNetwork(routeNetwork);
+  }, [routeNetwork, routeCategory, location.pathname]);
+
   // Prefetch all categories on mount for instant switching
   useEffect(() => {
     const cats: { cat: ServiceCategory; net?: NetworkProvider }[] = [
