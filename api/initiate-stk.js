@@ -1,7 +1,5 @@
-// Vercel serverless function — M-Pesa STK push
-// Uses built-in https module (no fetch) for compatibility with all Node versions.
-
-const https = require("https");
+// Vercel serverless function — M-Pesa STK push (ES module)
+import https from "https";
 
 /** Make an HTTPS request. Returns parsed JSON. */
 function request(url, options, body) {
@@ -39,7 +37,7 @@ function parseBody(req) {
   });
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -65,6 +63,7 @@ module.exports = async function handler(req, res) {
   const supabaseKey    = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
 
   if (!consumerKey || !consumerSecret || !passkey || !shortcode) {
+    console.error("[initiate-stk] Missing Daraja env vars:", { consumerKey: !!consumerKey, consumerSecret: !!consumerSecret, passkey: !!passkey, shortcode: !!shortcode });
     res.status(500).json({ ok: false, error: "Daraja credentials not configured" });
     return;
   }
@@ -84,7 +83,8 @@ module.exports = async function handler(req, res) {
     );
     const accessToken = tokenResp.body && tokenResp.body.access_token;
     if (!accessToken) {
-      res.status(502).json({ ok: false, error: "Failed to get Daraja token" });
+      console.error("[initiate-stk] Token error:", JSON.stringify(tokenResp.body));
+      res.status(502).json({ ok: false, error: "Failed to get Daraja token: " + JSON.stringify(tokenResp.body) });
       return;
     }
 
@@ -101,7 +101,7 @@ module.exports = async function handler(req, res) {
       BusinessShortCode: shortcode,
       Password:          password,
       Timestamp:         ts,
-      TransactionType:   "CustomerBuyGoodsOnline",
+      TransactionType:   "CustomerPayBillOnline",
       Amount:            Math.ceil(Number(amount)),
       PartyA:            phone254,
       PartyB:            shortcode,
@@ -124,12 +124,12 @@ module.exports = async function handler(req, res) {
       stkBody
     );
     const stkData = stkResp.body;
+    console.log("[initiate-stk] Daraja response:", JSON.stringify(stkData));
 
     if (!stkData || stkData.ResponseCode !== "0") {
-      res.status(200).json({
-        ok: false,
-        error: (stkData && (stkData.errorMessage || stkData.CustomerMessage)) || "STK push failed",
-      });
+      const errMsg = (stkData && (stkData.errorMessage || stkData.CustomerMessage || stkData.ResultDesc)) || "STK push failed";
+      console.error("[initiate-stk] STK failed:", errMsg, JSON.stringify(stkData));
+      res.status(200).json({ ok: false, error: errMsg });
       return;
     }
 
@@ -140,7 +140,7 @@ module.exports = async function handler(req, res) {
         status:          "processing",
         failure_reason:  null,
       });
-      await request(
+      const patchResp = await request(
         `${supabaseUrl}/rest/v1/transactions?id=eq.${transaction_id}`,
         {
           method: "PATCH",
@@ -154,6 +154,9 @@ module.exports = async function handler(req, res) {
         },
         patchBody
       );
+      if (patchResp.status >= 400) {
+        console.error("[initiate-stk] Supabase patch failed:", patchResp.status, JSON.stringify(patchResp.body));
+      }
     }
 
     res.status(200).json({ success: true, data: stkData });
@@ -161,4 +164,4 @@ module.exports = async function handler(req, res) {
     console.error("[initiate-stk]", err);
     res.status(500).json({ ok: false, error: err.message || "Internal error" });
   }
-};
+}
