@@ -281,7 +281,7 @@ serve(async (req) => {
             await supabase.functions.invoke("send-sms", {
               body: {
                 phone: ADMIN_PHONE,
-                message: `WITHDRAWAL FAILED\nVendor: ${vendor.name}\nAmount: KSH ${amt}\nPhone: ${vendor.mpesa_payout}\nReason: ${reason}`,
+                message: `DASNET — Vendor Withdrawal Failed\n\nVendor : ${vendor.name}\nAmount : KSh ${amt}\nPhone  : ${vendor.mpesa_payout}\nReason : ${reason}\n\nBalance has been refunded to the vendor wallet.`,
               },
             });
           } catch (_) {}
@@ -348,7 +348,7 @@ serve(async (req) => {
             await supabase.functions.invoke("send-sms", {
               body: {
                 phone: vendor.mpesa_payout,
-                message: `Hi ${vendor.name}, your withdrawal of KSH ${amt} is being processed. You'll receive M-Pesa shortly.`,
+                message: `DASNET — Withdrawal Processing\n\nHi ${vendor.name}, your withdrawal request of KSh ${amt} has been approved and sent to M-PESA.\n\nYou will receive the funds on ${vendor.mpesa_payout} shortly.\n\nThank you for partnering with DASNET.`,
               },
             });
           } catch (_) {}
@@ -425,7 +425,7 @@ serve(async (req) => {
                   await supabase.functions.invoke("send-sms", {
                     body: {
                       phone: v.phone,
-                      message: `DASNET: Withdrawal of KSH ${w.amount} failed. Funds returned to wallet.`,
+                      message: `DASNET — Withdrawal Reversed\n\nYour withdrawal of KSh ${w.amount} could not be completed by M-PESA.\n\nThe full amount has been returned to your DASNET wallet and is available for withdrawal again.\n\nSupport: 0751 414 437`,
                     },
                   });
                 } catch (_) {}

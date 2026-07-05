@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,20 +24,41 @@ import TestimonialsSection from "@/components/TestimonialsSection";
 
 import type { Product, ServiceCategory, NetworkProvider } from "@/lib/types";
 
-const Index = () => {
+interface IndexProps {
+  initialCategory?: ServiceCategory;
+}
+
+const Index = ({ initialCategory }: IndexProps = {}) => {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
-  
+  const { network: networkParam } = useParams<{ network?: string }>();
+  const location = useLocation();
+
   const referralCode = searchParams.get("ref") || undefined;
   const { openCheckout } = useCheckout();
-  
+
+  // Derive category from prop (route) — fall back to "data"
+  const routeCategory: ServiceCategory = initialCategory ?? "data";
+  const routeNetwork: NetworkProvider =
+    networkParam && ["safaricom", "airtel", "telkom"].includes(networkParam.toLowerCase())
+      ? (networkParam.toLowerCase() as NetworkProvider)
+      : "safaricom";
+
   // State management
-  const [category, setCategory] = useState<ServiceCategory>("data");
-  const [network, setNetwork] = useState<NetworkProvider>("safaricom");
+  const [category, setCategory] = useState<ServiceCategory>(routeCategory);
+  const [network, setNetwork] = useState<NetworkProvider>(routeNetwork);
   const [searchQuery, setSearchQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number] | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 30;
+
+  // Keep category/network in sync when the route changes
+  useEffect(() => {
+    setCategory(routeCategory);
+  }, [routeCategory, location.pathname]);
+  useEffect(() => {
+    if (routeCategory === "data") setNetwork(routeNetwork);
+  }, [routeNetwork, routeCategory, location.pathname]);
 
   // Prefetch all categories on mount for instant switching
   useEffect(() => {

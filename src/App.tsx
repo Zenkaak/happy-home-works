@@ -34,6 +34,12 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/index" element={<Index />} />
+              <Route path="/data" element={<Index initialCategory="data" />} />
+              <Route path="/data/:network" element={<Index initialCategory="data" />} />
+              <Route path="/kplc" element={<Index initialCategory="kplc" />} />
+              <Route path="/tokens" element={<Index initialCategory="kplc" />} />
+              <Route path="/loans" element={<Index initialCategory="loans" />} />
+              <Route path="/fuliza" element={<Index initialCategory="loans" />} />
               <Route path="/history" element={<History />} />
               <Route path="/admin" element={<AdminLogin />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
