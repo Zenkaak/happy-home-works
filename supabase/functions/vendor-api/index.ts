@@ -281,7 +281,7 @@ serve(async (req) => {
             await supabase.functions.invoke("send-sms", {
               body: {
                 phone: ADMIN_PHONE,
-                message: `WITHDRAWAL FAILED\nVendor: ${vendor.name}\nAmount: KSH ${amt}\nPhone: ${vendor.mpesa_payout}\nReason: ${reason}`,
+                message: `DASNET — Vendor Withdrawal Failed\n\nVendor : ${vendor.name}\nAmount : KSh ${amt}\nPhone  : ${vendor.mpesa_payout}\nReason : ${reason}\n\nBalance has been refunded to the vendor wallet.`,
               },
             });
           } catch (_) {}
