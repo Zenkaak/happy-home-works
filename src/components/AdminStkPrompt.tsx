@@ -36,18 +36,20 @@ const AdminStkPrompt = () => {
 
       if (txError) throw txError;
 
-      // Invoke STK push
-      const { data, error } = await supabase.functions.invoke("initiate-stk", {
-        body: {
+      // Invoke STK push via Vercel API route
+      const stkRes = await fetch("/api/initiate-stk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           phone: formatPhoneTo254(phone),
           amount: Number(amount),
           transaction_id: tx.id,
           account_ref: accountRef,
-        },
+        }),
       });
+      const data = await stkRes.json();
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (!data?.success) throw new Error(data?.error || "STK push failed");
 
       setStatus("sent");
       toast({ title: "STK push sent!", description: `Prompt sent to ${formatPhoneTo254(phone)}` });
