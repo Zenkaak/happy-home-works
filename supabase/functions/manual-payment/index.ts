@@ -148,7 +148,7 @@ serve(async (req) => {
           await supabase.functions.invoke("send-sms", {
             body: {
               phone: mp.phone_number,
-              message: `DASNET: Payment ${mp.mpesa_code} not verified — ${admin_notes || "invalid code"}. Try again: https://dasnet.vercel.app`,
+              message: `DASNET — Payment Not Verified\n\nWe could not verify your payment (Ref: ${mp.mpesa_code}).\nReason: ${admin_notes || "The M-Pesa code provided is invalid"}.\n\nPlease confirm the code and try again:\nhttps://hitechz.vercel.app\nSupport: 0751 414 437`,
             },
           });
         } catch (_) {}
