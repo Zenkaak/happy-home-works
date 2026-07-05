@@ -125,69 +125,43 @@ async function sendSms(message: string, phone: string, txId?: string, apiKeyOver
   }
 }
 
-const SITE_URL = "https://hitechz.vercel.app";
-const SUPPORT_LINE = "Support: 0751 414 437";
+const SITE_URL = "hitechz.vercel.app";
+const SUPPORT_LINE = "Support: 0751414437";
 
 async function sendSuccessSms(tx: any, apiKey?: string) {
-  const service = getServiceLabel(tx);
-  const date = formatDate();
   const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
   const amount = Number(tx.amount).toLocaleString();
-  const lines = [
-    `DASNET — Order Confirmed${orderNo}`,
-    ``,
-    `Dear Customer, your ${service} order has been delivered successfully.`,
-    ``,
-    `Package : ${tx.package_name}`,
-    `Amount  : KSh ${amount}`,
-    tx.mpesa_reference ? `M-Pesa  : ${tx.mpesa_reference}` : null,
-    tx.category === "kplc" && tx.meter_number ? `Meter   : ${tx.meter_number}` : null,
-    tx.category === "kplc" && tx.kplc_token ? `Token   : ${tx.kplc_token}` : null,
-    `Date    : ${date}`,
-    ``,
-    `Thank you for choosing DASNET.`,
-    SUPPORT_LINE,
-  ].filter(Boolean);
+  const lines: string[] = [
+    `DASNET${orderNo} Delivered ✓`,
+    `${tx.package_name} | KSH ${amount}`,
+  ];
+  if (tx.mpesa_reference) lines.push(`M-Pesa: ${tx.mpesa_reference}`);
+  if (tx.category === "kplc" && tx.meter_number) lines.push(`Meter: ${tx.meter_number}`);
+  if (tx.category === "kplc" && tx.kplc_token) lines.push(`Token: ${tx.kplc_token}`);
+  lines.push(SUPPORT_LINE);
   await sendSms(lines.join("\n"), tx.phone_number, tx.id, apiKey);
 }
 
 async function sendFailureSms(tx: any, apiKey?: string) {
-  const service = getServiceLabel(tx);
-  const date = formatDate();
   const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
   const amount = Number(tx.amount).toLocaleString();
-  const reason = tx.failure_reason || "Payment was not completed";
+  const reason = tx.failure_reason || "Payment not completed";
   const lines = [
-    `DASNET — Order Unsuccessful${orderNo}`,
-    ``,
-    `We were unable to process your ${service} order.`,
-    ``,
-    `Package : ${tx.package_name}`,
-    `Amount  : KSh ${amount}`,
-    `Reason  : ${reason}`,
-    `Date    : ${date}`,
-    ``,
-    `No amount has been deducted. Please retry:`,
-    SITE_URL,
-    SUPPORT_LINE,
+    `DASNET${orderNo} Failed`,
+    `${tx.package_name} | KSH ${amount}`,
+    reason,
+    `No charge. Retry: ${SITE_URL}`,
   ];
   await sendSms(lines.join("\n"), tx.phone_number, tx.id, apiKey);
 }
 
 async function sendInitiatedSms(tx: any, apiKey?: string) {
-  const service = getServiceLabel(tx);
   const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
   const amount = Number(tx.amount).toLocaleString();
   const lines = [
-    `DASNET — Payment Request Sent${orderNo}`,
-    ``,
-    `A M-PESA prompt for your ${service} order has been sent to your phone.`,
-    ``,
-    `Package : ${tx.package_name}`,
-    `Amount  : KSh ${amount}`,
-    ``,
-    `Please enter your M-PESA PIN to complete the payment. Delivery is instant on confirmation.`,
-    SUPPORT_LINE,
+    `DASNET${orderNo}: Enter M-PESA PIN.`,
+    `${tx.package_name} | KSH ${amount}`,
+    `Delivery is instant on confirmation.`,
   ];
   await sendSms(lines.join("\n"), tx.phone_number, tx.id, apiKey);
 }
