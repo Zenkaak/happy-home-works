@@ -1,6 +1,18 @@
 // Vercel serverless function — M-Pesa STK push
 // Uses Vercel env vars so no Supabase function deployment needed.
 
+/** Read + JSON-parse the raw request body (Vercel doesn't auto-parse). */
+function parseBody(req) {
+  return new Promise((resolve) => {
+    let data = "";
+    req.on("data", (chunk) => (data += chunk));
+    req.on("end", () => {
+      try { resolve(JSON.parse(data)); }
+      catch { resolve({}); }
+    });
+  });
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -8,7 +20,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { phone, amount, transaction_id, account_ref } = req.body || {};
+  const { phone, amount, transaction_id, account_ref } = await parseBody(req);
 
   if (!phone || !amount) {
     return res.status(400).json({ ok: false, error: "Missing phone or amount" });
@@ -51,7 +63,7 @@ module.exports = async function handler(req, res) {
       `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const password = Buffer.from(`${shortcode}${passkey}${timestamp}`).toString("base64");
 
-    // 3. STK push — callback stays on Supabase (still handles result correctly)
+    // 3. STK push — callback handled by Supabase function (unchanged)
     const stkRes  = await fetch("https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest", {
       method: "POST",
       headers: {
