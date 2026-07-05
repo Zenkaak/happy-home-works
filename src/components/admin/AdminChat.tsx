@@ -115,7 +115,7 @@ const AdminChat = () => {
     if (token) {
       try {
         await supabase.functions.invoke("send-sms", {
-          body: { phone: activeConvo.phone_number, message: `DASNET: You have a reply from DASNET support. Visit ${getAppBaseUrl()}/vendor to view.` },
+          body: { phone: activeConvo.phone_number, message: `DASNET — Support Reply\n\nHello, our team has replied to your enquiry.\n\nView the response here:\n${getAppBaseUrl()}/vendor\n\nThank you for choosing DASNET.` },
           headers: { "x-admin-token": token },
         });
       } catch {
