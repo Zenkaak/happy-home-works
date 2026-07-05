@@ -62,7 +62,7 @@ module.exports = async function handler(req, res) {
   const passkey        = process.env.DARAJA_PASSKEY;
   const shortcode      = process.env.MPESA_SHORTCODE;
   const supabaseUrl    = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
-  const supabaseKey    = process.env.SUPABASE_ANON_KEY;
+  const supabaseKey    = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
 
   if (!consumerKey || !consumerSecret || !passkey || !shortcode) {
     res.status(500).json({ ok: false, error: "Daraja credentials not configured" });
