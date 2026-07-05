@@ -79,9 +79,19 @@ function buildCampaignText(p: Product, url: string): string {
   }
 }
 
+function categoryPath(p: Product): string {
+  if (p.category === "data") {
+    const n = (p.network || "safaricom").toLowerCase();
+    return `/data/${n}`;
+  }
+  if (p.category === "kplc") return "/kplc";
+  if (p.category === "loans") return "/fuliza";
+  return "/";
+}
+
 export async function shareProduct(p: Product): Promise<"shared" | "copied" | "failed"> {
   const base = typeof window !== "undefined" ? window.location.origin : APP_PUBLIC_URL;
-  const url = `${base}/?product=${p.id}`;
+  const url = `${base}${categoryPath(p)}?product=${p.id}`;
   const text = buildCampaignText(p, url);
 
   try {
