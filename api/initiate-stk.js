@@ -1,7 +1,7 @@
 // Vercel serverless function — M-Pesa STK push (ES module)
 import https from "https";
 
-/** Make an HTTPS request. Returns parsed JSON. */
+/** Make an HTTPS request. Returns { status, body }. */
 function request(url, options, body) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
@@ -37,16 +37,42 @@ function parseBody(req) {
   });
 }
 
+/**
+ * Fetch all app_settings from Supabase and return as a flat map.
+ * Falls back to empty object on any error so nothing breaks.
+ */
+async function fetchSettings(supabaseUrl, supabaseKey) {
+  if (!supabaseUrl || !supabaseKey) return {};
+  try {
+    const resp = await request(
+      `${supabaseUrl}/rest/v1/app_settings?select=key,value`,
+      {
+        method: "GET",
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+        },
+      }
+    );
+    if (!Array.isArray(resp.body)) return {};
+    const map = {};
+    resp.body.forEach((row) => { if (row.key) map[row.key] = row.value; });
+    return map;
+  } catch {
+    return {};
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") { res.status(200).end(); return; }
-  if (req.method !== "POST")   { res.status(405).json({ error: "Method not allowed" }); return; }
+  if (req.method !== "POST") { res.status(405).json({ error: "Method not allowed" }); return; }
 
   let body = {};
-  try { body = await parseBody(req); } catch (e) { /* ignore */ }
+  try { body = await parseBody(req); } catch { /* ignore */ }
 
   const { phone, amount, transaction_id, account_ref } = body;
 
@@ -55,15 +81,23 @@ export default async function handler(req, res) {
     return;
   }
 
-  const consumerKey    = process.env.DARAJA_CONSUMER_KEY;
-  const consumerSecret = process.env.DARAJA_CONSUMER_SECRET;
-  const passkey        = process.env.DARAJA_PASSKEY;
-  const shortcode      = process.env.MPESA_SHORTCODE;
-  const supabaseUrl    = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
-  const supabaseKey    = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
+  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+
+  // Load settings from DB — they override env vars when set
+  const settings = await fetchSettings(supabaseUrl, supabaseKey);
+
+  const consumerKey    = settings.daraja_consumer_key    || process.env.DARAJA_CONSUMER_KEY;
+  const consumerSecret = settings.daraja_consumer_secret || process.env.DARAJA_CONSUMER_SECRET;
+  const passkey        = settings.daraja_passkey         || process.env.DARAJA_PASSKEY;
+  const shortcode      = settings.mpesa_shortcode        || process.env.MPESA_SHORTCODE;
+  const transactionType = settings.transaction_type      || "CustomerPayBillOnline";
 
   if (!consumerKey || !consumerSecret || !passkey || !shortcode) {
-    console.error("[initiate-stk] Missing Daraja env vars:", { consumerKey: !!consumerKey, consumerSecret: !!consumerSecret, passkey: !!passkey, shortcode: !!shortcode });
+    console.error("[initiate-stk] Missing Daraja credentials", {
+      consumerKey: !!consumerKey, consumerSecret: !!consumerSecret,
+      passkey: !!passkey, shortcode: !!shortcode,
+    });
     res.status(500).json({ ok: false, error: "Daraja credentials not configured" });
     return;
   }
@@ -84,7 +118,7 @@ export default async function handler(req, res) {
     const accessToken = tokenResp.body && tokenResp.body.access_token;
     if (!accessToken) {
       console.error("[initiate-stk] Token error:", JSON.stringify(tokenResp.body));
-      res.status(502).json({ ok: false, error: "Failed to get Daraja token: " + JSON.stringify(tokenResp.body) });
+      res.status(502).json({ ok: false, error: "Failed to get Daraja token: " + (tokenResp.body?.errorMessage || JSON.stringify(tokenResp.body)) });
       return;
     }
 
@@ -92,7 +126,7 @@ export default async function handler(req, res) {
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     const ts =
-      `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}` +
+      `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
       `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const password = Buffer.from(`${shortcode}${passkey}${ts}`).toString("base64");
 
@@ -101,7 +135,7 @@ export default async function handler(req, res) {
       BusinessShortCode: shortcode,
       Password:          password,
       Timestamp:         ts,
-      TransactionType:   "CustomerPayBillOnline",
+      TransactionType:   transactionType,
       Amount:            Math.ceil(Number(amount)),
       PartyA:            phone254,
       PartyB:            shortcode,
@@ -116,15 +150,15 @@ export default async function handler(req, res) {
       {
         method: "POST",
         headers: {
-          Authorization:  `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
+          Authorization:    `Bearer ${accessToken}`,
+          "Content-Type":   "application/json",
           "Content-Length": Buffer.byteLength(stkBody),
         },
       },
       stkBody
     );
     const stkData = stkResp.body;
-    console.log("[initiate-stk] Daraja response:", JSON.stringify(stkData));
+    console.log("[initiate-stk] Daraja STK response:", JSON.stringify(stkData));
 
     if (!stkData || stkData.ResponseCode !== "0") {
       const errMsg = (stkData && (stkData.errorMessage || stkData.CustomerMessage || stkData.ResultDesc)) || "STK push failed";
