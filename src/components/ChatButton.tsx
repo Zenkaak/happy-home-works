@@ -133,7 +133,7 @@ const ChatButton = () => {
       await supabase.functions.invoke("send-sms", {
         body: {
           phone: "254719841370",
-          message: `DASNET: New chat message from ${phone}. Subject: ${activeConvo.subject}. Visit admin dashboard to reply.`,
+          message: `DASNET — New Support Message\n\nFrom : ${phone}\nSubject : ${activeConvo.subject}\n\nOpen the admin dashboard to reply.`,
           internal_chat_notify: true,
         },
       });
