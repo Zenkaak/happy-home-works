@@ -223,6 +223,9 @@ function friendlyStkReason(code: number | string, rawDesc: string): string {
   if (/unresolved reason/i.test(rawDesc)) {
     return "Safaricom blocked this STK push (often a blacklisted or restricted SIM). Use Pay Manually via Till 8448104.";
   }
+  if (/agent.*store|store.*agent/i.test(rawDesc)) {
+    return "Payment configuration error — please use Pay Manually via Till 8448104 or contact support.";
+  }
   if (/cancel/i.test(rawDesc)) return "You cancelled the M-PESA prompt.";
   if (/timeout|no response/i.test(rawDesc)) return "No response — STK prompt timed out. Please try again.";
   if (/insufficient/i.test(rawDesc)) return "Insufficient M-PESA balance.";
@@ -473,6 +476,11 @@ async function handleInitiate(req: Request) {
       .single();
 
     if (updateError) throw updateError;
+
+    // Notify customer that the payment prompt was sent
+    sendInitiatedSms(updatedTx).catch((e: unknown) =>
+      console.error("initiate SMS error:", e instanceof Error ? e.message : e)
+    );
 
     return new Response(JSON.stringify({ success: true, data: stkData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
