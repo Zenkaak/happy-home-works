@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Save, ShieldCheck, Bell, CreditCard, MessageSquare,
-  Send, Eye, EyeOff, ToggleLeft, ToggleRight, RefreshCw,
+  Send, Eye, EyeOff, ToggleLeft, ToggleRight, RefreshCw, Zap,
 } from "lucide-react";
 
 const getAdminToken = () => localStorage.getItem("dasnet_admin_token");
@@ -191,6 +191,12 @@ const AdminSettings = () => {
     onError: (err: any) => toast({ title: "Failed to save", description: err.message, variant: "destructive" }),
   });
 
+  const testSms = useMutation({
+    mutationFn: async (phone: string) => await adminApi("send_test_sms", { phone }),
+    onSuccess: () => toast({ title: "Test SMS sent!", description: "Check your phone — the message should arrive within seconds." }),
+    onError: (err: any) => toast({ title: "Test SMS failed", description: err.message, variant: "destructive" }),
+  });
+
   const save = (key: string, value: string) => saveSetting.mutate({ key, value });
   const isSaving = saveSetting.isPending;
 
@@ -227,6 +233,29 @@ const AdminSettings = () => {
           type="tel"
           current={settings?.admin_notify_phone}
         />
+        <div className="pt-1">
+          <button
+            onClick={() => {
+              if (!adminNotifyPhone.trim()) {
+                toast({ title: "No phone set", description: "Enter and save a notify phone first.", variant: "destructive" });
+                return;
+              }
+              testSms.mutate(adminNotifyPhone);
+            }}
+            disabled={testSms.isPending || !adminNotifyPhone.trim()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary border border-border text-xs font-bold text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all disabled:opacity-50"
+          >
+            {testSms.isPending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Zap className="w-3.5 h-3.5" />
+            )}
+            {testSms.isPending ? "Sending…" : "Send Test SMS"}
+          </button>
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            Sends a test message to the notify phone above to confirm delivery is working.
+          </p>
+        </div>
       </Section>
 
       {/* ── M-Pesa / STK ── */}
