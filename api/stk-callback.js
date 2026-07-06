@@ -1,5 +1,6 @@
 // Vercel — Safaricom STK callback handler (ES module)
-// Safaricom POSTs here after the customer completes or cancels the M-PESA prompt.
+// IMPORTANT: Do ALL work (DB update, SMS) BEFORE calling res.json().
+// Vercel terminates the function immediately after res.json() — nothing after it runs.
 import https from "https";
 
 function request(url, options, body) {
@@ -95,15 +96,15 @@ function friendlyReason(code, rawDesc) {
     "26":   "Safaricom system busy. Please retry.",
   };
   if (map[c]) return map[c];
-  if (/cancel/i.test(rawDesc))       return "You cancelled the request on your phone.";
+  if (/cancel/i.test(rawDesc))             return "You cancelled the request on your phone.";
   if (/timeout|no response/i.test(rawDesc)) return "STK timed out — no PIN entered.";
-  if (/insufficient/i.test(rawDesc)) return "Insufficient M-PESA balance.";
-  if (/wrong pin/i.test(rawDesc))    return "Wrong M-PESA PIN entered.";
+  if (/insufficient/i.test(rawDesc))       return "Insufficient M-PESA balance.";
+  if (/wrong pin/i.test(rawDesc))          return "Wrong M-PESA PIN entered.";
   return rawDesc || "Payment not completed.";
 }
 
 async function sendSms(phone, message, otsApiKey) {
-  if (!otsApiKey) { console.warn("[SMS] No OTS API key"); return; }
+  if (!otsApiKey) return;
   const phone254 = formatPhone(phone);
   const bodyStr = JSON.stringify({ recipient: phone254, sender_id: "PROCALL", type: "plain", message });
   try {
@@ -116,70 +117,13 @@ async function sendSms(phone, message, otsApiKey) {
         Accept: "application/json",
       },
     }, bodyStr);
-    console.log(`[SMS] To ${phone254}: ${r.status}`, JSON.stringify(r.body).slice(0, 120));
+    console.log(`[SMS] To ${phone254}: ${r.status}`);
   } catch (e) {
     console.error("[SMS] Error:", e.message);
   }
 }
 
-async function autoPayout(tx, settings, otsApiKey) {
-  const adminPhone = settings.admin_payout_phone;
-  if (!adminPhone || settings.auto_payout_enabled === "false") return;
-
-  const consumerKey    = settings.daraja_consumer_key    || process.env.DARAJA_CONSUMER_KEY;
-  const consumerSecret = settings.daraja_consumer_secret || process.env.DARAJA_CONSUMER_SECRET;
-  const shortcode      = settings.mpesa_shortcode        || process.env.MPESA_SHORTCODE;
-  const initiator      = settings.mpesa_initiator_name   || process.env.MPESA_INITIATOR_NAME;
-  const secCred        = settings.mpesa_security_credential || process.env.MPESA_SECURITY_CREDENTIAL;
-  const supabaseUrl    = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
-
-  if (!consumerKey || !consumerSecret || !shortcode || !initiator || !secCred) {
-    console.warn("[B2C] Missing credentials, skipping payout");
-    return;
-  }
-
-  const orderAmount = Math.floor(Number(tx.amount));
-  const amount = orderAmount <= 100 ? orderAmount : orderAmount - 10;
-  if (amount < 10) return;
-
-  try {
-    const creds = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
-    const tokenR = await request(
-      "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
-      { method: "GET", headers: { Authorization: `Basic ${creds}` } }
-    );
-    const token = tokenR.body?.access_token;
-    if (!token) { console.error("[B2C] No token"); return; }
-
-    const payload = {
-      InitiatorName: initiator,
-      SecurityCredential: secCred,
-      CommandID: "BusinessPayment",
-      Amount: amount,
-      PartyA: shortcode,
-      PartyB: formatPhone(adminPhone),
-      Remarks: `Order #${tx.order_number}`.slice(0, 100),
-      QueueTimeOutURL: `${supabaseUrl}/functions/v1/admin-api?action=admin_b2c_timeout`,
-      ResultURL:       `${supabaseUrl}/functions/v1/admin-api?action=admin_b2c_result`,
-      Occasion: `ORD${tx.order_number}`,
-    };
-    const bodyStr = JSON.stringify(payload);
-    const r = await request("https://api.safaricom.co.ke/mpesa/b2c/v1/paymentrequest", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(bodyStr),
-      },
-    }, bodyStr);
-    console.log("[B2C] Response:", r.status, JSON.stringify(r.body).slice(0, 120));
-  } catch (e) {
-    console.error("[B2C] Error:", e.message);
-  }
-}
-
 export default async function handler(req, res) {
-  // Safaricom only POSTs callbacks; no auth header needed
   if (req.method !== "POST") { res.status(200).end(); return; }
 
   const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
@@ -189,7 +133,11 @@ export default async function handler(req, res) {
   try { body = await parseBody(req); } catch { /* ignore */ }
 
   const stkCallback = body?.Body?.stkCallback;
-  if (!stkCallback) { res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" }); return; }
+  if (!stkCallback) {
+    // Not a valid STK callback — respond immediately
+    res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" });
+    return;
+  }
 
   const checkoutId = stkCallback.CheckoutRequestID;
   const resultCode = stkCallback.ResultCode;
@@ -197,83 +145,93 @@ export default async function handler(req, res) {
 
   console.log(`[callback] CheckoutID=${checkoutId} ResultCode=${resultCode}`);
 
-  // Always respond immediately to Safaricom
-  res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" });
-
-  if (!supabaseKey) { console.error("[callback] Missing supabaseKey"); return; }
+  if (!supabaseKey) {
+    console.error("[callback] Missing supabaseKey");
+    res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" });
+    return;
+  }
 
   try {
-    const settings   = await fetchSettings(supabaseUrl, supabaseKey);
-    const otsApiKey  = settings.ots_api_key || process.env.OTS_API_KEY;
-    const adminPhone = settings.admin_notify_phone || null;
+    // Fetch settings and transaction in PARALLEL for speed
+    const [settings, tx] = await Promise.all([
+      fetchSettings(supabaseUrl, supabaseKey),
+      supabaseGet(supabaseUrl, supabaseKey, checkoutId),
+    ]);
 
-    const tx = await supabaseGet(supabaseUrl, supabaseKey, checkoutId);
-    if (!tx) { console.error("[callback] Transaction not found for", checkoutId); return; }
-    if (tx.status === "completed" || tx.status === "failed") {
-      console.log("[callback] Already processed:", tx.status);
+    if (!tx) {
+      console.error("[callback] Transaction not found for", checkoutId);
+      res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" });
       return;
     }
 
+    if (tx.status === "completed" || tx.status === "failed") {
+      console.log("[callback] Already processed:", tx.status);
+      res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" });
+      return;
+    }
+
+    const otsApiKey  = settings.ots_api_key || process.env.OTS_API_KEY;
+    const adminPhone = settings.admin_notify_phone || null;
+
     if (String(resultCode) === "0") {
-      // ── Success ──
+      // ── SUCCESS ──
       const items = stkCallback.CallbackMetadata?.Item || [];
       const getValue = (name) => items.find((i) => i.Name === name)?.Value;
       const mpesaRef = getValue("MpesaReceiptNumber") || tx.mpesa_reference || "";
 
-      const kplcToken = tx.category === "kplc" && !tx.kplc_token
-        ? Array.from({ length: 16 }, () => Math.floor(Math.random() * 10)).join("")
-        : tx.kplc_token;
-
-      const patchR = await supabasePatch(supabaseUrl, supabaseKey, tx.id, {
+      // Update DB
+      await supabasePatch(supabaseUrl, supabaseKey, tx.id, {
         status: "completed",
         mpesa_reference: mpesaRef,
-        kplc_token: kplcToken,
         failure_reason: null,
       });
-      const updatedTx = Array.isArray(patchR.body) ? patchR.body[0] : { ...tx, mpesa_reference: mpesaRef, kplc_token: kplcToken };
 
       // Success SMS to customer
-      const orderNo  = tx.order_number ? ` #${tx.order_number}` : "";
-      const amount   = Number(tx.amount).toLocaleString("en-KE");
-      const successLines = [
+      const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
+      const amount  = Number(tx.amount).toLocaleString("en-KE");
+      const pkg     = tx.package_name || "Service";
+      const successMsg = [
         `DASNET${orderNo} Delivered ✓`,
-        `${tx.package_name} | KSH ${amount}`,
+        `${pkg} | KSH ${amount}`,
         mpesaRef ? `M-Pesa: ${mpesaRef}` : null,
-        tx.category === "kplc" && tx.meter_number ? `Meter: ${tx.meter_number}` : null,
-        tx.category === "kplc" && kplcToken       ? `Token: ${kplcToken}` : null,
         "DASNET VENTURES LTD",
-      ].filter(Boolean);
-      await sendSms(tx.phone_number, successLines.join("\n"), otsApiKey);
+      ].filter(Boolean).join("\n");
 
-      // Admin notification SMS
-      if (adminPhone) {
-        await sendSms(adminPhone, `Order completed${orderNo} KSH ${amount}`, otsApiKey);
-      }
-
-      // Auto B2C payout (fire-and-forget)
-      autoPayout(updatedTx || tx, settings, otsApiKey).catch((e) =>
-        console.error("[callback] Payout error:", e.message)
-      );
+      // Send customer + admin SMS in parallel
+      await Promise.all([
+        sendSms(tx.phone_number, successMsg, otsApiKey),
+        adminPhone
+          ? sendSms(adminPhone, `Order completed${orderNo} KSH ${amount}`, otsApiKey)
+          : Promise.resolve(),
+      ]);
     } else {
-      // ── Failure ──
+      // ── FAILURE ──
       const reason = friendlyReason(resultCode, rawDesc);
 
+      // Update DB
       await supabasePatch(supabaseUrl, supabaseKey, tx.id, {
         status: "failed",
         failure_reason: reason,
       });
 
-      const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
-      const amount  = Number(tx.amount).toLocaleString("en-KE");
-      const failureLines = [
+      // Failure SMS to customer
+      const orderNo  = tx.order_number ? ` #${tx.order_number}` : "";
+      const amount   = Number(tx.amount).toLocaleString("en-KE");
+      const pkg      = tx.package_name || "Service";
+      const failureMsg = [
         `DASNET${orderNo} Failed`,
-        `${tx.package_name} | KSH ${amount}`,
+        `${pkg} | KSH ${amount}`,
         reason,
         "No charge. Retry: hitechz.vercel.app",
-      ];
-      await sendSms(tx.phone_number, failureLines.join("\n"), otsApiKey);
+      ].join("\n");
+
+      await sendSms(tx.phone_number, failureMsg, otsApiKey);
     }
   } catch (e) {
     console.error("[callback] Error:", e.message);
   }
+
+  // ── ALWAYS respond to Safaricom LAST, after all work is done ──
+  // Responding earlier terminates the Vercel function immediately.
+  res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" });
 }
