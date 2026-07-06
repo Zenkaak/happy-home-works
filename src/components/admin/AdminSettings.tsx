@@ -191,6 +191,8 @@ const AdminSettings = () => {
     onError: (err: any) => toast({ title: "Failed to save", description: err.message, variant: "destructive" }),
   });
 
+  const [smsTestResult, setSmsTestResult] = useState<{ success?: boolean; error?: string; otsRaw?: any; otsHttp?: number } | null>(null);
+
   const testSms = useMutation({
     mutationFn: async (phone: string) => {
       const token = getAdminToken();
@@ -200,10 +202,11 @@ const AdminSettings = () => {
         body: JSON.stringify({ phone, admin_token: token }),
       });
       const data = await res.json();
+      setSmsTestResult(data);
       if (data.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: () => toast({ title: "Test SMS sent!", description: "Check your phone — the message should arrive within seconds." }),
+    onSuccess: () => toast({ title: "OTS accepted request", description: "Check your phone. See the OTS response below if nothing arrived." }),
     onError: (err: any) => toast({ title: "Test SMS failed", description: err.message, variant: "destructive" }),
   });
 
@@ -265,6 +268,28 @@ const AdminSettings = () => {
           <p className="text-[11px] text-muted-foreground mt-1.5">
             Sends a test message to the notify phone above to confirm delivery is working.
           </p>
+          {smsTestResult && (
+            <div className={`mt-2 rounded-xl border p-3 text-xs font-mono space-y-1 ${smsTestResult.error ? "border-destructive/40 bg-destructive/5" : "border-green-500/30 bg-green-500/5"}`}>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className={`font-bold text-[11px] uppercase tracking-wide ${smsTestResult.error ? "text-destructive" : "text-green-600"}`}>
+                  {smsTestResult.error ? "OTS rejected ✗" : "OTS accepted ✓"}
+                </span>
+                <span className="text-muted-foreground text-[10px]">HTTP {smsTestResult.otsHttp}</span>
+              </div>
+              {smsTestResult.error && (
+                <p className="text-destructive font-semibold break-all">{smsTestResult.error}</p>
+              )}
+              <pre className="whitespace-pre-wrap break-all text-[10px] text-muted-foreground leading-relaxed">
+                {JSON.stringify(smsTestResult.otsRaw, null, 2)}
+              </pre>
+              <button
+                onClick={() => setSmsTestResult(null)}
+                className="text-[10px] text-muted-foreground hover:text-foreground mt-1"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
         </div>
       </Section>
 
