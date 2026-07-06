@@ -193,7 +193,7 @@ const AdminSettings = () => {
     onError: (err: any) => toast({ title: "Failed to save", description: err.message, variant: "destructive" }),
   });
 
-  const [smsTestResult, setSmsTestResult] = useState<{ success?: boolean; error?: string; otsRaw?: any; otsHttp?: number } | null>(null);
+  const [smsTestResult, setSmsTestResult] = useState<{ success?: boolean; error?: string; otsRaw?: any; otsHttp?: number; queueStatus?: any } | null>(null);
 
   const testSms = useMutation({
     mutationFn: async (phone: string) => {
@@ -281,19 +281,20 @@ const AdminSettings = () => {
               {smsTestResult.error && (
                 <p className="text-destructive font-semibold break-all">{smsTestResult.error}</p>
               )}
-              {smsTestResult.otsRaw?.data?.check_status_url && (
-                <a
-                  href={smsTestResult.otsRaw.data.check_status_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block text-[10px] text-primary underline break-all"
-                >
-                  Check delivery status ↗
-                </a>
+              {smsTestResult.queueStatus && (
+                <div className="mt-1 pt-1 border-t border-border/40">
+                  <p className="text-[10px] font-bold text-foreground/70 mb-0.5">Delivery status (polled 5s after send):</p>
+                  <pre className="whitespace-pre-wrap break-all text-[10px] text-foreground/80 leading-relaxed">
+                    {JSON.stringify(smsTestResult.queueStatus, null, 2)}
+                  </pre>
+                </div>
               )}
-              <pre className="whitespace-pre-wrap break-all text-[10px] text-muted-foreground leading-relaxed">
-                {JSON.stringify(smsTestResult.otsRaw, null, 2)}
-              </pre>
+              <div className="mt-1 pt-1 border-t border-border/40">
+                <p className="text-[10px] font-bold text-foreground/70 mb-0.5">Raw OTS send response (HTTP {smsTestResult.otsHttp}):</p>
+                <pre className="whitespace-pre-wrap break-all text-[10px] text-muted-foreground leading-relaxed">
+                  {JSON.stringify(smsTestResult.otsRaw, null, 2)}
+                </pre>
+              </div>
               <button
                 onClick={() => setSmsTestResult(null)}
                 className="text-[10px] text-muted-foreground hover:text-foreground mt-1"
