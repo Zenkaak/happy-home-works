@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X, AlertTriangle, Loader2, CheckCircle, XCircle, Wallet, ShieldCheck, Zap, Lock, Phone, Smartphone, Sparkles } from "lucide-react";
 import ManualPaymentModal from "@/components/ManualPaymentModal";
 import type { Product, Transaction } from "@/lib/types";
@@ -27,6 +27,10 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [showManual, setShowManual] = useState(false);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  const [showRetry, setShowRetry] = useState(false);
+  const [retrySeed, setRetrySeed] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const activeTxRef = useRef<{ id: string; phone: string; amount: number; accountRef: string } | null>(null);
 
   const isSafaricomData = product.category === "data" && product.network === "safaricom";
   const needsPaymentNumber =
@@ -40,6 +44,14 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   useEffect(() => {
     fetch('/api/initiate-stk').catch(() => {});
   }, []);
+
+  // Show "Resend prompt" button after 8 s of processing (resets on each retry)
+  useEffect(() => {
+    if (step !== "processing") { setShowRetry(false); return; }
+    setShowRetry(false);
+    const t = setTimeout(() => setShowRetry(true), 8000);
+    return () => clearTimeout(t);
+  }, [step, retrySeed]);
 
   useEffect(() => {
     const updateViewport = () => {
@@ -77,10 +89,21 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
     return true;
   };
 
+  const sendStkAndPoll = async (txId: string, phone: string, amount: number, accountRef: string) => {
+    const stkResult = await initiateStkPush({ phone, amount, transaction_id: txId, account_ref: accountRef });
+    if (stkResult?.checkoutId) {
+      supabase.from("transactions").update({ stk_checkout_id: stkResult.checkoutId }).eq("id", txId)
+        .then(({ error }) => { if (error) console.error("[checkout] stk_checkout_id write failed:", error); });
+    }
+    const pollResult = await pollTransaction(txId);
+    return pollResult;
+  };
+
   const handleConfirmPay = async () => {
     setStep("processing");
     try {
       const payPhone = needsPaymentNumber ? formatPhoneTo254(serviceNumber) : formatPhoneTo254(phoneNumber);
+      const accountRef = buildAccountRef({ category: product.category, packageName: product.name, dataAmount: product.data_amount });
 
       const { data, error } = await supabase.from("transactions").insert({
         product_id: product.id,
@@ -97,30 +120,9 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
 
       if (error) throw error;
 
-      const stkResult = await initiateStkPush({
-        phone: payPhone,
-        amount: product.price,
-        transaction_id: data.id,
-        account_ref: buildAccountRef({ category: product.category, packageName: product.name, dataAmount: product.data_amount }),
-      });
+      activeTxRef.current = { id: data.id, phone: payPhone, amount: product.price, accountRef };
 
-      // Await stk_checkout_id write: the Supabase callback handler looks up the
-      // transaction by stk_checkout_id, so it MUST be in the DB before the callback arrives.
-      // The server-side Vercel function also writes this; this is a belt-and-suspenders backup.
-      if (stkResult?.checkoutId) {
-        const { error: stkIdError } = await supabase
-          .from("transactions")
-          .update({ stk_checkout_id: stkResult.checkoutId })
-          .eq("id", data.id);
-        if (stkIdError) {
-          console.error("[checkout] stk_checkout_id write failed:", stkIdError);
-          // Non-fatal: server already wrote it; log and continue
-        } else {
-          console.log("[checkout] stk_checkout_id set");
-        }
-      }
-
-      const pollResult = await pollTransaction(data.id);
+      const pollResult = await sendStkAndPoll(data.id, payPhone, product.price, accountRef);
       setTransaction(pollResult);
 
       if (pollResult.status === "completed") {
@@ -147,6 +149,33 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
     }
   };
 
+  const handleRetry = async () => {
+    const tx = activeTxRef.current;
+    if (!tx || isRetrying) return;
+    setIsRetrying(true);
+    setShowRetry(false);
+    setRetrySeed((s) => s + 1);
+    try {
+      const pollResult = await sendStkAndPoll(tx.id, tx.phone, tx.amount, tx.accountRef);
+      setTransaction(pollResult);
+      if (pollResult.status === "completed") {
+        playSuccess();
+        setStep("success");
+      } else if (pollResult.status === "failed") {
+        playFailure();
+        setStep("failed");
+      } else {
+        toast({ title: "Payment submitted", description: "Complete the prompt on your phone." });
+        onClose();
+      }
+    } catch (err: any) {
+      console.error("Retry error:", err);
+      setStep("failed");
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   const pollTransaction = async (txId: string): Promise<Transaction> => {
     for (let i = 0; i < 30; i++) {
       await new Promise((r) => setTimeout(r, 3000));
@@ -169,11 +198,33 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
         <div className="w-full max-w-md gradient-card rounded-2xl p-8 text-center">
           <Loader2 className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" />
-          <h2 className="font-display text-xl font-bold mb-2">Processing Payment</h2>
+          <h2 className="font-display text-xl font-bold mb-2">
+            {isRetrying ? "Resending Prompt…" : "Processing Payment"}
+          </h2>
           <p className="text-muted-foreground text-sm">
             Check your phone for the M-Pesa STK prompt...
           </p>
           <p className="text-xs text-muted-foreground mt-4">Do not close this page</p>
+
+          {showRetry && (
+            <div className="mt-6 border-t border-border pt-5 space-y-3">
+              <p className="text-xs text-muted-foreground">Didn't receive a prompt?</p>
+              <button
+                onClick={handleRetry}
+                disabled={isRetrying}
+                className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-60"
+              >
+                {isRetrying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                {isRetrying ? "Sending…" : "Resend STK Prompt"}
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full py-2 rounded-xl border border-border text-sm text-muted-foreground hover:bg-secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
