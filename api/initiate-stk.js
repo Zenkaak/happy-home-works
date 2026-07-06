@@ -1,25 +1,28 @@
 // Vercel serverless function — M-Pesa STK push (ES module)
-// PRIMARY path. Callback URL → /api/stk-callback.
-// Speed: Daraja token + Supabase settings fetched in PARALLEL.
+// PRIMARY path. Fetches Daraja token and sends STK push.
+// Returns { success, checkoutId } immediately — DB update is handled by the frontend.
+// Callback URL → /api/stk-callback (handles completion + SMS).
 import https from "https";
 
 function request(url, options, body) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
-    const opts = {
-      hostname: u.hostname,
-      path: u.pathname + u.search,
-      method: options.method || "GET",
-      headers: options.headers || {},
-    };
-    const req = https.request(opts, (res) => {
-      let data = "";
-      res.on("data", (c) => (data += c));
-      res.on("end", () => {
-        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
-        catch { resolve({ status: res.statusCode, body: data }); }
-      });
-    });
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        path: u.pathname + u.search,
+        method: options.method || "GET",
+        headers: options.headers || {},
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (c) => (data += c));
+        res.on("end", () => {
+          try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+          catch { resolve({ status: res.statusCode, body: data }); }
+        });
+      }
+    );
     req.on("error", reject);
     if (body) req.write(typeof body === "string" ? body : JSON.stringify(body));
     req.end();
@@ -37,38 +40,6 @@ function parseBody(req) {
   });
 }
 
-async function fetchSettings(supabaseUrl, supabaseKey) {
-  if (!supabaseUrl || !supabaseKey) return {};
-  try {
-    const resp = await request(`${supabaseUrl}/rest/v1/app_settings?select=key,value`, {
-      method: "GET",
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    });
-    if (!Array.isArray(resp.body)) return {};
-    const map = {};
-    resp.body.forEach((row) => { if (row.key) map[row.key] = row.value; });
-    return map;
-  } catch { return {}; }
-}
-
-async function sendSms(phone254, message, otsApiKey) {
-  if (!otsApiKey) return;
-  const smsBody = JSON.stringify({ recipient: phone254, sender_id: "PROCALL", type: "plain", message });
-  try {
-    await request("https://sms.ots.co.ke/api/v3/sms/send", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${otsApiKey}`,
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(smsBody),
-        Accept: "application/json",
-      },
-    }, smsBody);
-  } catch (e) {
-    console.error("[initiate-stk] SMS error:", e.message);
-  }
-}
-
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -80,14 +51,14 @@ export default async function handler(req, res) {
   let body = {};
   try { body = await parseBody(req); } catch { /* ignore */ }
 
-  const { phone, amount, transaction_id, account_ref, order_number, package_name } = body;
+  const { phone, amount, account_ref } = body;
 
   if (!phone || !amount) {
     res.status(400).json({ ok: false, error: "Missing phone or amount" });
     return;
   }
 
-  // Daraja credentials — from env vars (fastest, no Supabase call needed)
+  // Daraja credentials come from env vars — no Supabase call needed here
   const consumerKey    = process.env.DARAJA_CONSUMER_KEY;
   const consumerSecret = process.env.DARAJA_CONSUMER_SECRET;
   const passkey        = process.env.DARAJA_PASSKEY;
@@ -99,24 +70,16 @@ export default async function handler(req, res) {
     return;
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
-  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
-
   let phone254 = String(phone).replace(/[^0-9]/g, "");
   if (phone254.startsWith("0") && phone254.length === 10) phone254 = `254${phone254.slice(1)}`;
 
   try {
-    const creds = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
-
-    // Fetch Daraja token + Supabase settings IN PARALLEL (saves ~1-2 seconds)
-    const [tokenResp, settings] = await Promise.all([
-      request(
-        "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
-        { method: "GET", headers: { Authorization: `Basic ${creds}` } }
-      ),
-      fetchSettings(supabaseUrl, supabaseKey),
-    ]);
-
+    // 1. Daraja token
+    const creds     = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
+    const tokenResp = await request(
+      "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
+      { method: "GET", headers: { Authorization: `Basic ${creds}` } }
+    );
     const accessToken = tokenResp.body?.access_token;
     if (!accessToken) {
       console.error("[initiate-stk] Token error:", JSON.stringify(tokenResp.body));
@@ -124,28 +87,25 @@ export default async function handler(req, res) {
       return;
     }
 
-    const otsApiKey = settings.ots_api_key || process.env.OTS_API_KEY;
-    const transactionType = settings.transaction_type || "CustomerPayBillOnline";
-
-    // Timestamp + password
+    // 2. Timestamp + password
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     const ts  = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const password = Buffer.from(`${shortcode}${passkey}${ts}`).toString("base64");
 
-    // STK push — callback → Vercel /api/stk-callback
+    // 3. STK push — callback → /api/stk-callback
     const stkPayload = {
       BusinessShortCode: shortcode,
       Password:          password,
       Timestamp:         ts,
-      TransactionType:   transactionType,
+      TransactionType:   "CustomerPayBillOnline",
       Amount:            Math.ceil(Number(amount)),
       PartyA:            phone254,
       PartyB:            shortcode,
       PhoneNumber:       phone254,
       CallBackURL:       "https://hitechz.vercel.app/api/stk-callback",
       AccountReference:  (account_ref || "DASNET").slice(0, 12),
-      TransactionDesc:   (account_ref || "DASNET Payment").slice(0, 13),
+      TransactionDesc:   (account_ref || "DASNET").slice(0, 13),
     };
     const stkBodyStr = JSON.stringify(stkPayload);
     const stkResp = await request(
@@ -161,48 +121,26 @@ export default async function handler(req, res) {
       stkBodyStr
     );
     const stkData = stkResp.body;
-    console.log("[initiate-stk] Daraja:", JSON.stringify(stkData));
+    console.log("[initiate-stk] Daraja:", stkData?.ResponseCode, stkData?.ResponseDescription);
 
     if (!stkData || stkData.ResponseCode !== "0") {
-      const errMsg = stkData?.errorMessage || stkData?.CustomerMessage || stkData?.ResultDesc || "STK push failed";
+      const errMsg =
+        stkData?.errorMessage ||
+        stkData?.CustomerMessage ||
+        stkData?.ResultDesc ||
+        "STK push failed";
       res.status(200).json({ ok: false, error: errMsg });
       return;
     }
 
-    // Update transaction in Supabase + send initiated SMS in PARALLEL
-    const patchBodyStr = JSON.stringify({
-      stk_checkout_id: stkData.CheckoutRequestID,
-      status: "processing",
-      failure_reason: null,
+    // 4. Respond immediately — frontend will update stk_checkout_id in Supabase
+    res.status(200).json({
+      success:    true,
+      checkoutId: stkData.CheckoutRequestID,
+      data:       stkData,
     });
-
-    const tasks = [];
-
-    if (transaction_id && supabaseKey) {
-      tasks.push(
-        request(`${supabaseUrl}/rest/v1/transactions?id=eq.${transaction_id}`, {
-          method: "PATCH",
-          headers: {
-            apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`,
-            "Content-Type": "application/json", "Content-Length": Buffer.byteLength(patchBodyStr),
-            Prefer: "return=minimal",
-          },
-        }, patchBodyStr).catch((e) => console.error("[initiate-stk] Patch error:", e.message))
-      );
-    }
-
-    if (otsApiKey && order_number && package_name) {
-      const amt = Number(amount).toLocaleString("en-KE");
-      const msg = `DASNET #${order_number}: Enter M-PESA PIN.\n${package_name} | KSH ${amt}\nDelivery is instant on confirmation.`;
-      tasks.push(sendSms(phone254, msg, otsApiKey).catch(() => {}));
-    }
-
-    // Fire both in parallel, don't await (fire-and-forget after responding)
-    await Promise.allSettled(tasks);
-
-    res.status(200).json({ success: true, data: stkData });
   } catch (err) {
-    console.error("[initiate-stk]", err);
+    console.error("[initiate-stk]", err.message);
     res.status(500).json({ ok: false, error: err.message || "Internal error" });
   }
 }
