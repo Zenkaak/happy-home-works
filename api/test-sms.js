@@ -64,6 +64,22 @@ async function verifyAdminSession(supabaseUrl, supabaseKey, token) {
   } catch { return false; }
 }
 
+// Extract the meaningful error message from an OTS API response body.
+// OTS returns HTTP 200 even on errors — the actual status is in the body.
+function otsError(body) {
+  if (!body || typeof body !== "object") return null;
+  // {"status":"error","message":"..."}
+  if (body.status === "error") return body.message || "SMS rejected by gateway";
+  // {"code":4xx,"message":"..."}
+  if (body.code && body.code >= 400) return body.message || "SMS rejected by gateway";
+  // Check per-recipient failure
+  if (Array.isArray(body.recipients)) {
+    const failed = body.recipients.find((r) => r.status && !/submit/i.test(r.status));
+    if (failed) return failed.reason || failed.status || "Recipient rejected";
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -78,7 +94,9 @@ export default async function handler(req, res) {
   if (!phone) { res.status(400).json({ error: "Phone number required" }); return; }
 
   const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
-  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY;
 
   if (!supabaseKey) { res.status(500).json({ error: "Supabase not configured" }); return; }
 
@@ -122,9 +140,19 @@ export default async function handler(req, res) {
 
     console.log("[test-sms] OTS response:", smsResp.status, JSON.stringify(smsResp.body));
 
+    // Check HTTP-level error first
     if (!smsResp.status || smsResp.status >= 300) {
-      const errMsg = (smsResp.body && (smsResp.body.message || smsResp.body.error)) || "SMS sending failed";
+      const errMsg = (smsResp.body && (smsResp.body.message || smsResp.body.error)) ||
+        `Gateway HTTP error ${smsResp.status}`;
       res.status(200).json({ error: errMsg });
+      return;
+    }
+
+    // Check OTS body-level error — OTS returns HTTP 200 even when delivery fails
+    const bodyErr = otsError(smsResp.body);
+    if (bodyErr) {
+      console.error("[test-sms] OTS body error:", bodyErr, JSON.stringify(smsResp.body));
+      res.status(200).json({ error: bodyErr });
       return;
     }
 
