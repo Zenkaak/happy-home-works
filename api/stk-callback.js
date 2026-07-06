@@ -3,7 +3,7 @@
 // Vercel terminates the function immediately after res.json() — nothing after it runs.
 import https from "https";
 
-function request(url, options, body) {
+function request(url, options, body, timeoutMs = 6000) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
     const opts = {
@@ -19,6 +19,10 @@ function request(url, options, body) {
         try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
         catch { resolve({ status: res.statusCode, body: data }); }
       });
+    });
+    // Hard abort to stay well inside Vercel's 10s function limit
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`Request timed out after ${timeoutMs}ms: ${url}`));
     });
     req.on("error", reject);
     if (body) req.write(typeof body === "string" ? body : JSON.stringify(body));
@@ -152,8 +156,9 @@ async function autoPayoutToAdmin(tx, settings) {
     b2cBodyStr
   );
 
-  if (b2cResp.body?.ResponseCode !== "0") {
-    console.error("[auto-b2c] B2C request failed:", b2cResp.body?.errorMessage || b2cResp.body?.ResponseDescription);
+  if (b2cResp.status < 200 || b2cResp.status >= 300 || b2cResp.body?.ResponseCode !== "0") {
+    console.error("[auto-b2c] B2C request failed (HTTP %d):", b2cResp.status,
+      b2cResp.body?.errorMessage || b2cResp.body?.ResponseDescription || b2cResp.body);
     return;
   }
 
