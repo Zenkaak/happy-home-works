@@ -92,12 +92,23 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
 
       if (error) throw error;
 
-      await initiateStkPush({
+      const stkResult = await initiateStkPush({
         phone: payPhone,
         amount: product.price,
         transaction_id: data.id,
         account_ref: buildAccountRef({ category: product.category, packageName: product.name, dataAmount: product.data_amount }),
       });
+
+      // Write stk_checkout_id from the frontend — reliable, not subject to serverless timeout.
+      // Fire-and-forget: completes in ~1s, well before the customer enters their PIN.
+      if (stkResult?.checkoutId) {
+        supabase
+          .from("transactions")
+          .update({ stk_checkout_id: stkResult.checkoutId })
+          .eq("id", data.id)
+          .then(() => console.log("[checkout] stk_checkout_id set"))
+          .catch((e) => console.error("[checkout] stk_checkout_id write failed:", e));
+      }
 
       const pollResult = await pollTransaction(data.id);
       setTransaction(pollResult);
