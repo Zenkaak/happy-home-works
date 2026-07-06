@@ -127,7 +127,13 @@ export default async function handler(req, res) {
   if (req.method !== "POST") { res.status(200).end(); return; }
 
   const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
-  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+  // Prefer the service role key for callback writes — it bypasses RLS so the
+  // PATCH always succeeds regardless of row-level security policies.
+  // Falls back to the anon/publishable key if service role is not configured.
+  const supabaseKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY;
 
   let body = {};
   try { body = await parseBody(req); } catch { /* ignore */ }

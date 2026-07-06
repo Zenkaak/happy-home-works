@@ -353,7 +353,13 @@ async function handleInitiate(req: Request) {
     const consumerSecret = settings.daraja_consumer_secret || Deno.env.get("DARAJA_CONSUMER_SECRET");
     const passkey = settings.daraja_passkey || Deno.env.get("DARAJA_PASSKEY");
     const shortcode = settings.mpesa_shortcode || Deno.env.get("MPESA_SHORTCODE");
-    const transactionType = settings.transaction_type || "CustomerPayBillOnline";
+    // transactionType: DB setting → DARAJA_TRANSACTION_TYPE env var → fallback
+    // Set transaction_type in Admin → Settings, or DARAJA_TRANSACTION_TYPE in Supabase secrets.
+    // Use "CustomerBuyGoodsOnline" for Till numbers, "CustomerPayBillOnline" for PayBill.
+    const transactionType =
+      settings.transaction_type ||
+      Deno.env.get("DARAJA_TRANSACTION_TYPE") ||
+      "CustomerPayBillOnline";
     const otsApiKey = settings.ots_api_key || undefined;
     const projectUrl = Deno.env.get("SUPABASE_URL");
 

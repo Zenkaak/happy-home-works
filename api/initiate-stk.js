@@ -114,16 +114,21 @@ export default async function handler(req, res) {
     const password = Buffer.from(`${shortcode}${passkey}${ts}`).toString("base64");
 
     // 3. STK push
+    // TransactionType: read from env var set in Vercel dashboard.
+    // Set DARAJA_TRANSACTION_TYPE=CustomerBuyGoodsOnline for Till/Buy-Goods numbers,
+    // or CustomerPayBillOnline for PayBill shortcodes.
+    const transactionType = process.env.DARAJA_TRANSACTION_TYPE || "CustomerPayBillOnline";
+
     const stkPayload = {
       BusinessShortCode: shortcode,
       Password:          password,
       Timestamp:         ts,
-      TransactionType:   "CustomerPayBillOnline",
+      TransactionType:   transactionType,
       Amount:            Math.ceil(Number(amount)),
       PartyA:            phone254,
       PartyB:            shortcode,
       PhoneNumber:       phone254,
-      CallBackURL:       "https://wxkvrdkbqkwkhbdunsvb.supabase.co/functions/v1/initiate-stk/callback",
+      CallBackURL:       "https://hitechz.vercel.app/api/stk-callback",
       AccountReference:  (account_ref || "DASNET").slice(0, 12),
       TransactionDesc:   (account_ref || "DASNET").slice(0, 13),
     };
