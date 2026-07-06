@@ -1,26 +1,33 @@
-// Vercel serverless function — send a test SMS to the admin notify phone (ES module)
+// Vercel serverless function — diagnostic test SMS (ES module)
 import https from "https";
 
 function request(url, options, body) {
   return new Promise((resolve, reject) => {
-    const u = new URL(url);
-    const opts = {
-      hostname: u.hostname,
-      path: u.pathname + u.search,
-      method: options.method || "GET",
-      headers: options.headers || {},
-    };
-    const req = https.request(opts, (res) => {
-      let data = "";
-      res.on("data", (c) => (data += c));
-      res.on("end", () => {
-        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
-        catch { resolve({ status: res.statusCode, body: data }); }
+    try {
+      const u = new URL(url);
+      const bodyStr = body ? (typeof body === "string" ? body : JSON.stringify(body)) : null;
+      const req = https.request({
+        hostname: u.hostname,
+        path: u.pathname + u.search,
+        method: options.method || "GET",
+        headers: {
+          ...options.headers,
+          ...(bodyStr ? { "Content-Length": Buffer.byteLength(bodyStr) } : {}),
+        },
+      }, (res) => {
+        let data = "";
+        res.on("data", (c) => (data += c));
+        res.on("end", () => {
+          try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+          catch { resolve({ status: res.statusCode, body: data }); }
+        });
       });
-    });
-    req.on("error", reject);
-    if (body) req.write(typeof body === "string" ? body : JSON.stringify(body));
-    req.end();
+      req.on("error", (e) => resolve({ status: 0, body: null, error: e.message }));
+      if (bodyStr) req.write(bodyStr);
+      req.end();
+    } catch (e) {
+      resolve({ status: 0, body: null, error: e.message });
+    }
   });
 }
 
@@ -28,10 +35,7 @@ function parseBody(req) {
   return new Promise((resolve) => {
     let data = "";
     req.on("data", (c) => (data += c));
-    req.on("end", () => {
-      try { resolve(JSON.parse(data)); }
-      catch { resolve({}); }
-    });
+    req.on("end", () => { try { resolve(JSON.parse(data)); } catch { resolve({}); } });
   });
 }
 
@@ -43,7 +47,7 @@ async function fetchSettings(supabaseUrl, supabaseKey) {
     });
     if (!Array.isArray(resp.body)) return {};
     const map = {};
-    resp.body.forEach((row) => { if (row.key) map[row.key] = row.value; });
+    resp.body.forEach((r) => { if (r.key) map[r.key] = r.value; });
     return map;
   } catch { return {}; }
 }
@@ -53,42 +57,14 @@ async function verifyAdminSession(supabaseUrl, supabaseKey, token) {
     const bodyStr = JSON.stringify({ p_token: token });
     const resp = await request(`${supabaseUrl}/rest/v1/rpc/verify_admin_session`, {
       method: "POST",
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(bodyStr),
-      },
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
     }, bodyStr);
     return resp.status === 200 && !!resp.body;
   } catch { return false; }
 }
 
-// Check OTS queue delivery status — called a few seconds after sending
-async function checkQueueStatus(queueUrl, otsApiKey) {
-  try {
-    const resp = await request(queueUrl, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${otsApiKey}`,
-        Accept: "application/json",
-      },
-    });
-    return resp.body;
-  } catch { return null; }
-}
-
-// Extract the meaningful error message from an OTS API response body.
-// OTS returns HTTP 200 even on errors — the actual status is in the body.
-function otsError(body) {
-  if (!body || typeof body !== "object") return null;
-  if (body.status === "error") return body.message || "SMS rejected by gateway";
-  if (body.code && body.code >= 400) return body.message || "SMS rejected by gateway";
-  if (Array.isArray(body.recipients)) {
-    const failed = body.recipients.find((r) => r.status && !/submit|accept|queue|pending|sent|deliver/i.test(r.status));
-    if (failed) return failed.reason || failed.status || "Recipient rejected";
-  }
-  return null;
+function otsAuthHeaders(key) {
+  return { Authorization: `Bearer ${key}`, Accept: "application/json", "Content-Type": "application/json" };
 }
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
@@ -97,20 +73,15 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
   if (req.method === "OPTIONS") { res.status(200).end(); return; }
   if (req.method !== "POST") { res.status(405).json({ error: "Method not allowed" }); return; }
 
   const body = await parseBody(req);
   const { phone, admin_token } = body;
-
   if (!phone) { res.status(400).json({ error: "Phone number required" }); return; }
 
   const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY;
-
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
   if (!supabaseKey) { res.status(500).json({ error: "Supabase not configured" }); return; }
 
   if (admin_token) {
@@ -118,90 +89,111 @@ export default async function handler(req, res) {
     if (!valid) { res.status(401).json({ error: "Invalid or expired admin session" }); return; }
   }
 
-  // Get OTS API key and sender ID from DB first, fallback to env
   const settings = await fetchSettings(supabaseUrl, supabaseKey);
   const otsApiKey = settings.ots_api_key || process.env.OTS_API_KEY;
-  // Use only plain ASCII chars in sender ID (max 11 chars)
   const senderId = (settings.sms_sender_id || process.env.OTS_SENDER_ID || "PROCALL").slice(0, 11);
 
   if (!otsApiKey) {
-    res.status(400).json({ error: "OTS API key not configured. Set it in Settings -> SMS Gateway." });
+    res.status(400).json({ error: "OTS API key not configured. Set it in Settings > SMS Gateway." });
     return;
   }
 
   // Normalise phone to 254XXXXXXXXX
-  let phone254 = String(phone).replace(/[^0-9]/g, "");
-  if (phone254.startsWith("0") && phone254.length === 10) phone254 = `254${phone254.slice(1)}`;
-  if (phone254.startsWith("+")) phone254 = phone254.slice(1);
+  let phone254 = String(phone).replace(/[^0-9+]/g, "").replace(/^\+/, "");
+  if (phone254.startsWith("0") && phone254.length === 10) phone254 = "254" + phone254.slice(1);
 
-  // Use plain ASCII only to avoid Unicode (UCS-2) encoding which splits message into 70-char parts
-  const message = `Test SMS from ${senderId}: your SMS gateway is working. If this arrived, order notifications are enabled.`;
+  const diag = { phone254, senderId, otsKeyLen: otsApiKey.length };
 
+  // ── 1. Check OTS account balance / info ──────────────────────────────────
+  const [balanceResp, senderResp] = await Promise.all([
+    request("https://sms.ots.co.ke/api/v3/account/balance", { method: "GET", headers: otsAuthHeaders(otsApiKey) }),
+    request("https://sms.ots.co.ke/api/v3/sender-ids", { method: "GET", headers: otsAuthHeaders(otsApiKey) }),
+  ]);
+  diag.balance = balanceResp.body;
+  diag.senderIds = senderResp.body;
+  console.log("[test-sms] balance:", JSON.stringify(balanceResp.body));
+  console.log("[test-sms] senderIds:", JSON.stringify(senderResp.body));
+
+  // ── 2. Send the SMS ───────────────────────────────────────────────────────
+  const message = `Test SMS from ${senderId}. Order alerts are active. Ref: ${Date.now()}`;
+  const sendPayload = { recipient: phone254, sender_id: senderId, message };
+
+  let sendResp;
   try {
-    const smsPayload = {
-      recipient: phone254,
-      sender_id: senderId,
-      message,
-    };
-    const smsBodyStr = JSON.stringify(smsPayload);
-    console.log("[test-sms] Sending to OTS:", JSON.stringify({ phone: phone254, sender_id: senderId }));
-
-    const smsResp = await request("https://sms.ots.co.ke/api/v3/sms/send", {
+    sendResp = await request("https://sms.ots.co.ke/api/v3/sms/send", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${otsApiKey}`,
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(smsBodyStr),
-        Accept: "application/json",
-      },
-    }, smsBodyStr);
-
-    const rawOts = smsResp.body;
-    console.log("[test-sms] OTS send response:", smsResp.status, JSON.stringify(rawOts));
-
-    // HTTP-level error
-    if (!smsResp.status || smsResp.status >= 300) {
-      const errMsg = (rawOts && (rawOts.message || rawOts.error)) || `Gateway HTTP error ${smsResp.status}`;
-      res.status(200).json({ error: errMsg, otsRaw: rawOts, otsHttp: smsResp.status });
-      return;
-    }
-
-    // Body-level error
-    const bodyErr = otsError(rawOts);
-    if (bodyErr) {
-      console.error("[test-sms] OTS body error:", bodyErr);
-      res.status(200).json({ error: bodyErr, otsRaw: rawOts, otsHttp: smsResp.status });
-      return;
-    }
-
-    // OTS queued the message — wait 5s then check delivery status
-    const queueUrl = rawOts?.data?.check_status_url || rawOts?.check_status_url || null;
-    let queueStatus = null;
-
-    if (queueUrl) {
-      console.log("[test-sms] Waiting 5s to check queue status at", queueUrl);
-      await sleep(5000);
-      queueStatus = await checkQueueStatus(queueUrl, otsApiKey);
-      console.log("[test-sms] Queue status:", JSON.stringify(queueStatus));
-    }
-
-    // Determine final outcome from queue status
-    let finalError = null;
-    if (queueStatus) {
-      const r = queueStatus?.data?.recipients || queueStatus?.recipients || [];
-      const failed = Array.isArray(r) ? r.find((x) => /fail|reject|error|invalid|unapprove/i.test(JSON.stringify(x))) : null;
-      if (failed) {
-        finalError = failed.reason || failed.status || failed.failure_reason || "Delivery failed";
-      }
-    }
-
-    if (finalError) {
-      res.status(200).json({ error: finalError, otsRaw: rawOts, otsHttp: smsResp.status, queueStatus });
-    } else {
-      res.status(200).json({ success: true, otsRaw: rawOts, otsHttp: smsResp.status, queueStatus });
-    }
+      headers: otsAuthHeaders(otsApiKey),
+    }, sendPayload);
   } catch (err) {
-    console.error("[test-sms] error:", err);
-    res.status(500).json({ error: err.message || "Internal error" });
+    res.status(200).json({ error: err.message, diag });
+    return;
   }
+
+  const rawOts = sendResp.body;
+  diag.sendHttp = sendResp.status;
+  diag.sendBody = rawOts;
+  console.log("[test-sms] send:", sendResp.status, JSON.stringify(rawOts));
+
+  if (sendResp.status >= 300) {
+    const errMsg = rawOts?.message || rawOts?.error || `HTTP ${sendResp.status}`;
+    res.status(200).json({ error: errMsg, diag });
+    return;
+  }
+  if (rawOts?.status === "error") {
+    res.status(200).json({ error: rawOts.message || "OTS rejected request", diag });
+    return;
+  }
+
+  // ── 3. Poll queue + per-recipient status (try multiple endpoints) ─────────
+  const queueUid = rawOts?.data?.queue_uid || rawOts?.queue_uid;
+  const checkStatusUrl = rawOts?.data?.check_status_url || rawOts?.check_status_url;
+
+  console.log("[test-sms] waiting 10s for delivery...");
+  await sleep(10000);
+
+  // Try all possible OTS status endpoints in parallel
+  const [queueResp, recipientsResp, reportResp] = await Promise.all([
+    checkStatusUrl
+      ? request(checkStatusUrl, { method: "GET", headers: otsAuthHeaders(otsApiKey) })
+      : Promise.resolve({ status: 0, body: null }),
+    queueUid
+      ? request(`https://sms.ots.co.ke/api/v3/sms/queue/${queueUid}/recipients`, { method: "GET", headers: otsAuthHeaders(otsApiKey) })
+      : Promise.resolve({ status: 0, body: null }),
+    queueUid
+      ? request(`https://sms.ots.co.ke/api/v3/sms/report?queue_uid=${queueUid}`, { method: "GET", headers: otsAuthHeaders(otsApiKey) })
+      : Promise.resolve({ status: 0, body: null }),
+  ]);
+
+  diag.queueStatus = queueResp.body;
+  diag.recipientsStatus = { http: recipientsResp.status, body: recipientsResp.body };
+  diag.reportStatus = { http: reportResp.status, body: reportResp.body };
+
+  console.log("[test-sms] queue:", JSON.stringify(queueResp.body));
+  console.log("[test-sms] recipients:", recipientsResp.status, JSON.stringify(recipientsResp.body));
+  console.log("[test-sms] report:", reportResp.status, JSON.stringify(reportResp.body));
+
+  // ── 4. Determine outcome ──────────────────────────────────────────────────
+  const queueData = queueResp.body?.data || queueResp.body || {};
+  const failCount = queueData.failed_count ?? 0;
+  const queueDone = queueData.status === "completed";
+
+  // Check per-recipient failures in recipients endpoint
+  const recipientRows = recipientsResp.body?.data || recipientsResp.body?.recipients || recipientsResp.body || [];
+  const failedRcpt = Array.isArray(recipientRows)
+    ? recipientRows.find((r) => /fail|reject|error|invalid|unapprove|dnd|block/i.test(JSON.stringify(r)))
+    : null;
+
+  if (failedRcpt) {
+    const reason = failedRcpt.reason || failedRcpt.status || failedRcpt.failure_reason || "Delivery failed";
+    res.status(200).json({ error: `Delivery failed: ${reason}`, diag });
+    return;
+  }
+
+  if (failCount > 0) {
+    res.status(200).json({ error: `OTS reports ${failCount} failed recipient(s)`, diag });
+    return;
+  }
+
+  // Queue completed with no detected failures
+  res.status(200).json({ success: true, queued: queueDone, diag });
 }
