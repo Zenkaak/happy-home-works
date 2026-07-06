@@ -50,6 +50,22 @@ async function fetchSettings(supabaseUrl, supabaseKey) {
   } catch { return {}; }
 }
 
+// Extract the meaningful error message from an OTS API response body.
+// OTS returns HTTP 200 even on errors — the actual status is in the body.
+function otsError(body) {
+  if (!body || typeof body !== "object") return null;
+  // {"status":"error","message":"..."}
+  if (body.status === "error") return body.message || "SMS rejected by gateway";
+  // {"code":4xx,"message":"..."}
+  if (body.code && body.code >= 400) return body.message || "SMS rejected by gateway";
+  // Check per-recipient failure
+  if (Array.isArray(body.recipients)) {
+    const failed = body.recipients.find((r) => r.status && !/submit/i.test(r.status));
+    if (failed) return failed.reason || failed.status || "Recipient rejected";
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -67,7 +83,9 @@ export default async function handler(req, res) {
   }
 
   const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
-  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY;
 
   const settings  = await fetchSettings(supabaseUrl, supabaseKey);
   const otsApiKey = settings.ots_api_key || process.env.OTS_API_KEY;
@@ -94,12 +112,22 @@ export default async function handler(req, res) {
       },
     }, smsBody);
 
-    console.log(`[send-sms] To ${phone254}: ${r.status}`, JSON.stringify(r.body).slice(0, 120));
+    console.log(`[send-sms] To ${phone254}: HTTP ${r.status}`, JSON.stringify(r.body).slice(0, 200));
 
+    // Check HTTP-level error first, then OTS body-level error
     if (r.status >= 300) {
-      res.status(200).json({ error: r.body?.message || r.body?.error || "SMS failed" });
+      const errMsg = r.body?.message || r.body?.error || `Gateway HTTP error ${r.status}`;
+      res.status(200).json({ error: errMsg });
       return;
     }
+
+    const bodyErr = otsError(r.body);
+    if (bodyErr) {
+      console.error(`[send-sms] OTS body error for ${phone254}:`, bodyErr, JSON.stringify(r.body));
+      res.status(200).json({ error: bodyErr });
+      return;
+    }
+
     res.status(200).json({ success: true });
   } catch (e) {
     console.error("[send-sms] Error:", e.message);
