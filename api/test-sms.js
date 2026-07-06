@@ -106,9 +106,10 @@ export default async function handler(req, res) {
     if (!valid) { res.status(401).json({ error: "Invalid or expired admin session" }); return; }
   }
 
-  // Get OTS API key from DB first, fallback to env
+  // Get OTS API key and sender ID from DB first, fallback to env
   const settings = await fetchSettings(supabaseUrl, supabaseKey);
   const otsApiKey = settings.ots_api_key || process.env.OTS_API_KEY;
+  const senderId = settings.sms_sender_id || process.env.OTS_SENDER_ID || "PROCALL";
 
   if (!otsApiKey) {
     res.status(400).json({ error: "OTS API key not configured. Set it in Settings → SMS Gateway." });
@@ -124,7 +125,7 @@ export default async function handler(req, res) {
   try {
     const smsBodyStr = JSON.stringify({
       recipient: phone254,
-      sender_id: "PROCALL",
+      sender_id: senderId,
       type: "plain",
       message,
     });
