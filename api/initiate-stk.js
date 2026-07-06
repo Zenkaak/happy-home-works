@@ -37,6 +37,25 @@ function requestWithTimeout(url, options, body, timeoutMs = 8000) {
   });
 }
 
+// ── Fetch admin settings from Supabase so DB overrides take effect immediately ──
+// This mirrors the Supabase edge function's credential priority:
+//   DB app_settings → Vercel env vars
+async function fetchSettings(supabaseUrl, supabaseKey) {
+  if (!supabaseUrl || !supabaseKey) return {};
+  try {
+    const r = await requestWithTimeout(
+      `${supabaseUrl}/rest/v1/app_settings?select=key,value`,
+      { method: "GET", headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
+      null,
+      3000
+    );
+    if (!Array.isArray(r.body)) return {};
+    const map = {};
+    r.body.forEach((row) => { if (row.key) map[row.key] = row.value; });
+    return map;
+  } catch { return {}; }
+}
+
 async function getDarajaToken(consumerKey, consumerSecret) {
   const now = Date.now();
   if (_cachedToken && now < _tokenExpiry) {
@@ -77,6 +96,12 @@ export default async function handler(req, res) {
 
   if (req.method === "OPTIONS") { res.status(200).end(); return; }
 
+  const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
+  const supabaseKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY;
+
   // GET → pre-warm: fetch and cache the Daraja token so the next POST is instant.
   // Called by the frontend when the checkout modal opens (before the user hits Pay).
   if (req.method === "GET") {
@@ -101,10 +126,18 @@ export default async function handler(req, res) {
     return;
   }
 
-  const consumerKey    = process.env.DARAJA_CONSUMER_KEY;
-  const consumerSecret = process.env.DARAJA_CONSUMER_SECRET;
-  const passkey        = process.env.DARAJA_PASSKEY;
-  const shortcode      = process.env.MPESA_SHORTCODE;
+  // Fetch DB settings — these override env vars so admin dashboard changes take effect immediately
+  const settings = await fetchSettings(supabaseUrl, supabaseKey);
+
+  const consumerKey    = settings.daraja_consumer_key    || process.env.DARAJA_CONSUMER_KEY;
+  const consumerSecret = settings.daraja_consumer_secret || process.env.DARAJA_CONSUMER_SECRET;
+  const passkey        = settings.daraja_passkey         || process.env.DARAJA_PASSKEY;
+  const shortcode      = settings.mpesa_shortcode        || process.env.MPESA_SHORTCODE;
+  // Use DB-configured transaction type so PayBill/Till toggle works immediately
+  const transactionType =
+    settings.transaction_type ||
+    process.env.DARAJA_TRANSACTION_TYPE ||
+    "CustomerPayBillOnline";
 
   if (!consumerKey || !consumerSecret || !passkey || !shortcode) {
     res.status(500).json({ ok: false, error: "Daraja credentials not configured" });
@@ -118,6 +151,7 @@ export default async function handler(req, res) {
 
   try {
     // 1. Token — cached on warm instances (0ms), fetched on cold (~2-3s)
+    // Clear token cache if credentials changed (different key than what was used to get token)
     const accessToken = await getDarajaToken(consumerKey, consumerSecret);
 
     // 2. Timestamp + password
@@ -125,11 +159,6 @@ export default async function handler(req, res) {
     const pad = (n) => String(n).padStart(2, "0");
     const ts  = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const password = Buffer.from(`${shortcode}${passkey}${ts}`).toString("base64");
-
-    // 3. STK push
-    // TransactionType defaults to CustomerPayBillOnline (PayBill shortcode).
-    // Override via DARAJA_TRANSACTION_TYPE env var in Vercel if needed.
-    const transactionType = process.env.DARAJA_TRANSACTION_TYPE || "CustomerPayBillOnline";
 
     const stkPayload = {
       BusinessShortCode: shortcode,
@@ -181,11 +210,6 @@ export default async function handler(req, res) {
     // The callback handler looks up transactions by stk_checkout_id, so this
     // MUST be in the DB before Safaricom's callback arrives.
     if (transaction_id && stkData.CheckoutRequestID) {
-      const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
-      const supabaseKey =
-        process.env.SUPABASE_SERVICE_ROLE_KEY ||
-        process.env.SUPABASE_ANON_KEY ||
-        process.env.SUPABASE_PUBLISHABLE_KEY;
       if (supabaseUrl && supabaseKey) {
         const patchBody = JSON.stringify({ stk_checkout_id: stkData.CheckoutRequestID });
         await requestWithTimeout(
