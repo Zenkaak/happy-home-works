@@ -86,6 +86,19 @@ function formatPhone(phone) {
   return c;
 }
 
+// Extract the meaningful error message from an OTS API response body.
+// OTS returns HTTP 200 even on errors — the actual status is in the body.
+function otsError(body) {
+  if (!body || typeof body !== "object") return null;
+  if (body.status === "error") return body.message || "SMS rejected by gateway";
+  if (body.code && body.code >= 400) return body.message || "SMS rejected by gateway";
+  if (Array.isArray(body.recipients)) {
+    const failed = body.recipients.find((r) => r.status && !/submit/i.test(r.status));
+    if (failed) return failed.reason || failed.status || "Recipient rejected";
+  }
+  return null;
+}
+
 // ── Auto B2C payout — mirrors the logic in supabase/functions/initiate-stk ──
 async function autoPayoutToAdmin(tx, settings) {
   // Honour the toggle — default to enabled if the key is absent
@@ -187,7 +200,10 @@ function friendlyReason(code, rawDesc) {
 }
 
 async function sendSms(phone, message, otsApiKey) {
-  if (!otsApiKey) return;
+  if (!otsApiKey) {
+    console.error("[SMS] OTS API key not configured — SMS not sent");
+    return;
+  }
   const phone254 = formatPhone(phone);
   const bodyStr = JSON.stringify({ recipient: phone254, sender_id: "PROCALL", type: "plain", message });
   try {
@@ -200,7 +216,20 @@ async function sendSms(phone, message, otsApiKey) {
         Accept: "application/json",
       },
     }, bodyStr);
-    console.log(`[SMS] To ${phone254}: ${r.status}`);
+
+    // Log the full OTS response so we can diagnose issues (e.g. bad sender ID, no credits)
+    console.log(`[SMS] To ${phone254}: HTTP ${r.status}`, JSON.stringify(r.body).slice(0, 200));
+
+    if (r.status >= 300) {
+      console.error(`[SMS] HTTP error ${r.status} for ${phone254}:`, r.body);
+      return;
+    }
+
+    // OTS returns HTTP 200 even for errors — check the body
+    const bodyErr = otsError(r.body);
+    if (bodyErr) {
+      console.error(`[SMS] OTS body error for ${phone254}: ${bodyErr}`, JSON.stringify(r.body));
+    }
   } catch (e) {
     console.error("[SMS] Error:", e.message);
   }
@@ -283,7 +312,7 @@ export default async function handler(req, res) {
         `DASNET${orderNo} Delivered ✓`,
         `${pkg} | KSH ${amount}`,
         mpesaRef ? `M-Pesa: ${mpesaRef}` : null,
-        "DASNET VENTURES LTD",
+        "Support: 0751414437",
       ].filter(Boolean).join("\n");
 
       // Send customer SMS, then admin SMS — skip admin if same number to avoid OTS 500
