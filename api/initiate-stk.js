@@ -1,6 +1,6 @@
 // Vercel serverless function — M-Pesa STK push (ES module)
-// PRIMARY path — called first by the frontend.
-// Callback URL points to /api/stk-callback (this same Vercel project).
+// PRIMARY path. Callback URL → /api/stk-callback.
+// Speed: Daraja token + Supabase settings fetched in PARALLEL.
 import https from "https";
 
 function request(url, options, body) {
@@ -87,34 +87,36 @@ export default async function handler(req, res) {
     return;
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
-  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
-
-  const settings = await fetchSettings(supabaseUrl, supabaseKey);
-
-  const consumerKey     = settings.daraja_consumer_key    || process.env.DARAJA_CONSUMER_KEY;
-  const consumerSecret  = settings.daraja_consumer_secret || process.env.DARAJA_CONSUMER_SECRET;
-  const passkey         = settings.daraja_passkey         || process.env.DARAJA_PASSKEY;
-  const shortcode       = settings.mpesa_shortcode        || process.env.MPESA_SHORTCODE;
-  const transactionType = settings.transaction_type       || "CustomerPayBillOnline";
-  const otsApiKey       = settings.ots_api_key            || process.env.OTS_API_KEY;
+  // Daraja credentials — from env vars (fastest, no Supabase call needed)
+  const consumerKey    = process.env.DARAJA_CONSUMER_KEY;
+  const consumerSecret = process.env.DARAJA_CONSUMER_SECRET;
+  const passkey        = process.env.DARAJA_PASSKEY;
+  const shortcode      = process.env.MPESA_SHORTCODE;
 
   if (!consumerKey || !consumerSecret || !passkey || !shortcode) {
-    console.error("[initiate-stk] Missing Daraja credentials");
+    console.error("[initiate-stk] Missing Daraja env vars");
     res.status(500).json({ ok: false, error: "Daraja credentials not configured" });
     return;
   }
+
+  const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
+  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
 
   let phone254 = String(phone).replace(/[^0-9]/g, "");
   if (phone254.startsWith("0") && phone254.length === 10) phone254 = `254${phone254.slice(1)}`;
 
   try {
-    // 1. Daraja token
-    const creds     = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
-    const tokenResp = await request(
-      "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
-      { method: "GET", headers: { Authorization: `Basic ${creds}` } }
-    );
+    const creds = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
+
+    // Fetch Daraja token + Supabase settings IN PARALLEL (saves ~1-2 seconds)
+    const [tokenResp, settings] = await Promise.all([
+      request(
+        "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
+        { method: "GET", headers: { Authorization: `Basic ${creds}` } }
+      ),
+      fetchSettings(supabaseUrl, supabaseKey),
+    ]);
+
     const accessToken = tokenResp.body?.access_token;
     if (!accessToken) {
       console.error("[initiate-stk] Token error:", JSON.stringify(tokenResp.body));
@@ -122,13 +124,16 @@ export default async function handler(req, res) {
       return;
     }
 
-    // 2. Timestamp + password
+    const otsApiKey = settings.ots_api_key || process.env.OTS_API_KEY;
+    const transactionType = settings.transaction_type || "CustomerPayBillOnline";
+
+    // Timestamp + password
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     const ts  = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const password = Buffer.from(`${shortcode}${passkey}${ts}`).toString("base64");
 
-    // 3. STK push — callback goes to Vercel /api/stk-callback
+    // STK push — callback → Vercel /api/stk-callback
     const stkPayload = {
       BusinessShortCode: shortcode,
       Password:          password,
@@ -156,43 +161,44 @@ export default async function handler(req, res) {
       stkBodyStr
     );
     const stkData = stkResp.body;
-    console.log("[initiate-stk] Daraja response:", JSON.stringify(stkData));
+    console.log("[initiate-stk] Daraja:", JSON.stringify(stkData));
 
     if (!stkData || stkData.ResponseCode !== "0") {
       const errMsg = stkData?.errorMessage || stkData?.CustomerMessage || stkData?.ResultDesc || "STK push failed";
-      console.error("[initiate-stk] STK failed:", errMsg);
       res.status(200).json({ ok: false, error: errMsg });
       return;
     }
 
-    // 4. Update transaction in Supabase
+    // Update transaction in Supabase + send initiated SMS in PARALLEL
+    const patchBodyStr = JSON.stringify({
+      stk_checkout_id: stkData.CheckoutRequestID,
+      status: "processing",
+      failure_reason: null,
+    });
+
+    const tasks = [];
+
     if (transaction_id && supabaseKey) {
-      const patchBodyStr = JSON.stringify({ stk_checkout_id: stkData.CheckoutRequestID, status: "processing", failure_reason: null });
-      const patchResp = await request(
-        `${supabaseUrl}/rest/v1/transactions?id=eq.${transaction_id}`,
-        {
+      tasks.push(
+        request(`${supabaseUrl}/rest/v1/transactions?id=eq.${transaction_id}`, {
           method: "PATCH",
           headers: {
             apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`,
             "Content-Type": "application/json", "Content-Length": Buffer.byteLength(patchBodyStr),
             Prefer: "return=minimal",
           },
-        },
-        patchBodyStr
+        }, patchBodyStr).catch((e) => console.error("[initiate-stk] Patch error:", e.message))
       );
-      if (patchResp.status >= 400) console.error("[initiate-stk] Supabase patch failed:", patchResp.status);
     }
 
-    // 5. "STK sent" SMS to customer (fire-and-forget)
     if (otsApiKey && order_number && package_name) {
       const amt = Number(amount).toLocaleString("en-KE");
-      const msg = [
-        `DASNET #${order_number}: Enter M-PESA PIN.`,
-        `${package_name} | KSH ${amt}`,
-        "Delivery is instant on confirmation.",
-      ].join("\n");
-      sendSms(phone254, msg, otsApiKey).catch(() => {});
+      const msg = `DASNET #${order_number}: Enter M-PESA PIN.\n${package_name} | KSH ${amt}\nDelivery is instant on confirmation.`;
+      tasks.push(sendSms(phone254, msg, otsApiKey).catch(() => {}));
     }
+
+    // Fire both in parallel, don't await (fire-and-forget after responding)
+    await Promise.allSettled(tasks);
 
     res.status(200).json({ success: true, data: stkData });
   } catch (err) {
