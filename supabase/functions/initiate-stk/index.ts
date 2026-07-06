@@ -80,6 +80,20 @@ function getServiceLabel(tx: any): string {
 }
 
 // ---------------------------------------------------------------------------
+// OTS body error extractor — OTS returns HTTP 200 even on errors.
+// ---------------------------------------------------------------------------
+function otsBodyError(data: any): string | null {
+  if (!data || typeof data !== "object") return null;
+  if (data.status === "error") return data.message || "SMS rejected by gateway";
+  if (data.code && Number(data.code) >= 400) return data.message || "SMS rejected by gateway";
+  if (Array.isArray(data.recipients)) {
+    const failed = data.recipients.find((r: any) => r.status && !/submit/i.test(String(r.status)));
+    if (failed) return failed.reason || failed.status || "Recipient rejected";
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // SMS sender — accepts optional apiKey override from settings.
 // ---------------------------------------------------------------------------
 async function sendSms(message: string, phone: string, txId?: string, apiKeyOverride?: string) {
@@ -110,8 +124,20 @@ async function sendSms(message: string, phone: string, txId?: string, apiKeyOver
       }),
     });
     const data = await res.json().catch(() => ({}));
-    const success = res.ok;
-    console.log(`[SMS/OTS] To ${phone}: ${res.status}`, data);
+
+    // Log the full OTS response so Supabase logs show the real status
+    console.log(`[SMS/OTS] To ${phone}: HTTP ${res.status}`, JSON.stringify(data).slice(0, 200));
+
+    // Determine actual success: HTTP must be ok AND body must not contain an error
+    const bodyErr = otsBodyError(data);
+    const success = res.ok && !bodyErr;
+
+    if (!res.ok) {
+      console.error(`[SMS/OTS] HTTP error ${res.status} for ${phone}:`, data);
+    } else if (bodyErr) {
+      console.error(`[SMS/OTS] Body error for ${phone}: ${bodyErr}`, data);
+    }
+
     await supabase.from("sms_logs").insert({
       phone_number: phone, message,
       status: success ? "sent" : "failed",
