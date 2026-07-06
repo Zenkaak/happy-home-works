@@ -9,11 +9,15 @@ type InitiateStkPayload = {
   package_name?: string;
 };
 
+type StkResult = {
+  checkoutId?: string;
+};
+
 // ---------------------------------------------------------------------------
-// Path 1 — Vercel function (PRIMARY — faster, always deployed)
-// Callback URL → /api/stk-callback (handles completion SMS + B2C payout)
+// Path 1 — Vercel function (PRIMARY — fast, always deployed)
+// Returns checkoutId so the frontend can set stk_checkout_id on the transaction.
 // ---------------------------------------------------------------------------
-async function tryVercelFunction(payload: InitiateStkPayload) {
+async function tryVercelFunction(payload: InitiateStkPayload): Promise<StkResult> {
   const res = await fetch("/api/initiate-stk", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -23,14 +27,15 @@ async function tryVercelFunction(payload: InitiateStkPayload) {
   if (data?.ok === false) throw new Error(data.error || "STK push failed");
   if (data?.error)        throw new Error(data.error);
   if (!data?.success)     throw new Error("STK push failed");
-  return data;
+  return { checkoutId: data.checkoutId };
 }
 
 // ---------------------------------------------------------------------------
-// Path 2 — Supabase edge function (FALLBACK — used if Vercel path fails)
-// Callback URL → Supabase initiate-stk/callback (also handles SMS + payout)
+// Path 2 — Supabase edge function (FALLBACK)
+// The Supabase function sets stk_checkout_id internally; still return it
+// so the frontend can do a redundant write for safety.
 // ---------------------------------------------------------------------------
-async function trySupabaseFunction(payload: InitiateStkPayload) {
+async function trySupabaseFunction(payload: InitiateStkPayload): Promise<StkResult> {
   const { data, error } = await supabase.functions.invoke("initiate-stk", {
     body: payload,
   });
@@ -38,16 +43,19 @@ async function trySupabaseFunction(payload: InitiateStkPayload) {
   if (data?.ok === false) throw new Error(data.error || "STK push failed");
   if (data?.error)        throw new Error(data.error);
   if (!data?.success)     throw new Error("STK push was not accepted");
-  return data;
+  const checkoutId =
+    data.checkoutId ||
+    data.data?.CheckoutRequestID ||
+    data.checkout_request_id;
+  return { checkoutId };
 }
 
 // ---------------------------------------------------------------------------
-// Daraja-level errors — same root cause regardless of path; don't retry
-// (would trigger a second STK prompt on the customer's phone)
+// Daraja-level errors — don't retry (would trigger a second STK prompt)
 // ---------------------------------------------------------------------------
 const DARAJA_ERROR_RE = /cancelled|insufficient|wrong pin|timed out|unresolved|blocked/i;
 
-export const initiateStkPush = async (payload: InitiateStkPayload) => {
+export const initiateStkPush = async (payload: InitiateStkPayload): Promise<StkResult> => {
   let primaryError: Error | null = null;
 
   // Try Vercel first
@@ -59,7 +67,7 @@ export const initiateStkPush = async (payload: InitiateStkPayload) => {
     console.warn("[STK] Vercel path failed, falling back to Supabase:", primaryError.message);
   }
 
-  // Fall back to Supabase
+  // Supabase fallback
   try {
     return await trySupabaseFunction(payload);
   } catch (fallbackErr: any) {
