@@ -36,6 +36,11 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   const isLoan = product.category === "loans";
   const modalMaxHeight = viewportHeight ? `${Math.max(viewportHeight - 12, 320)}px` : "calc(100dvh - 0.75rem)";
 
+  // Pre-warm the Vercel Lambda so the Daraja token is cached before the user submits
+  useEffect(() => {
+    fetch('/api/ping').catch(() => {});
+  }, []);
+
   useEffect(() => {
     const updateViewport = () => {
       const nextHeight = window.visualViewport?.height || window.innerHeight;
@@ -99,10 +104,10 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
         account_ref: buildAccountRef({ category: product.category, packageName: product.name, dataAmount: product.data_amount }),
       });
 
-      // Write stk_checkout_id from the frontend — reliable, not subject to serverless timeout.
-      // Fire-and-forget: completes in ~1s, well before the customer enters their PIN.
+      // Await stk_checkout_id write: the Supabase callback handler looks up the
+      // transaction by stk_checkout_id, so it MUST be in the DB before the callback arrives.
       if (stkResult?.checkoutId) {
-        supabase
+        await supabase
           .from("transactions")
           .update({ stk_checkout_id: stkResult.checkoutId })
           .eq("id", data.id)

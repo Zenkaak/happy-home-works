@@ -123,7 +123,7 @@ export default async function handler(req, res) {
       PartyA:            phone254,
       PartyB:            shortcode,
       PhoneNumber:       phone254,
-      CallBackURL:       "https://hitechz.vercel.app/api/stk-callback",
+      CallBackURL:       "https://wxkvrdkbqkwkhbdunsvb.supabase.co/functions/v1/initiate-stk/callback",
       AccountReference:  (account_ref || "DASNET").slice(0, 12),
       TransactionDesc:   (account_ref || "DASNET").slice(0, 13),
     };
