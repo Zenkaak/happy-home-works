@@ -313,10 +313,14 @@ async function handleCallback(req: Request) {
         await sendSms(`Order completed${orderNo} KSH ${amt}`, adminNotifyPhone, updatedTx.id, otsApiKey);
       }
 
-      // Auto B2C payout
-      autoPayoutToAdmin(updatedTx, settings).catch((err) =>
-        console.error("auto B2C error:", err instanceof Error ? err.message : err)
-      );
+      // Auto B2C payout — must be awaited BEFORE returning the Response.
+      // Deno edge functions terminate immediately after Response is sent;
+      // fire-and-forget ops are killed before they execute.
+      try {
+        await autoPayoutToAdmin(updatedTx, settings);
+      } catch (err) {
+        console.error("auto B2C error:", err instanceof Error ? err.message : err);
+      }
       return new Response("OK", { headers: corsHeaders });
     }
 
