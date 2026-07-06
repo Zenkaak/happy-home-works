@@ -138,8 +138,8 @@ async function autoPayoutToAdmin(tx, settings) {
     PartyA:             shortcode,
     PartyB:             formatPhone(adminPhone),
     Remarks:            remarks,
-    QueueTimeOutURL:    `${supabaseUrl}/functions/v1/admin-api?action=admin_b2c_timeout`,
-    ResultURL:          `${supabaseUrl}/functions/v1/admin-api?action=admin_b2c_result`,
+    QueueTimeOutURL:    "https://hitechz.vercel.app/api/b2c-result?type=timeout",
+    ResultURL:          "https://hitechz.vercel.app/api/b2c-result",
     Occasion:           occasion,
   };
   const b2cBodyStr = JSON.stringify(b2cPayload);
