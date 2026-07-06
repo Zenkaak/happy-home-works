@@ -26,6 +26,7 @@ import AdminManualPayments from "@/components/admin/AdminManualPayments";
 import AdminPaybillTools from "@/components/admin/AdminPaybillTools";
 import AdminSettings from "@/components/admin/AdminSettings";
 import { buildAccountRef } from "@/lib/accountRef";
+import { initiateStkPush } from "@/lib/stk";
 // (notification sound moved to client checkout/order screens)
 
 const getAdminToken = () => localStorage.getItem("dasnet_admin_token");
@@ -172,13 +173,12 @@ const AdminDashboard = () => {
 
   const handleResendStk = async (tx: Transaction) => {
     try {
-      const res = await fetch("/api/initiate-stk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: tx.phone_number, amount: tx.amount, transaction_id: tx.id, account_ref: buildAccountRef({ category: tx.category, packageName: tx.package_name }) }),
+      await initiateStkPush({
+        phone: tx.phone_number,
+        amount: tx.amount,
+        transaction_id: tx.id,
+        account_ref: buildAccountRef({ category: tx.category, packageName: tx.package_name }),
       });
-      const data = await res.json();
-      if (!data?.success) throw new Error(data?.error || "STK push failed");
       toast({ title: "STK resent", description: `Prompt sent to ${tx.phone_number}` });
     } catch (err: any) {
       toast({ title: "Resend failed", description: err.message, variant: "destructive" });

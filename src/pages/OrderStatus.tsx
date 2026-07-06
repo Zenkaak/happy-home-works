@@ -7,6 +7,7 @@ import type { Transaction } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { buildAccountRef } from "@/lib/accountRef";
 import { playSuccess, playFailure } from "@/lib/notifySound";
+import { initiateStkPush } from "@/lib/stk";
 
 const OrderStatus = () => {
   const { id } = useParams();
@@ -64,16 +65,12 @@ const OrderStatus = () => {
     if (!tx) return;
     setRetrying(true);
     try {
-      const { data, error } = await supabase.functions.invoke("initiate-stk", {
-        body: {
-          phone: tx.phone_number,
-          amount: tx.amount,
-          transaction_id: tx.id,
-          account_ref: buildAccountRef({ category: tx.category, packageName: tx.package_name }),
-        },
+      await initiateStkPush({
+        phone: tx.phone_number,
+        amount: tx.amount,
+        transaction_id: tx.id,
+        account_ref: buildAccountRef({ category: tx.category, packageName: tx.package_name }),
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
       toast({ title: "STK sent!", description: "Check your phone." });
     } catch (e: any) {
       toast({ title: "Retry failed", description: e.message, variant: "destructive" });
