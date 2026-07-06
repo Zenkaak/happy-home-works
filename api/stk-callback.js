@@ -286,13 +286,13 @@ export default async function handler(req, res) {
         "DASNET VENTURES LTD",
       ].filter(Boolean).join("\n");
 
-      // Send customer + admin SMS in parallel, then trigger auto B2C payout
-      await Promise.all([
-        sendSms(tx.phone_number, successMsg, otsApiKey),
-        adminPhone
-          ? sendSms(adminPhone, `Order completed${orderNo} KSH ${amount}`, otsApiKey)
-          : Promise.resolve(),
-      ]);
+      // Send customer SMS, then admin SMS — skip admin if same number to avoid OTS 500
+      const custPhone254  = formatPhone(tx.phone_number);
+      const adminPhone254 = adminPhone ? formatPhone(adminPhone) : null;
+      await sendSms(tx.phone_number, successMsg, otsApiKey);
+      if (adminPhone254 && adminPhone254 !== custPhone254) {
+        await sendSms(adminPhone, `Order completed${orderNo} KSH ${amount}`, otsApiKey);
+      }
 
       // Auto B2C — must finish BEFORE res.json() or Vercel will terminate the function
       try {
