@@ -11,6 +11,7 @@ import ManualPaymentModal from "@/components/ManualPaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { formatPhoneTo254 } from "@/lib/formatPhone";
 import { buildAccountRef } from "@/lib/accountRef";
+import { initiateStkPush } from "@/lib/stk";
 
 const History = () => {
   const navigate = useNavigate();
@@ -26,11 +27,12 @@ const History = () => {
   const retryStk = async (tx: Transaction) => {
     setRetryingId(tx.id);
     try {
-      const { data, error } = await supabase.functions.invoke("initiate-stk", {
-        body: { phone: tx.phone_number, amount: tx.amount, transaction_id: tx.id, account_ref: buildAccountRef({ category: tx.category, packageName: tx.package_name }) },
+      await initiateStkPush({
+        phone: tx.phone_number,
+        amount: tx.amount,
+        transaction_id: tx.id,
+        account_ref: buildAccountRef({ category: tx.category, packageName: tx.package_name }),
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
       toast({ title: "STK sent!", description: "Check your phone." });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
     } catch (e: any) {

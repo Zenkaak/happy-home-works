@@ -3,6 +3,7 @@ import { Send, Loader2, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { isValidKenyanPhone, formatPhoneTo254 } from "@/lib/formatPhone";
 import { useToast } from "@/hooks/use-toast";
+import { initiateStkPush } from "@/lib/stk";
 
 type StkStatus = "idle" | "sending" | "sent" | "error";
 
@@ -36,20 +37,12 @@ const AdminStkPrompt = () => {
 
       if (txError) throw txError;
 
-      // Invoke STK push via Vercel API route
-      const stkRes = await fetch("/api/initiate-stk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: formatPhoneTo254(phone),
-          amount: Number(amount),
-          transaction_id: tx.id,
-          account_ref: accountRef,
-        }),
+      await initiateStkPush({
+        phone: formatPhoneTo254(phone),
+        amount: Number(amount),
+        transaction_id: tx.id,
+        account_ref: accountRef,
       });
-      const data = await stkRes.json();
-
-      if (!data?.success) throw new Error(data?.error || "STK push failed");
 
       setStatus("sent");
       toast({ title: "STK push sent!", description: `Prompt sent to ${formatPhoneTo254(phone)}` });

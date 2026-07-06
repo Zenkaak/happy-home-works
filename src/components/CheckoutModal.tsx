@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { buildAccountRef } from "@/lib/accountRef";
 import { playSuccess, playFailure } from "@/lib/notifySound";
+import { initiateStkPush } from "@/lib/stk";
 
 interface CheckoutModalProps {
   product: Product;
@@ -91,27 +92,12 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
 
       if (error) throw error;
 
-      // Call STK push via Supabase edge function
-      const { data: stkData, error: stkErr } = await supabase.functions.invoke("initiate-stk", {
-        body: {
-          phone: payPhone,
-          amount: product.price,
-          transaction_id: data.id,
-          account_ref: buildAccountRef({ category: product.category, packageName: product.name, dataAmount: product.data_amount }),
-        },
+      await initiateStkPush({
+        phone: payPhone,
+        amount: product.price,
+        transaction_id: data.id,
+        account_ref: buildAccountRef({ category: product.category, packageName: product.name, dataAmount: product.data_amount }),
       });
-      if (stkErr) throw stkErr;
-
-      // Detect banned response
-      const errMsg = stkData?.error || "";
-      if (errMsg && /not permitted|banned/i.test(errMsg)) {
-        setStep("banned");
-        return;
-      }
-
-      if (!stkData?.success) {
-        throw new Error(stkData?.error || "STK push was not accepted. Please try again.");
-      }
 
       const pollResult = await pollTransaction(data.id);
       setTransaction(pollResult);
