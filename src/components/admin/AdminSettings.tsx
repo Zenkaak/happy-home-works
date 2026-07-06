@@ -159,6 +159,7 @@ const AdminSettings = () => {
   const [consumerSecret, setConsumerSecret] = useState("");
   const [passkey, setPasskey] = useState("");
   const [otsApiKey, setOtsApiKey] = useState("");
+  const [smsSenderId, setSmsSenderId] = useState("");
   const [initiatorName, setInitiatorName] = useState("");
   const [securityCredential, setSecurityCredential] = useState("");
 
@@ -178,6 +179,7 @@ const AdminSettings = () => {
     if (settings.daraja_consumer_secret) setConsumerSecret(settings.daraja_consumer_secret);
     if (settings.daraja_passkey) setPasskey(settings.daraja_passkey);
     if (settings.ots_api_key) setOtsApiKey(settings.ots_api_key);
+    if (settings.sms_sender_id) setSmsSenderId(settings.sms_sender_id);
     if (settings.mpesa_initiator_name) setInitiatorName(settings.mpesa_initiator_name);
     if (settings.mpesa_security_credential) setSecurityCredential(settings.mpesa_security_credential);
   }, [settings]);
@@ -279,6 +281,16 @@ const AdminSettings = () => {
               {smsTestResult.error && (
                 <p className="text-destructive font-semibold break-all">{smsTestResult.error}</p>
               )}
+              {smsTestResult.otsRaw?.data?.check_status_url && (
+                <a
+                  href={smsTestResult.otsRaw.data.check_status_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-[10px] text-primary underline break-all"
+                >
+                  Check delivery status ↗
+                </a>
+              )}
               <pre className="whitespace-pre-wrap break-all text-[10px] text-muted-foreground leading-relaxed">
                 {JSON.stringify(smsTestResult.otsRaw, null, 2)}
               </pre>
@@ -373,7 +385,7 @@ const AdminSettings = () => {
       </Section>
 
       {/* ── SMS Gateway ── */}
-      <Section icon={MessageSquare} title="SMS Gateway (OTS)" description="OTS API key used to send confirmation, failure, and notification SMS messages.">
+      <Section icon={MessageSquare} title="SMS Gateway (OTS)" description="OTS API key and sender ID used to send confirmation, failure, and notification SMS messages.">
         <SettingField
           label="OTS API Key"
           description="Get your key from sms.ots.co.ke. Overrides the server environment variable."
@@ -385,6 +397,17 @@ const AdminSettings = () => {
           placeholder="OTS Bearer token"
           type="password"
           current={settings?.ots_api_key}
+        />
+        <SettingField
+          label="Sender ID"
+          description="Must be an approved sender name on your OTS account. If SMS is accepted but not delivered, the sender ID is likely unapproved — check sms.ots.co.ke → Sender IDs."
+          settingKey="sms_sender_id"
+          value={smsSenderId}
+          onChange={setSmsSenderId}
+          onSave={() => save("sms_sender_id", smsSenderId)}
+          isSaving={isSaving}
+          placeholder="e.g. DASNET"
+          current={settings?.sms_sender_id || "PROCALL (default)"}
         />
       </Section>
 
