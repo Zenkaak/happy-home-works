@@ -114,9 +114,8 @@ export default async function handler(req, res) {
     const password = Buffer.from(`${shortcode}${passkey}${ts}`).toString("base64");
 
     // 3. STK push
-    // TransactionType: read from env var set in Vercel dashboard.
-    // Set DARAJA_TRANSACTION_TYPE=CustomerBuyGoodsOnline for Till/Buy-Goods numbers,
-    // or CustomerPayBillOnline for PayBill shortcodes.
+    // TransactionType defaults to CustomerPayBillOnline (PayBill shortcode).
+    // Override via DARAJA_TRANSACTION_TYPE env var in Vercel if needed.
     const transactionType = process.env.DARAJA_TRANSACTION_TYPE || "CustomerPayBillOnline";
 
     const stkPayload = {
