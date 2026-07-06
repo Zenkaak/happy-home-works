@@ -81,7 +81,7 @@ export default async function handler(req, res) {
   let body = {};
   try { body = await parseBody(req); } catch { /* ignore */ }
 
-  const { phone, amount, account_ref } = body;
+  const { phone, amount, account_ref, transaction_id } = body;
 
   if (!phone || !amount) {
     res.status(400).json({ ok: false, error: "Missing phone or amount" });
@@ -157,6 +157,33 @@ export default async function handler(req, res) {
         "STK push failed";
       res.status(200).json({ ok: false, error: errMsg });
       return;
+    }
+
+    // Write stk_checkout_id server-side (before responding) so the Supabase callback
+    // handler can find the transaction immediately, even if the client write is delayed.
+    if (transaction_id && stkData.CheckoutRequestID) {
+      const supabaseUrl  = process.env.SUPABASE_URL  || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
+      const supabaseKey  = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+      if (supabaseUrl && supabaseKey) {
+        const patchBody = JSON.stringify({ stk_checkout_id: stkData.CheckoutRequestID });
+        requestWithTimeout(
+          `${supabaseUrl}/rest/v1/transactions?id=eq.${encodeURIComponent(transaction_id)}`,
+          {
+            method: "PATCH",
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${supabaseKey}`,
+              "Content-Type": "application/json",
+              "Content-Length": Buffer.byteLength(patchBody),
+              Prefer: "return=minimal",
+            },
+          },
+          patchBody,
+          4000
+        )
+          .then(() => console.log("[initiate-stk] stk_checkout_id persisted server-side"))
+          .catch((e) => console.warn("[initiate-stk] stk_checkout_id server write failed:", e.message));
+      }
     }
 
     res.status(200).json({

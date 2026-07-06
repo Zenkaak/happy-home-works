@@ -106,13 +106,18 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
 
       // Await stk_checkout_id write: the Supabase callback handler looks up the
       // transaction by stk_checkout_id, so it MUST be in the DB before the callback arrives.
+      // The server-side Vercel function also writes this; this is a belt-and-suspenders backup.
       if (stkResult?.checkoutId) {
-        await supabase
+        const { error: stkIdError } = await supabase
           .from("transactions")
           .update({ stk_checkout_id: stkResult.checkoutId })
-          .eq("id", data.id)
-          .then(() => console.log("[checkout] stk_checkout_id set"))
-          .catch((e) => console.error("[checkout] stk_checkout_id write failed:", e));
+          .eq("id", data.id);
+        if (stkIdError) {
+          console.error("[checkout] stk_checkout_id write failed:", stkIdError);
+          // Non-fatal: server already wrote it; log and continue
+        } else {
+          console.log("[checkout] stk_checkout_id set");
+        }
       }
 
       const pollResult = await pollTransaction(data.id);
