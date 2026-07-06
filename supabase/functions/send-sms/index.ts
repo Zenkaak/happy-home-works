@@ -17,6 +17,19 @@ function formatPhone(phone: string): string {
   return cleaned;
 }
 
+// Extract the meaningful error message from an OTS API response body.
+// OTS returns HTTP 200 even on errors — the actual status is in the body.
+function otsBodyError(data: any): string | null {
+  if (!data || typeof data !== "object") return null;
+  if (data.status === "error") return data.message || "SMS rejected by gateway";
+  if (data.code && Number(data.code) >= 400) return data.message || "SMS rejected by gateway";
+  if (Array.isArray(data.recipients)) {
+    const failed = data.recipients.find((r: any) => r.status && !/submit/i.test(String(r.status)));
+    if (failed) return failed.reason || failed.status || "Recipient rejected";
+  }
+  return null;
+}
+
 async function sendViaOts(phone: string, message: string) {
   const apiKey = Deno.env.get("OTS_API_KEY");
   if (!apiKey) throw new Error("OTS_API_KEY not configured");
@@ -37,7 +50,23 @@ async function sendViaOts(phone: string, message: string) {
   });
 
   const data = await res.json().catch(() => ({}));
-  return { ok: res.ok, status: res.status, data };
+
+  // Log full OTS response for diagnostics
+  console.log(`[send-sms/OTS] To ${phone}: HTTP ${res.status}`, JSON.stringify(data).slice(0, 200));
+
+  if (!res.ok) {
+    const errMsg = data?.message || data?.error || `Gateway HTTP error ${res.status}`;
+    return { ok: false, status: res.status, data, error: errMsg };
+  }
+
+  // OTS returns HTTP 200 even for errors — check the body
+  const bodyErr = otsBodyError(data);
+  if (bodyErr) {
+    console.error(`[send-sms/OTS] Body error for ${phone}:`, bodyErr);
+    return { ok: false, status: res.status, data, error: bodyErr };
+  }
+
+  return { ok: true, status: res.status, data };
 }
 
 serve(async (req) => {
@@ -80,7 +109,13 @@ serve(async (req) => {
 
     const result = await sendViaOts(phone, message);
 
-    return new Response(JSON.stringify({ success: result.ok, data: result.data }), {
+    if (!result.ok) {
+      return new Response(JSON.stringify({ error: result.error, data: result.data }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true, data: result.data }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
