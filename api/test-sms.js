@@ -138,25 +138,27 @@ export default async function handler(req, res) {
       },
     }, smsBodyStr);
 
-    console.log("[test-sms] OTS response:", smsResp.status, JSON.stringify(smsResp.body));
+    const rawOts = smsResp.body;
+    console.log("[test-sms] OTS response:", smsResp.status, JSON.stringify(rawOts));
 
     // Check HTTP-level error first
     if (!smsResp.status || smsResp.status >= 300) {
-      const errMsg = (smsResp.body && (smsResp.body.message || smsResp.body.error)) ||
+      const errMsg = (rawOts && (rawOts.message || rawOts.error)) ||
         `Gateway HTTP error ${smsResp.status}`;
-      res.status(200).json({ error: errMsg });
+      res.status(200).json({ error: errMsg, otsRaw: rawOts, otsHttp: smsResp.status });
       return;
     }
 
     // Check OTS body-level error — OTS returns HTTP 200 even when delivery fails
-    const bodyErr = otsError(smsResp.body);
+    const bodyErr = otsError(rawOts);
     if (bodyErr) {
-      console.error("[test-sms] OTS body error:", bodyErr, JSON.stringify(smsResp.body));
-      res.status(200).json({ error: bodyErr });
+      console.error("[test-sms] OTS body error:", bodyErr, JSON.stringify(rawOts));
+      res.status(200).json({ error: bodyErr, otsRaw: rawOts, otsHttp: smsResp.status });
       return;
     }
 
-    res.status(200).json({ success: true });
+    // Success — still return the raw OTS body so admin can inspect it
+    res.status(200).json({ success: true, otsRaw: rawOts, otsHttp: smsResp.status });
   } catch (err) {
     console.error("[test-sms] error:", err);
     res.status(500).json({ error: err.message || "Internal error" });
