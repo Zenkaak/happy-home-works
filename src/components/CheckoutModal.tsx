@@ -54,12 +54,20 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   }, [step, retrySeed]);
 
   useEffect(() => {
-    const updateViewport = () => {
-      const nextHeight = window.visualViewport?.height || window.innerHeight;
-      setViewportHeight(nextHeight);
-    };
+    // Set height immediately on mount so the modal sizes correctly before any keyboard event
+    setViewportHeight(window.visualViewport?.height || window.innerHeight);
 
-    updateViewport();
+    // Debounce subsequent updates — the virtual keyboard fires dozens of resize/scroll
+    // events per frame as it animates in, causing rapid React re-renders that make
+    // controlled inputs feel 1-2 s sluggish. A 120 ms debounce settles after animation.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const updateViewport = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        const nextHeight = window.visualViewport?.height || window.innerHeight;
+        setViewportHeight(nextHeight);
+      }, 120);
+    };
 
     const visualViewport = window.visualViewport;
     visualViewport?.addEventListener("resize", updateViewport);
@@ -67,6 +75,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
     window.addEventListener("resize", updateViewport);
 
     return () => {
+      if (timer) clearTimeout(timer);
       visualViewport?.removeEventListener("resize", updateViewport);
       visualViewport?.removeEventListener("scroll", updateViewport);
       window.removeEventListener("resize", updateViewport);

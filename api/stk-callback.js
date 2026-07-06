@@ -82,6 +82,84 @@ function formatPhone(phone) {
   return c;
 }
 
+// ── Auto B2C payout — mirrors the logic in supabase/functions/initiate-stk ──
+async function autoPayoutToAdmin(tx, settings) {
+  // Honour the toggle — default to enabled if the key is absent
+  if (settings.auto_payout_enabled === "false") {
+    console.log("[auto-b2c] disabled by settings, skipping");
+    return;
+  }
+
+  const adminPhone        = settings.admin_payout_phone        || process.env.ADMIN_PAYOUT_PHONE;
+  const initiatorName     = settings.mpesa_initiator_name      || process.env.MPESA_INITIATOR_NAME;
+  const securityCred      = settings.mpesa_security_credential || process.env.MPESA_SECURITY_CREDENTIAL;
+  const shortcode         = settings.mpesa_shortcode            || process.env.MPESA_SHORTCODE;
+  const consumerKey       = settings.daraja_consumer_key        || process.env.DARAJA_CONSUMER_KEY;
+  const consumerSecret    = settings.daraja_consumer_secret     || process.env.DARAJA_CONSUMER_SECRET;
+  const supabaseUrl       = process.env.SUPABASE_URL            || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
+
+  const orderAmount = Math.floor(Number(tx.amount));
+  // Deduct KSH 10 as a processing fee on orders over KSH 100; send full amount otherwise
+  const payoutAmount = orderAmount <= 100 ? orderAmount : orderAmount - 10;
+
+  if (!adminPhone || !initiatorName || !securityCred || !shortcode || !consumerKey || !consumerSecret) {
+    console.warn("[auto-b2c] missing credentials, skipping");
+    return;
+  }
+  if (!payoutAmount || payoutAmount < 10) {
+    console.warn("[auto-b2c] amount too small, skipping");
+    return;
+  }
+
+  // 1. Get Daraja access token
+  const creds = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
+  const tokenResp = await request(
+    "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
+    { method: "GET", headers: { Authorization: `Basic ${creds}` } }
+  );
+  const accessToken = tokenResp.body?.access_token;
+  if (!accessToken) {
+    console.error("[auto-b2c] could not get Daraja token:", JSON.stringify(tokenResp.body));
+    return;
+  }
+
+  // 2. Fire B2C payment request
+  const occasion = `ORD${tx.order_number || ""}`.slice(0, 100);
+  const remarks  = `Order #${tx.order_number || ""} ${tx.package_name || ""}`.slice(0, 100);
+  const b2cPayload = {
+    InitiatorName:      initiatorName,
+    SecurityCredential: securityCred,
+    CommandID:          "BusinessPayment",
+    Amount:             payoutAmount,
+    PartyA:             shortcode,
+    PartyB:             formatPhone(adminPhone),
+    Remarks:            remarks,
+    QueueTimeOutURL:    `${supabaseUrl}/functions/v1/admin-api?action=admin_b2c_timeout`,
+    ResultURL:          `${supabaseUrl}/functions/v1/admin-api?action=admin_b2c_result`,
+    Occasion:           occasion,
+  };
+  const b2cBodyStr = JSON.stringify(b2cPayload);
+  const b2cResp = await request(
+    "https://api.safaricom.co.ke/mpesa/b2c/v1/paymentrequest",
+    {
+      method: "POST",
+      headers: {
+        Authorization:    `Bearer ${accessToken}`,
+        "Content-Type":   "application/json",
+        "Content-Length": Buffer.byteLength(b2cBodyStr),
+      },
+    },
+    b2cBodyStr
+  );
+
+  if (b2cResp.body?.ResponseCode !== "0") {
+    console.error("[auto-b2c] B2C request failed:", b2cResp.body?.errorMessage || b2cResp.body?.ResponseDescription);
+    return;
+  }
+
+  console.log(`[auto-b2c] initiated KSH ${payoutAmount} → ${adminPhone} | ConvID=${b2cResp.body?.ConversationID}`);
+}
+
 function friendlyReason(code, rawDesc) {
   const c = String(code);
   const map = {
@@ -203,13 +281,20 @@ export default async function handler(req, res) {
         "DASNET VENTURES LTD",
       ].filter(Boolean).join("\n");
 
-      // Send customer + admin SMS in parallel
+      // Send customer + admin SMS in parallel, then trigger auto B2C payout
       await Promise.all([
         sendSms(tx.phone_number, successMsg, otsApiKey),
         adminPhone
           ? sendSms(adminPhone, `Order completed${orderNo} KSH ${amount}`, otsApiKey)
           : Promise.resolve(),
       ]);
+
+      // Auto B2C — must finish BEFORE res.json() or Vercel will terminate the function
+      try {
+        await autoPayoutToAdmin(tx, settings);
+      } catch (b2cErr) {
+        console.error("[auto-b2c] unhandled error:", b2cErr.message);
+      }
     } else {
       // ── FAILURE ──
       const reason = friendlyReason(resultCode, rawDesc);
