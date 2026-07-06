@@ -91,18 +91,16 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
 
       if (error) throw error;
 
-      // Call STK push via Vercel API route (uses Vercel env vars — no Supabase function needed)
-      const stkRes = await fetch("/api/initiate-stk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      // Call STK push via Supabase edge function
+      const { data: stkData, error: stkErr } = await supabase.functions.invoke("initiate-stk", {
+        body: {
           phone: payPhone,
           amount: product.price,
           transaction_id: data.id,
           account_ref: buildAccountRef({ category: product.category, packageName: product.name, dataAmount: product.data_amount }),
-        }),
+        },
       });
-      const stkData = await stkRes.json();
+      if (stkErr) throw stkErr;
 
       // Detect banned response
       const errMsg = stkData?.error || "";
