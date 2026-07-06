@@ -52,12 +52,9 @@ const OrderStatus = () => {
       )
       .subscribe();
 
-    const interval = setInterval(fetchTx, 5000);
-
     return () => {
       mounted = false;
       supabase.removeChannel(channel);
-      clearInterval(interval);
     };
   }, [id]);
 

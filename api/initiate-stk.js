@@ -176,14 +176,19 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Write stk_checkout_id server-side (before responding) so the Supabase callback
-    // handler can find the transaction immediately, even if the client write is delayed.
+    // Write stk_checkout_id server-side and AWAIT it before responding.
+    // Uses service_role key so it succeeds regardless of RLS policies.
+    // The callback handler looks up transactions by stk_checkout_id, so this
+    // MUST be in the DB before Safaricom's callback arrives.
     if (transaction_id && stkData.CheckoutRequestID) {
-      const supabaseUrl  = process.env.SUPABASE_URL  || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
-      const supabaseKey  = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+      const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
+      const supabaseKey =
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        process.env.SUPABASE_ANON_KEY ||
+        process.env.SUPABASE_PUBLISHABLE_KEY;
       if (supabaseUrl && supabaseKey) {
         const patchBody = JSON.stringify({ stk_checkout_id: stkData.CheckoutRequestID });
-        requestWithTimeout(
+        await requestWithTimeout(
           `${supabaseUrl}/rest/v1/transactions?id=eq.${encodeURIComponent(transaction_id)}`,
           {
             method: "PATCH",
@@ -198,8 +203,8 @@ export default async function handler(req, res) {
           patchBody,
           4000
         )
-          .then(() => console.log("[initiate-stk] stk_checkout_id persisted server-side"))
-          .catch((e) => console.warn("[initiate-stk] stk_checkout_id server write failed:", e.message));
+          .then(() => console.log("[initiate-stk] stk_checkout_id persisted"))
+          .catch((e) => console.warn("[initiate-stk] stk_checkout_id write failed:", e.message));
       }
     }
 

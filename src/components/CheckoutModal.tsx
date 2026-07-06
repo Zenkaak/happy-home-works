@@ -176,9 +176,13 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
     }
   };
 
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+
   const pollTransaction = async (txId: string): Promise<Transaction> => {
     for (let i = 0; i < 30; i++) {
       await new Promise((r) => setTimeout(r, 3000));
+      if (!mountedRef.current) return { status: "processing" } as Transaction;
       const { data } = await supabase
         .from("transactions")
         .select("*")
@@ -188,7 +192,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
         return data as Transaction;
       }
     }
-    // Timeout: keep current transaction state so callback can complete it
+    if (!mountedRef.current) return { status: "processing" } as Transaction;
     const { data } = await supabase.from("transactions").select("*").eq("id", txId).single();
     return (data || { status: "processing" }) as Transaction;
   };
