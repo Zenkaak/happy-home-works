@@ -38,7 +38,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
 
   // Pre-warm the Vercel Lambda so the Daraja token is cached before the user submits
   useEffect(() => {
-    fetch('/api/ping').catch(() => {});
+    fetch('/api/initiate-stk').catch(() => {});
   }, []);
 
   useEffect(() => {
