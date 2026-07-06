@@ -64,21 +64,34 @@ async function verifyAdminSession(supabaseUrl, supabaseKey, token) {
   } catch { return false; }
 }
 
+// Check OTS queue delivery status — called a few seconds after sending
+async function checkQueueStatus(queueUrl, otsApiKey) {
+  try {
+    const resp = await request(queueUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${otsApiKey}`,
+        Accept: "application/json",
+      },
+    });
+    return resp.body;
+  } catch { return null; }
+}
+
 // Extract the meaningful error message from an OTS API response body.
 // OTS returns HTTP 200 even on errors — the actual status is in the body.
 function otsError(body) {
   if (!body || typeof body !== "object") return null;
-  // {"status":"error","message":"..."}
   if (body.status === "error") return body.message || "SMS rejected by gateway";
-  // {"code":4xx,"message":"..."}
   if (body.code && body.code >= 400) return body.message || "SMS rejected by gateway";
-  // Check per-recipient failure
   if (Array.isArray(body.recipients)) {
-    const failed = body.recipients.find((r) => r.status && !/submit/i.test(r.status));
+    const failed = body.recipients.find((r) => r.status && !/submit|accept|queue|pending|sent|deliver/i.test(r.status));
     if (failed) return failed.reason || failed.status || "Recipient rejected";
   }
   return null;
 }
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -100,7 +113,6 @@ export default async function handler(req, res) {
 
   if (!supabaseKey) { res.status(500).json({ error: "Supabase not configured" }); return; }
 
-  // Verify admin session
   if (admin_token) {
     const valid = await verifyAdminSession(supabaseUrl, supabaseKey, admin_token);
     if (!valid) { res.status(401).json({ error: "Invalid or expired admin session" }); return; }
@@ -109,26 +121,31 @@ export default async function handler(req, res) {
   // Get OTS API key and sender ID from DB first, fallback to env
   const settings = await fetchSettings(supabaseUrl, supabaseKey);
   const otsApiKey = settings.ots_api_key || process.env.OTS_API_KEY;
-  const senderId = settings.sms_sender_id || process.env.OTS_SENDER_ID || "PROCALL";
+  // Use only plain ASCII chars in sender ID (max 11 chars)
+  const senderId = (settings.sms_sender_id || process.env.OTS_SENDER_ID || "PROCALL").slice(0, 11);
 
   if (!otsApiKey) {
-    res.status(400).json({ error: "OTS API key not configured. Set it in Settings → SMS Gateway." });
+    res.status(400).json({ error: "OTS API key not configured. Set it in Settings -> SMS Gateway." });
     return;
   }
 
-  // Normalise phone
+  // Normalise phone to 254XXXXXXXXX
   let phone254 = String(phone).replace(/[^0-9]/g, "");
   if (phone254.startsWith("0") && phone254.length === 10) phone254 = `254${phone254.slice(1)}`;
+  if (phone254.startsWith("+")) phone254 = phone254.slice(1);
 
-  const message = "DASNET Admin Test — your notification SMS is working correctly. Every completed order will alert this number.";
+  // Use plain ASCII only to avoid Unicode (UCS-2) encoding which splits message into 70-char parts
+  const message = `Test SMS from ${senderId}: your SMS gateway is working. If this arrived, order notifications are enabled.`;
 
   try {
-    const smsBodyStr = JSON.stringify({
+    const smsPayload = {
       recipient: phone254,
       sender_id: senderId,
-      type: "plain",
       message,
-    });
+    };
+    const smsBodyStr = JSON.stringify(smsPayload);
+    console.log("[test-sms] Sending to OTS:", JSON.stringify({ phone: phone254, sender_id: senderId }));
+
     const smsResp = await request("https://sms.ots.co.ke/api/v3/sms/send", {
       method: "POST",
       headers: {
@@ -140,26 +157,49 @@ export default async function handler(req, res) {
     }, smsBodyStr);
 
     const rawOts = smsResp.body;
-    console.log("[test-sms] OTS response:", smsResp.status, JSON.stringify(rawOts));
+    console.log("[test-sms] OTS send response:", smsResp.status, JSON.stringify(rawOts));
 
-    // Check HTTP-level error first
+    // HTTP-level error
     if (!smsResp.status || smsResp.status >= 300) {
-      const errMsg = (rawOts && (rawOts.message || rawOts.error)) ||
-        `Gateway HTTP error ${smsResp.status}`;
+      const errMsg = (rawOts && (rawOts.message || rawOts.error)) || `Gateway HTTP error ${smsResp.status}`;
       res.status(200).json({ error: errMsg, otsRaw: rawOts, otsHttp: smsResp.status });
       return;
     }
 
-    // Check OTS body-level error — OTS returns HTTP 200 even when delivery fails
+    // Body-level error
     const bodyErr = otsError(rawOts);
     if (bodyErr) {
-      console.error("[test-sms] OTS body error:", bodyErr, JSON.stringify(rawOts));
+      console.error("[test-sms] OTS body error:", bodyErr);
       res.status(200).json({ error: bodyErr, otsRaw: rawOts, otsHttp: smsResp.status });
       return;
     }
 
-    // Success — still return the raw OTS body so admin can inspect it
-    res.status(200).json({ success: true, otsRaw: rawOts, otsHttp: smsResp.status });
+    // OTS queued the message — wait 5s then check delivery status
+    const queueUrl = rawOts?.data?.check_status_url || rawOts?.check_status_url || null;
+    let queueStatus = null;
+
+    if (queueUrl) {
+      console.log("[test-sms] Waiting 5s to check queue status at", queueUrl);
+      await sleep(5000);
+      queueStatus = await checkQueueStatus(queueUrl, otsApiKey);
+      console.log("[test-sms] Queue status:", JSON.stringify(queueStatus));
+    }
+
+    // Determine final outcome from queue status
+    let finalError = null;
+    if (queueStatus) {
+      const r = queueStatus?.data?.recipients || queueStatus?.recipients || [];
+      const failed = Array.isArray(r) ? r.find((x) => /fail|reject|error|invalid|unapprove/i.test(JSON.stringify(x))) : null;
+      if (failed) {
+        finalError = failed.reason || failed.status || failed.failure_reason || "Delivery failed";
+      }
+    }
+
+    if (finalError) {
+      res.status(200).json({ error: finalError, otsRaw: rawOts, otsHttp: smsResp.status, queueStatus });
+    } else {
+      res.status(200).json({ success: true, otsRaw: rawOts, otsHttp: smsResp.status, queueStatus });
+    }
   } catch (err) {
     console.error("[test-sms] error:", err);
     res.status(500).json({ error: err.message || "Internal error" });
