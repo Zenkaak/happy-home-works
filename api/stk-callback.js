@@ -199,9 +199,33 @@ function friendlyReason(code, rawDesc) {
   return rawDesc || "Payment not completed.";
 }
 
-async function sendSms(phone, message, otsApiKey, senderId) {
+async function logSms(supabaseUrl, supabaseKey, phoneNumber, message, status, transactionId) {
+  try {
+    const logBody = JSON.stringify({
+      phone_number: phoneNumber,
+      message,
+      status,
+      transaction_id: transactionId || null,
+    });
+    await request(`${supabaseUrl}/rest/v1/sms_logs`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(logBody),
+        Prefer: "return=minimal",
+      },
+    }, logBody);
+  } catch (e) {
+    console.error("[SMS] Failed to write sms_log:", e.message);
+  }
+}
+
+async function sendSms(phone, message, otsApiKey, senderId, supabaseUrl, supabaseKey, transactionId) {
   if (!otsApiKey) {
     console.error("[SMS] OTS API key not configured — SMS not sent");
+    await logSms(supabaseUrl, supabaseKey, phone, message, "failed_no_credentials", transactionId);
     return;
   }
   const phone254 = formatPhone(phone);
@@ -218,21 +242,25 @@ async function sendSms(phone, message, otsApiKey, senderId) {
       },
     }, bodyStr);
 
-    // Log the full OTS response so we can diagnose issues (e.g. bad sender ID, no credits)
     console.log(`[SMS] To ${phone254}: HTTP ${r.status}`, JSON.stringify(r.body).slice(0, 200));
 
     if (r.status >= 300) {
       console.error(`[SMS] HTTP error ${r.status} for ${phone254}:`, r.body);
+      await logSms(supabaseUrl, supabaseKey, phone254, message, "failed", transactionId);
       return;
     }
 
-    // OTS returns HTTP 200 even for errors — check the body
     const bodyErr = otsError(r.body);
     if (bodyErr) {
       console.error(`[SMS] OTS body error for ${phone254}: ${bodyErr}`, JSON.stringify(r.body));
+      await logSms(supabaseUrl, supabaseKey, phone254, message, "failed", transactionId);
+      return;
     }
+
+    await logSms(supabaseUrl, supabaseKey, phone254, message, "sent", transactionId);
   } catch (e) {
     console.error("[SMS] Error:", e.message);
+    await logSms(supabaseUrl, supabaseKey, phone, message, "error", transactionId);
   }
 }
 
@@ -321,9 +349,9 @@ export default async function handler(req, res) {
       // Send customer + admin SMS in PARALLEL — avoids double-timeout in sequential sends
       const custPhone254  = formatPhone(tx.phone_number);
       const adminPhone254 = adminPhone ? formatPhone(adminPhone) : null;
-      const smsTasks = [sendSms(tx.phone_number, successMsg, otsApiKey, smsSenderId)];
+      const smsTasks = [sendSms(tx.phone_number, successMsg, otsApiKey, smsSenderId, supabaseUrl, supabaseKey, tx.id)];
       if (adminPhone254 && adminPhone254 !== custPhone254) {
-        smsTasks.push(sendSms(adminPhone, `Order${orderNo} KSH ${amount} paid`, otsApiKey, smsSenderId));
+        smsTasks.push(sendSms(adminPhone, `Order${orderNo} KSH ${amount} paid`, otsApiKey, smsSenderId, supabaseUrl, supabaseKey, null));
       }
       await Promise.all(smsTasks);
 
@@ -354,7 +382,7 @@ export default async function handler(req, res) {
         "No charge. Retry: hitechz.vercel.app",
       ].join("\n");
 
-      await sendSms(tx.phone_number, failureMsg, otsApiKey, smsSenderId);
+      await sendSms(tx.phone_number, failureMsg, otsApiKey, smsSenderId, supabaseUrl, supabaseKey, tx.id);
     }
   } catch (e) {
     console.error("[callback] Error:", e.message);
