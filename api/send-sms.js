@@ -50,6 +50,25 @@ async function fetchSettings(supabaseUrl, supabaseKey) {
   } catch { return {}; }
 }
 
+async function writeSmsLog(supabaseUrl, supabaseKey, phoneNumber, message, status) {
+  if (!supabaseUrl || !supabaseKey) return;
+  try {
+    const logBody = JSON.stringify({ phone_number: phoneNumber, message, status, transaction_id: null });
+    await request(`${supabaseUrl}/rest/v1/sms_logs`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(logBody),
+        Prefer: "return=minimal",
+      },
+    }, logBody);
+  } catch (e) {
+    console.error("[send-sms] sms_log write failed:", e.message);
+  }
+}
+
 // Extract the meaningful error message from an OTS API response body.
 // OTS returns HTTP 200 even on errors — the actual status is in the body.
 function otsError(body) {
@@ -118,6 +137,7 @@ export default async function handler(req, res) {
     // Check HTTP-level error first, then OTS body-level error
     if (r.status >= 300) {
       const errMsg = r.body?.message || r.body?.error || `Gateway HTTP error ${r.status}`;
+      await writeSmsLog(supabaseUrl, supabaseKey, phone254, message, "failed");
       res.status(200).json({ error: errMsg });
       return;
     }
@@ -125,10 +145,12 @@ export default async function handler(req, res) {
     const bodyErr = otsError(r.body);
     if (bodyErr) {
       console.error(`[send-sms] OTS body error for ${phone254}:`, bodyErr, JSON.stringify(r.body));
+      await writeSmsLog(supabaseUrl, supabaseKey, phone254, message, "failed");
       res.status(200).json({ error: bodyErr });
       return;
     }
 
+    await writeSmsLog(supabaseUrl, supabaseKey, phone254, message, "sent");
     res.status(200).json({ success: true });
   } catch (e) {
     console.error("[send-sms] Error:", e.message);
