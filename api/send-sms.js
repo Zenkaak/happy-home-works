@@ -89,6 +89,7 @@ export default async function handler(req, res) {
 
   const settings  = await fetchSettings(supabaseUrl, supabaseKey);
   const otsApiKey = settings.ots_api_key || process.env.OTS_API_KEY;
+  const senderId  = (settings.sms_sender_id || process.env.OTS_SENDER_ID || "PROCALL").slice(0, 11);
 
   if (!otsApiKey) {
     res.status(400).json({ error: "OTS API key not configured. Set it in Settings → SMS Gateway." });
@@ -99,7 +100,7 @@ export default async function handler(req, res) {
   const phone254 = cleaned.startsWith("0") && cleaned.length === 10
     ? `254${cleaned.slice(1)}` : cleaned;
 
-  const smsBody = JSON.stringify({ recipient: phone254, sender_id: "PROCALL", type: "plain", message });
+  const smsBody = JSON.stringify({ recipient: phone254, sender_id: senderId, message });
 
   try {
     const r = await request("https://sms.ots.co.ke/api/v3/sms/send", {
