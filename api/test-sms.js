@@ -73,6 +73,25 @@ function otsError(body) {
   return null;
 }
 
+async function writeSmsLog(supabaseUrl, supabaseKey, phoneNumber, message, status) {
+  if (!supabaseUrl || !supabaseKey) return;
+  try {
+    const logBody = JSON.stringify({ phone_number: phoneNumber, message, status, transaction_id: null });
+    await request(`${supabaseUrl}/rest/v1/sms_logs`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(logBody),
+        Prefer: "return=minimal",
+      },
+    }, logBody);
+  } catch (e) {
+    console.error("[test-sms] sms_log write failed:", e.message);
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -134,6 +153,7 @@ export default async function handler(req, res) {
 
     if (smsResp.status >= 300) {
       const errMsg = (rawOts && (rawOts.message || rawOts.error)) || `Gateway HTTP error ${smsResp.status}`;
+      await writeSmsLog(supabaseUrl, supabaseKey, phone254, message, "failed");
       res.status(200).json({ error: errMsg, otsHttp: smsResp.status });
       return;
     }
@@ -141,11 +161,13 @@ export default async function handler(req, res) {
     const bodyErr = otsError(rawOts);
     if (bodyErr) {
       console.error("[test-sms] OTS body error:", bodyErr);
+      await writeSmsLog(supabaseUrl, supabaseKey, phone254, message, "failed");
       res.status(200).json({ error: bodyErr, otsHttp: smsResp.status });
       return;
     }
 
     // NOTE: OTS routes SMS via carrier — delivery may take a few minutes depending on the carrier.
+    await writeSmsLog(supabaseUrl, supabaseKey, phone254, message, "sent");
     res.status(200).json({ success: true, queueUid: rawOts?.data?.queue_uid });
   } catch (err) {
     console.error("[test-sms] error:", err);
