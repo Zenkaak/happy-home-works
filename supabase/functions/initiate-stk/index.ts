@@ -418,6 +418,25 @@ async function handleInitiate(req: Request) {
       });
     }
 
+    // Fetch the transaction so we can send the "Enter PIN" SMS BEFORE triggering STK.
+    // This ensures the SMS arrives first, and the STK prompt lands a few seconds later.
+    const { data: preTx } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("id", transaction_id)
+      .single();
+
+    if (preTx) {
+      try {
+        await sendInitiatedSms(preTx, otsApiKey);
+      } catch (e: unknown) {
+        console.error("initiate SMS error:", e instanceof Error ? e.message : e);
+      }
+    }
+
+    // Small delay so the SMS visibly lands before the STK prompt pops up
+    await new Promise((r) => setTimeout(r, 3000));
+
     const timestamp = getTimestamp();
     const password = base64Encode(`${shortcode}${passkey}${timestamp}`);
     const accessToken = await getDarajaToken(consumerKey, consumerSecret);
@@ -450,20 +469,11 @@ async function handleInitiate(req: Request) {
       });
     }
 
-    const { data: updatedTx, error: updateError } = await supabase
+    const { error: updateError } = await supabase
       .from("transactions")
       .update({ stk_checkout_id: stkData.CheckoutRequestID, status: "processing", failure_reason: null })
-      .eq("id", transaction_id)
-      .select("*")
-      .single();
+      .eq("id", transaction_id);
     if (updateError) throw updateError;
-
-    // Must await — Deno edge runtime kills background tasks after Response is sent
-    try {
-      await sendInitiatedSms(updatedTx, otsApiKey);
-    } catch (e: unknown) {
-      console.error("initiate SMS error:", e instanceof Error ? e.message : e);
-    }
 
     return new Response(JSON.stringify({ success: true, data: stkData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
