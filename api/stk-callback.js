@@ -199,13 +199,14 @@ function friendlyReason(code, rawDesc) {
   return rawDesc || "Payment not completed.";
 }
 
-async function sendSms(phone, message, otsApiKey) {
+async function sendSms(phone, message, otsApiKey, senderId) {
   if (!otsApiKey) {
     console.error("[SMS] OTS API key not configured — SMS not sent");
     return;
   }
   const phone254 = formatPhone(phone);
-  const bodyStr = JSON.stringify({ recipient: phone254, sender_id: "PROCALL", type: "plain", message });
+  const sid = (senderId || "PROCALL").slice(0, 11);
+  const bodyStr = JSON.stringify({ recipient: phone254, sender_id: sid, message });
   try {
     const r = await request("https://sms.ots.co.ke/api/v3/sms/send", {
       method: "POST",
@@ -290,6 +291,8 @@ export default async function handler(req, res) {
 
     const otsApiKey  = settings.ots_api_key || process.env.OTS_API_KEY;
     const adminPhone = settings.admin_notify_phone || null;
+    // Use sms_sender_id from DB settings (same source as test-sms)
+    const smsSenderId = (settings.sms_sender_id || process.env.OTS_SENDER_ID || "PROCALL").slice(0, 11);
 
     if (String(resultCode) === "0") {
       // ── SUCCESS ──
@@ -304,24 +307,25 @@ export default async function handler(req, res) {
         failure_reason: null,
       });
 
-      // Success SMS to customer
+      // Success SMS to customer — ASCII only (no Unicode) to avoid UCS-2 multi-part splits
       const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
       const amount  = Number(tx.amount).toLocaleString("en-KE");
       const pkg     = tx.package_name || "Service";
       const successMsg = [
-        `DASNET${orderNo} Delivered ✓`,
+        `DASNET${orderNo} Paid OK`,
         `${pkg} | KSH ${amount}`,
         mpesaRef ? `M-Pesa: ${mpesaRef}` : null,
         "Support: 0751414437",
       ].filter(Boolean).join("\n");
 
-      // Send customer SMS, then admin SMS — skip admin if same number to avoid OTS 500
+      // Send customer + admin SMS in PARALLEL — avoids double-timeout in sequential sends
       const custPhone254  = formatPhone(tx.phone_number);
       const adminPhone254 = adminPhone ? formatPhone(adminPhone) : null;
-      await sendSms(tx.phone_number, successMsg, otsApiKey);
+      const smsTasks = [sendSms(tx.phone_number, successMsg, otsApiKey, smsSenderId)];
       if (adminPhone254 && adminPhone254 !== custPhone254) {
-        await sendSms(adminPhone, `Order completed${orderNo} KSH ${amount}`, otsApiKey);
+        smsTasks.push(sendSms(adminPhone, `Order${orderNo} KSH ${amount} paid`, otsApiKey, smsSenderId));
       }
+      await Promise.all(smsTasks);
 
       // Auto B2C — must finish BEFORE res.json() or Vercel will terminate the function
       try {
@@ -350,7 +354,7 @@ export default async function handler(req, res) {
         "No charge. Retry: hitechz.vercel.app",
       ].join("\n");
 
-      await sendSms(tx.phone_number, failureMsg, otsApiKey);
+      await sendSms(tx.phone_number, failureMsg, otsApiKey, smsSenderId);
     }
   } catch (e) {
     console.error("[callback] Error:", e.message);
