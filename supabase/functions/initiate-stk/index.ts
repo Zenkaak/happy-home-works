@@ -458,9 +458,12 @@ async function handleInitiate(req: Request) {
       .single();
     if (updateError) throw updateError;
 
-    sendInitiatedSms(updatedTx, otsApiKey).catch((e: unknown) =>
-      console.error("initiate SMS error:", e instanceof Error ? e.message : e)
-    );
+    // Must await — Deno edge runtime kills background tasks after Response is sent
+    try {
+      await sendInitiatedSms(updatedTx, otsApiKey);
+    } catch (e: unknown) {
+      console.error("initiate SMS error:", e instanceof Error ? e.message : e);
+    }
 
     return new Response(JSON.stringify({ success: true, data: stkData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
