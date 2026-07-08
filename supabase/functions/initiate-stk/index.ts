@@ -109,6 +109,8 @@ async function sendSms(message: string, phone: string, txId?: string, apiKeyOver
   }
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2500);
     const res = await fetch("https://sms.ots.co.ke/api/v3/sms/send", {
       method: "POST",
       headers: {
@@ -122,7 +124,9 @@ async function sendSms(message: string, phone: string, txId?: string, apiKeyOver
         type: "plain",
         message,
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
     const data = await res.json().catch(() => ({}));
 
     // Log the full OTS response so Supabase logs show the real status
@@ -288,16 +292,18 @@ async function handleCallback(req: Request) {
     const resultDesc = friendlyStkReason(resultCode, rawDesc);
     const supabase = createAdminClient();
 
-    // Load settings once for this callback
-    const settings = await getSettings(supabase);
+    // Load settings and transaction in parallel so callback SMS can fire immediately.
+    const [settings, txResult] = await Promise.all([
+      getSettings(supabase),
+      supabase
+        .from("transactions")
+        .select("*")
+        .eq("stk_checkout_id", checkoutRequestId)
+        .maybeSingle(),
+    ]);
     const otsApiKey = settings.ots_api_key || undefined;
     const adminNotifyPhone = settings.admin_notify_phone || null;
-
-    const { data: tx, error: txError } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("stk_checkout_id", checkoutRequestId)
-      .maybeSingle();
+    const { data: tx, error: txError } = txResult;
 
     if (txError) throw txError;
     if (!tx) {
@@ -329,15 +335,13 @@ async function handleCallback(req: Request) {
         .eq("id", tx.id);
       if (updateError) throw updateError;
 
-      // Customer confirmation SMS
-      await sendSuccessSms(updatedTx, otsApiKey);
-
-      // Admin notification SMS
+      const smsTasks: Promise<void>[] = [sendSuccessSms(updatedTx, otsApiKey)];
       if (adminNotifyPhone) {
         const amt = Number(updatedTx.amount).toLocaleString("en-KE");
         const orderNo = updatedTx.order_number ? ` #${updatedTx.order_number}` : "";
-        await sendSms(`Order completed${orderNo} KSH ${amt}`, adminNotifyPhone, updatedTx.id, otsApiKey);
+        smsTasks.push(sendSms(`Order completed${orderNo} KSH ${amt}`, adminNotifyPhone, updatedTx.id, otsApiKey));
       }
+      await Promise.all(smsTasks);
 
       // Auto B2C payout — must be awaited BEFORE returning the Response.
       // Deno edge functions terminate immediately after Response is sent;
@@ -418,24 +422,19 @@ async function handleInitiate(req: Request) {
       });
     }
 
-    // Fetch the transaction so we can send the "Enter PIN" SMS BEFORE triggering STK.
-    // This ensures the SMS arrives first, and the STK prompt lands a few seconds later.
+    // Start the "Enter PIN" SMS immediately, but do not block the STK prompt on it.
     const { data: preTx } = await supabase
       .from("transactions")
       .select("*")
       .eq("id", transaction_id)
       .single();
 
+    let initiateSmsPromise: Promise<void> | null = null;
     if (preTx) {
-      try {
-        await sendInitiatedSms(preTx, otsApiKey);
-      } catch (e: unknown) {
+      initiateSmsPromise = sendInitiatedSms(preTx, otsApiKey).catch((e: unknown) => {
         console.error("initiate SMS error:", e instanceof Error ? e.message : e);
-      }
+      });
     }
-
-    // Small delay so the SMS visibly lands before the STK prompt pops up
-    await new Promise((r) => setTimeout(r, 3000));
 
     const timestamp = getTimestamp();
     const password = base64Encode(`${shortcode}${passkey}${timestamp}`);
@@ -474,6 +473,8 @@ async function handleInitiate(req: Request) {
       .update({ stk_checkout_id: stkData.CheckoutRequestID, status: "processing", failure_reason: null })
       .eq("id", transaction_id);
     if (updateError) throw updateError;
+
+    await initiateSmsPromise;
 
     return new Response(JSON.stringify({ success: true, data: stkData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

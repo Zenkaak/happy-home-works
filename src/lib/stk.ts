@@ -14,8 +14,8 @@ type StkResult = {
 };
 
 // ---------------------------------------------------------------------------
-// Path 1 — Vercel function (PRIMARY — fast, always deployed)
-// Returns checkoutId so the frontend can set stk_checkout_id on the transaction.
+// Path 1 — Lovable Cloud edge function (PRIMARY)
+// Keeps SMS logging and callback handling on the same backend path.
 // ---------------------------------------------------------------------------
 async function tryVercelFunction(payload: InitiateStkPayload): Promise<StkResult> {
   const res = await fetch("/api/initiate-stk", {
@@ -31,7 +31,7 @@ async function tryVercelFunction(payload: InitiateStkPayload): Promise<StkResult
 }
 
 // ---------------------------------------------------------------------------
-// Path 2 — Supabase edge function (FALLBACK)
+// Path 2 — Vercel function (FALLBACK)
 // The Supabase function sets stk_checkout_id internally; still return it
 // so the frontend can do a redundant write for safety.
 // ---------------------------------------------------------------------------
@@ -58,18 +58,19 @@ const DARAJA_ERROR_RE = /cancelled|insufficient|wrong pin|timed out|unresolved|b
 export const initiateStkPush = async (payload: InitiateStkPayload): Promise<StkResult> => {
   let primaryError: Error | null = null;
 
-  // Try Vercel first
+  // Try the edge function first. Calling /api first on the Lovable published
+  // domain adds a failed network round-trip before payment starts.
   try {
-    return await tryVercelFunction(payload);
+    return await trySupabaseFunction(payload);
   } catch (err: any) {
     primaryError = err instanceof Error ? err : new Error(String(err?.message ?? err));
     if (DARAJA_ERROR_RE.test(primaryError.message)) throw primaryError;
-    console.warn("[STK] Vercel path failed, falling back to Supabase:", primaryError.message);
+    console.warn("[STK] Edge path failed, falling back to Vercel:", primaryError.message);
   }
 
-  // Supabase fallback
+  // Vercel fallback
   try {
-    return await trySupabaseFunction(payload);
+    return await tryVercelFunction(payload);
   } catch (fallbackErr: any) {
     const fallbackMsg =
       fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr?.message ?? fallbackErr);
