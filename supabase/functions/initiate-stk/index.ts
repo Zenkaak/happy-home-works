@@ -439,23 +439,11 @@ async function handleInitiate(req: Request) {
       });
     }
 
-    // Start the "Enter PIN" SMS immediately, but do not block the STK prompt on it.
-    const { data: preTx } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("id", transaction_id)
-      .single();
-
-    let initiateSmsPromise: Promise<void> | null = null;
-    if (preTx) {
-      initiateSmsPromise = sendInitiatedSms(preTx, otsApiKey).catch((e: unknown) => {
-        console.error("initiate SMS error:", e instanceof Error ? e.message : e);
-      });
-    }
-
+    // "Enter PIN" SMS removed — STK prompt itself asks for PIN. Callback SMS handles success/failure.
     const timestamp = getTimestamp();
     const password = base64Encode(`${shortcode}${passkey}${timestamp}`);
     const accessToken = await getDarajaToken(consumerKey, consumerSecret);
+
 
     const stkPayload = {
       BusinessShortCode: shortcode,
@@ -491,7 +479,7 @@ async function handleInitiate(req: Request) {
       .eq("id", transaction_id);
     if (updateError) throw updateError;
 
-    await initiateSmsPromise;
+    
 
     return new Response(JSON.stringify({ success: true, data: stkData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
