@@ -13,6 +13,10 @@ const DARAJA_AUTH_URL =
 const DARAJA_STK_URL =
   "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
 
+let cachedDarajaToken: string | null = null;
+let cachedDarajaTokenExpiry = 0;
+let cachedDarajaCreds = "";
+
 const createAdminClient = () =>
   createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -38,14 +42,27 @@ async function getSettings(supabase: any): Promise<Record<string, string>> {
 // Daraja token — accepts credentials so callers can use DB-overridden values.
 // ---------------------------------------------------------------------------
 async function getDarajaToken(consumerKey: string, consumerSecret: string): Promise<string> {
+  const credsKey = `${consumerKey}:${consumerSecret}`;
+  const now = Date.now();
+  if (cachedDarajaToken && cachedDarajaCreds === credsKey && now < cachedDarajaTokenExpiry) {
+    return cachedDarajaToken;
+  }
+
   const credentials = base64Encode(`${consumerKey}:${consumerSecret}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
   const res = await fetch(DARAJA_AUTH_URL, {
     method: "GET",
     headers: { Authorization: `Basic ${credentials}` },
+    signal: controller.signal,
   });
+  clearTimeout(timeout);
   const data = await res.json();
   if (!data.access_token) throw new Error("Failed to get Daraja access token");
-  return data.access_token;
+  cachedDarajaToken = data.access_token;
+  cachedDarajaTokenExpiry = now + 55 * 60 * 1000;
+  cachedDarajaCreds = credsKey;
+  return cachedDarajaToken;
 }
 
 function getTimestamp(): string {
@@ -112,21 +129,21 @@ async function sendSms(message: string, phone: string, txId?: string, apiKeyOver
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 2500);
     const res = await fetch("https://sms.ots.co.ke/api/v3/sms/send", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        recipient: formatPhoneTo254(phone),
-        sender_id: "PROCALL",
-        type: "plain",
-        message,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          recipient: formatPhoneTo254(phone),
+          sender_id: "PROCALL",
+          type: "plain",
+          message,
+        }),
+        signal: controller.signal,
+      })
+      .finally(() => clearTimeout(timeout));
     const data = await res.json().catch(() => ({}));
 
     // Log the full OTS response so Supabase logs show the real status

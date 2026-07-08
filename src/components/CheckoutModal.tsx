@@ -40,11 +40,6 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   const isLoan = product.category === "loans";
   const modalMaxHeight = viewportHeight ? `${Math.max(viewportHeight - 12, 320)}px` : "calc(100dvh - 0.75rem)";
 
-  // Pre-warm the Vercel Lambda so the Daraja token is cached before the user submits
-  useEffect(() => {
-    fetch('/api/initiate-stk').catch(() => {});
-  }, []);
-
   // Show "Resend prompt" button after 8 s of processing (resets on each retry)
   useEffect(() => {
     if (step !== "processing") { setShowRetry(false); return; }
