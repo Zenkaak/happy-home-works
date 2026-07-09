@@ -104,6 +104,15 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   };
 
   const handleConfirmPay = async () => {
+    // Offline fallback — STK push needs data. Show SIM Toolkit / Paybill instructions.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      toast({
+        title: "You're offline",
+        description: "Pay via SIM Toolkit using Paybill 4018275. We'll verify once you're back online.",
+      });
+      setShowManual(true);
+      return;
+    }
     setStep("processing");
     try {
       const payPhone = needsPaymentNumber ? formatPhoneTo254(serviceNumber) : formatPhoneTo254(phoneNumber);
