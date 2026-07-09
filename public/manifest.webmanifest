@@ -1,0 +1,15 @@
+{
+  "name": "DASNET — Data, KPLC & Loans",
+  "short_name": "DASNET",
+  "description": "Instant data bundles, KPLC tokens & airtime loans via M-PESA.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0e1a",
+  "theme_color": "#0a0e1a",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

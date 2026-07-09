@@ -405,7 +405,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
                 className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90"
               >
                 <Wallet className="w-4 h-4" />
-                Pay via Till 8448104 (Dasnet Ventures)
+                Pay via Paybill 4018275 (SIM Toolkit)
               </button>
               <div className="flex gap-2">
                 <button onClick={() => setStep("confirm")} className="flex-1 py-2.5 rounded-xl bg-secondary font-medium text-sm hover:bg-muted">
