@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App.tsx";
 import "./index.css";
 import { fetchProducts } from "@/hooks/useProducts";
+import { registerAppServiceWorker } from "@/lib/registerSW";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,8 @@ function bootstrap() {
     (window as any).requestIdleCallback ||
     ((cb: () => void) => setTimeout(cb, 200));
   schedule(() => warmProductCache());
+
+  registerAppServiceWorker();
 }
 
 bootstrap();
