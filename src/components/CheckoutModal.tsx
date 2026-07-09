@@ -676,6 +676,16 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
           )}
         </div>
       </div>
+      {showManual && (
+        <ManualPaymentModal
+          transactionId={transaction?.id}
+          phoneNumber={formatPhoneTo254(phoneNumber)}
+          amount={product.price}
+          packageName={product.name}
+          onClose={() => setShowManual(false)}
+          onSubmitted={() => { setShowManual(false); onClose(); }}
+        />
+      )}
     </div>
   );
 };
