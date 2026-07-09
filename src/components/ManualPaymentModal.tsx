@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, X, CheckCircle2, Copy } from "lucide-react";
+import { Loader2, X, CheckCircle2, Copy, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,15 +12,21 @@ interface Props {
   onSubmitted?: () => void;
 }
 
+const PAYBILL = "4018275";
+const RECIPIENT = "DASNET";
+
 const ManualPaymentModal = ({ transactionId, phoneNumber, amount, packageName, onClose, onSubmitted }: Props) => {
   const { toast } = useToast();
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
-  const copyTill = () => {
-    navigator.clipboard.writeText("8448104");
-    toast({ title: "Till copied!", description: "8448104 (Dasnet Ventures)" });
+  // Account = the receiving phone number so admins can match the payment to the order
+  const accountNumber = phoneNumber.replace(/[^0-9]/g, "").slice(-9);
+
+  const copy = (value: string, label: string) => {
+    navigator.clipboard.writeText(value);
+    toast({ title: `${label} copied`, description: value });
   };
 
   const submit = async () => {
@@ -53,9 +59,9 @@ const ManualPaymentModal = ({ transactionId, phoneNumber, amount, packageName, o
 
   return (
     <div className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
-      <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h3 className="font-display font-bold text-base">Pay via Till</h3>
+      <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl overflow-hidden max-h-[95vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-card">
+          <h3 className="font-display font-bold text-base">Pay via Paybill (SIM Toolkit)</h3>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-secondary">
             <X className="w-4 h-4" />
           </button>
@@ -68,7 +74,7 @@ const ManualPaymentModal = ({ transactionId, phoneNumber, amount, packageName, o
             </div>
             <h4 className="font-bold">Submitted!</h4>
             <p className="text-sm text-muted-foreground">
-              We're verifying your payment. You'll get an SMS confirmation in a moment.
+              We're verifying your payment. You'll get an SMS confirmation shortly.
             </p>
             <button onClick={onClose} className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-bold">
               Done
@@ -77,18 +83,34 @@ const ManualPaymentModal = ({ transactionId, phoneNumber, amount, packageName, o
         ) : (
           <div className="p-4 space-y-4">
             <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 space-y-3">
-              <p className="text-xs uppercase tracking-wider font-bold text-primary">Step 1 — Pay on M-PESA</p>
-              <ol className="text-sm space-y-1 text-foreground">
-                <li>1. Lipa na M-PESA</li>
-                <li>2. Buy Goods and Services</li>
-                <li>3. Till Number: <span className="font-mono font-bold">8448104</span></li>
-                <li>4. Amount: <span className="font-bold">KSH {amount.toLocaleString()}</span></li>
-                <li>5. Confirm with PIN</li>
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-primary" />
+                <p className="text-xs uppercase tracking-wider font-bold text-primary">Step 1 — Use M-PESA SIM Toolkit</p>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Works even without internet — just open your SIM's M-PESA menu.
+              </p>
+              <ol className="text-sm space-y-1.5 text-foreground">
+                <li>1. Open <span className="font-bold">SIM Toolkit → M-PESA</span></li>
+                <li>2. <span className="font-bold">Lipa na M-PESA</span></li>
+                <li>3. <span className="font-bold">Pay Bill</span></li>
+                <li>4. Business No: <span className="font-mono font-bold">{PAYBILL}</span></li>
+                <li>5. Account No: <span className="font-mono font-bold">{accountNumber}</span></li>
+                <li>6. Amount: <span className="font-bold">KSH {amount.toLocaleString()}</span></li>
+                <li>7. Enter your M-PESA PIN and confirm</li>
               </ol>
-              <button onClick={copyTill} className="flex items-center gap-2 text-xs text-primary font-semibold hover:underline">
-                <Copy className="w-3 h-3" /> Copy Till 8448104
-              </button>
-              <p className="text-[10px] text-muted-foreground">Recipient: <span className="font-semibold">DASNET VENTURES</span></p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button onClick={() => copy(PAYBILL, "Paybill")} className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/15">
+                  <Copy className="w-3 h-3" /> Paybill {PAYBILL}
+                </button>
+                <button onClick={() => copy(accountNumber, "Account")} className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/15">
+                  <Copy className="w-3 h-3" /> Account {accountNumber}
+                </button>
+                <button onClick={() => copy(String(amount), "Amount")} className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/15">
+                  <Copy className="w-3 h-3" /> KSH {amount}
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Recipient: <span className="font-semibold">{RECIPIENT}</span></p>
             </div>
 
             <div className="space-y-2">
@@ -101,7 +123,9 @@ const ManualPaymentModal = ({ transactionId, phoneNumber, amount, packageName, o
                 className="w-full px-3 py-3 rounded-lg bg-secondary border border-border font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary"
                 maxLength={15}
               />
-              <p className="text-[10px] text-muted-foreground">You'll find this in the M-PESA SMS you received.</p>
+              <p className="text-[10px] text-muted-foreground">
+                Once you get back online, paste the M-PESA SMS code and submit — we'll deliver instantly.
+              </p>
             </div>
 
             <button

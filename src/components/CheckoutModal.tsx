@@ -104,6 +104,15 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   };
 
   const handleConfirmPay = async () => {
+    // Offline fallback — STK push needs data. Show SIM Toolkit / Paybill instructions.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      toast({
+        title: "You're offline",
+        description: "Pay via SIM Toolkit using Paybill 4018275. We'll verify once you're back online.",
+      });
+      setShowManual(true);
+      return;
+    }
     setStep("processing");
     try {
       const payPhone = needsPaymentNumber ? formatPhoneTo254(serviceNumber) : formatPhoneTo254(phoneNumber);
@@ -405,7 +414,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
                 className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90"
               >
                 <Wallet className="w-4 h-4" />
-                Pay via Till 8448104 (Dasnet Ventures)
+                Pay via Paybill 4018275 (SIM Toolkit)
               </button>
               <div className="flex gap-2">
                 <button onClick={() => setStep("confirm")} className="flex-1 py-2.5 rounded-xl bg-secondary font-medium text-sm hover:bg-muted">
@@ -667,6 +676,16 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
           )}
         </div>
       </div>
+      {showManual && (
+        <ManualPaymentModal
+          transactionId={transaction?.id}
+          phoneNumber={formatPhoneTo254(phoneNumber)}
+          amount={product.price}
+          packageName={product.name}
+          onClose={() => setShowManual(false)}
+          onSubmitted={() => { setShowManual(false); onClose(); }}
+        />
+      )}
     </div>
   );
 };
