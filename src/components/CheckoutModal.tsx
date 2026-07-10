@@ -103,16 +103,10 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
     return pollResult;
   };
 
+  const isNetworkError = (msg: string) =>
+    /failed to fetch|network|networkerror|load failed|timeout|typeerror/i.test(msg);
+
   const handleConfirmPay = async () => {
-    // Offline fallback — STK push needs data. Show SIM Toolkit / Paybill instructions.
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      toast({
-        title: "You're offline",
-        description: "Pay via SIM Toolkit using Paybill 4018275. We'll verify once you're back online.",
-      });
-      setShowManual(true);
-      return;
-    }
     setStep("processing");
     try {
       const payPhone = needsPaymentNumber ? formatPhoneTo254(serviceNumber) : formatPhoneTo254(phoneNumber);
@@ -154,6 +148,16 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
     } catch (err: any) {
       console.error("Checkout error:", err);
       const msg = err?.message || "";
+      // True network failure → offer SIM Toolkit / Paybill fallback
+      if (isNetworkError(msg) || (typeof navigator !== "undefined" && navigator.onLine === false)) {
+        toast({
+          title: "No internet connection",
+          description: "Pay via SIM Toolkit using Paybill 4018275. We'll verify once you're back online.",
+        });
+        setStep("form");
+        setShowManual(true);
+        return;
+      }
       if (/not permitted|banned/i.test(msg)) {
         setStep("banned");
         return;
@@ -161,6 +165,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
       setStep("failed");
     }
   };
+
 
   const handleRetry = async () => {
     const tx = activeTxRef.current;
