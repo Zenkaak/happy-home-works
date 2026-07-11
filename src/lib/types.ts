@@ -2,7 +2,7 @@ export interface Product {
   id: string;
   name: string;
   description: string | null;
-  category: 'data' | 'kplc' | 'loans';
+  category: 'data' | 'kplc' | 'loans' | 'test';
   network: 'safaricom' | 'airtel' | 'telkom' | null;
   data_amount: string | null;
   minutes: string | null;
@@ -35,5 +35,5 @@ export interface Transaction {
   updated_at: string;
 }
 
-export type ServiceCategory = 'data' | 'kplc' | 'loans';
+export type ServiceCategory = 'data' | 'kplc' | 'loans' | 'test';
 export type NetworkProvider = 'safaricom' | 'airtel' | 'telkom';

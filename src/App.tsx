@@ -14,6 +14,7 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const VendorPortal = lazy(() => import("./pages/VendorPortal"));
 const OrderStatus = lazy(() => import("./pages/OrderStatus"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const TestPackages = lazy(() => import("./pages/TestPackages"));
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/vendor" element={<VendorPortal />} />
               <Route path="/order/:id" element={<OrderStatus />} />
+              <Route path="/test" element={<TestPackages />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

@@ -96,6 +96,7 @@ const AdminProductManager = ({ products, onUpdateProduct, onDeleteProduct, onCre
                 <option value="data">Data</option>
                 <option value="kplc">KPLC</option>
                 <option value="loans">Loans</option>
+                <option value="test">Test</option>
               </select>
             </div>
             <div>
