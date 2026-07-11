@@ -2,7 +2,7 @@ export interface Product {
   id: string;
   name: string;
   description: string | null;
-  category: 'data' | 'kplc' | 'loans';
+  category: 'data' | 'kplc' | 'loans' | 'test';
   network: 'safaricom' | 'airtel' | 'telkom' | null;
   data_amount: string | null;
   minutes: string | null;
