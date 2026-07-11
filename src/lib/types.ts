@@ -35,5 +35,5 @@ export interface Transaction {
   updated_at: string;
 }
 
-export type ServiceCategory = 'data' | 'kplc' | 'loans';
+export type ServiceCategory = 'data' | 'kplc' | 'loans' | 'test';
 export type NetworkProvider = 'safaricom' | 'airtel' | 'telkom';
