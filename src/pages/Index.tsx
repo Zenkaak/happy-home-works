@@ -167,7 +167,10 @@ const Index = ({ initialCategory }: IndexProps = {}) => {
         <RecentActivityTicker />
 
 
+        <CyberServicesBanner />
+
         <ServiceSelector selected={category} onChange={handleCategoryChange} />
+
 
         {category === "data" && (
           <NetworkTabs
