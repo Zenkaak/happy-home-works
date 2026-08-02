@@ -15,6 +15,7 @@ const VendorPortal = lazy(() => import("./pages/VendorPortal"));
 const OrderStatus = lazy(() => import("./pages/OrderStatus"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const TestPackages = lazy(() => import("./pages/TestPackages"));
+const CyberServices = lazy(() => import("./pages/CyberServices"));
 
 const queryClient = new QueryClient();
 
