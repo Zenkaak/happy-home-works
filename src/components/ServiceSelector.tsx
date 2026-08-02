@@ -81,17 +81,18 @@ const ServiceSelector = ({ selected, onChange }: ServiceSelectorProps) => {
               )}
             </span>
 
-            <div className={`fire-icon fire-square w-10 h-10 mx-auto mb-2 transition-colors ${
+            <div className={`mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
               active
-                ? "bg-primary/20 border border-primary/30"
-                : "bg-secondary"
+                ? "bg-primary/15 border border-primary/30"
+                : "bg-secondary border border-border"
             }`}>
               <s.icon className={`w-5 h-5 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`} />
             </div>
-            <p className={`font-display font-bold text-xs transition-colors ${active ? "text-primary" : "text-foreground"}`}>
+            <p className={`font-display font-semibold text-xs transition-colors ${active ? "text-primary" : "text-foreground"}`}>
               {s.label}
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{s.desc}</p>
+
           </button>
         );
       })}

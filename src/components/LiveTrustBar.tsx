@@ -89,17 +89,17 @@ const LiveTrustBar = () => {
 
   return (
     <div className="px-4">
-      <div className="grid grid-cols-4 gap-1.5 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card/60 to-card/40 backdrop-blur-sm p-2">
+      <div className="grid grid-cols-4 divide-x divide-border/60 rounded-xl border border-border bg-card/70 backdrop-blur-sm py-2.5">
         {items.map((it) => (
           <div
             key={it.label}
-            className="flex flex-col items-center text-center px-1 py-1.5 rounded-lg"
+            className="flex flex-col items-center text-center px-1"
           >
-            <it.icon className="w-3.5 h-3.5 text-primary mb-1" />
-            <span className="text-[12px] font-extrabold text-foreground leading-none tracking-tight">
+            <it.icon className="w-3 h-3 text-primary mb-1.5" />
+            <span className="font-display text-[13px] font-bold text-foreground leading-none tracking-tight">
               {it.value}
             </span>
-            <span className="text-[8.5px] text-muted-foreground uppercase tracking-wider mt-1 leading-none">
+            <span className="text-[8px] text-muted-foreground uppercase tracking-[0.08em] mt-1.5 leading-tight">
               {it.label}
             </span>
           </div>
@@ -107,6 +107,7 @@ const LiveTrustBar = () => {
       </div>
     </div>
   );
+
 };
 
 export default LiveTrustBar;

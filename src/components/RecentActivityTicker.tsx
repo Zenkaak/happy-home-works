@@ -93,12 +93,13 @@ const RecentActivityTicker = () => {
 
   return (
     <div className="px-4">
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-success/10 border border-success/25 overflow-hidden">
-        <div className="relative flex h-2 w-2 shrink-0">
+      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border overflow-hidden">
+        <div className="relative flex h-1.5 w-1.5 shrink-0">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
+          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-success" />
         </div>
         <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
+
         <div key={idx} className="flex-1 overflow-hidden animate-in fade-in slide-in-from-bottom-1 duration-500">
           <p className="text-[11px] text-foreground font-semibold truncate">
             <span className="text-success">{current.name}</span>
