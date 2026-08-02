@@ -15,6 +15,7 @@ const VendorPortal = lazy(() => import("./pages/VendorPortal"));
 const OrderStatus = lazy(() => import("./pages/OrderStatus"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const TestPackages = lazy(() => import("./pages/TestPackages"));
+const CyberServices = lazy(() => import("./pages/CyberServices"));
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/vendor" element={<VendorPortal />} />
               <Route path="/order/:id" element={<OrderStatus />} />
               <Route path="/test" element={<TestPackages />} />
+              <Route path="/cyber" element={<CyberServices />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
