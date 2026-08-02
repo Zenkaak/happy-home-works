@@ -19,6 +19,7 @@ import TrustStrip from "@/components/TrustStrip";
 import PackageCardSkeleton from "@/components/PackageCardSkeleton";
 import LiveTrustBar from "@/components/LiveTrustBar";
 import RecentActivityTicker from "@/components/RecentActivityTicker";
+import CyberServicesBanner from "@/components/CyberServicesBanner";
 
 import TestimonialsSection from "@/components/TestimonialsSection";
 
