@@ -5,10 +5,10 @@ const CyberServicesBanner = () => (
   <div className="px-4">
     <Link
       to="/cyber"
-      className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 transition-all hover:border-primary/40"
+      className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 transition-all hover:border-royal/40"
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
-        <FileText className="w-5 h-5 text-primary" />
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-royal/10 border border-royal/25">
+        <FileText className="w-5 h-5 text-royal" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="font-display text-[13px] font-bold text-foreground leading-tight">

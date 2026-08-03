@@ -5,10 +5,30 @@ interface NetworkTabsProps {
   onChange: (n: NetworkProvider) => void;
 }
 
-const networks: { id: NetworkProvider; label: string; dotColor: string }[] = [
-  { id: "safaricom", label: "Safaricom", dotColor: "bg-primary" },
-  { id: "airtel", label: "Airtel", dotColor: "bg-accent" },
-  { id: "telkom", label: "Telkom", dotColor: "bg-blue-500" },
+const networks: {
+  id: NetworkProvider;
+  label: string;
+  dotColor: string;
+  activeClass: string;
+}[] = [
+  {
+    id: "safaricom",
+    label: "Safaricom",
+    dotColor: "bg-primary",
+    activeClass: "bg-primary text-primary-foreground shadow-md shadow-primary/25",
+  },
+  {
+    id: "airtel",
+    label: "Airtel",
+    dotColor: "bg-accent",
+    activeClass: "bg-accent text-accent-foreground shadow-md shadow-accent/25",
+  },
+  {
+    id: "telkom",
+    label: "Telkom",
+    dotColor: "bg-info",
+    activeClass: "bg-info text-info-foreground shadow-md shadow-info/25",
+  },
 ];
 
 const NetworkTabs = ({ selected, onChange }: NetworkTabsProps) => (
@@ -20,7 +40,7 @@ const NetworkTabs = ({ selected, onChange }: NetworkTabsProps) => (
           onClick={() => onChange(n.id)}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all ${
             selected === n.id
-              ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+              ? n.activeClass
               : "text-muted-foreground hover:text-foreground hover:bg-secondary"
           }`}
         >

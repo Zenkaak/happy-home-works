@@ -67,21 +67,25 @@ const LiveTrustBar = () => {
   const items = [
     {
       icon: CheckCircle2,
+      color: "text-primary",
       label: "Orders today",
       value: stats.completedToday.toLocaleString(),
     },
     {
       icon: Users,
+      color: "text-info",
       label: "Happy customers",
       value: `${stats.uniqueCustomers.toLocaleString()}+`,
     },
     {
       icon: Star,
+      color: "text-warning",
       label: "Rating",
       value: "4.9/5",
     },
     {
       icon: ShieldCheck,
+      color: "text-royal",
       label: "Total delivered",
       value: stats.completedTotal.toLocaleString(),
     },
@@ -95,7 +99,7 @@ const LiveTrustBar = () => {
             key={it.label}
             className="flex flex-col items-center text-center px-1"
           >
-            <it.icon className="w-3 h-3 text-primary mb-1.5" />
+            <it.icon className={`w-3 h-3 mb-1.5 ${it.color}`} />
             <span className="font-display text-[13px] font-bold text-foreground leading-none tracking-tight">
               {it.value}
             </span>
