@@ -18,19 +18,19 @@ const LoanCard = ({ product, onSelect }: LoanCardProps) => {
   return (
     <button
       onClick={() => onSelect(product)}
-      className="relative gradient-card rounded-xl p-3 text-left transition-all hover:border-blue-500/40 hover:shadow-[0_8px_24px_-12px_rgb(59_130_246/0.4)] hover:-translate-y-0.5 group animate-slide-up"
+      className="relative rounded-xl border-2 border-info/40 bg-[linear-gradient(160deg,hsl(var(--info)/0.16),hsl(var(--card)))] p-3 text-left transition-all hover:border-info hover:shadow-[0_10px_28px_-10px_hsl(var(--info)/0.6)] hover:-translate-y-0.5 group animate-slide-up"
     >
       <ShareProductButton product={product} />
       <div className="flex items-center gap-1.5 mb-2">
-        <div className="w-6 h-6 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
-          <TrendingUp className="w-3 h-3 text-blue-400" />
+        <div className="w-6 h-6 rounded-lg gradient-loud-blue flex items-center justify-center shrink-0 shadow-[0_2px_10px_-3px_hsl(var(--info)/0.8)] transition-colors">
+          <TrendingUp className="w-3 h-3 text-info-foreground" />
         </div>
         <h3 className="font-display font-bold text-[12px] text-foreground truncate flex-1">{product.name}</h3>
       </div>
 
       {limit && (
         <p className="font-display font-extrabold text-lg text-foreground leading-none mb-1">
-          <span className="text-blue-400 text-[9px] mr-0.5 font-bold">UP TO KSH</span>{limit}
+          <span className="text-info text-[9px] mr-0.5 font-bold">UP TO KSH</span>{limit}
         </p>
       )}
 
@@ -38,7 +38,7 @@ const LoanCard = ({ product, onSelect }: LoanCardProps) => {
         <p className="text-[10px] text-muted-foreground leading-none">
           Fee: <span className="text-foreground font-bold">KSH {product.price.toLocaleString()}</span>
         </p>
-        <span className="text-[8px] text-blue-400 font-bold tracking-wider uppercase leading-none">Activate</span>
+        <span className="text-[8px] text-info font-extrabold tracking-wider uppercase leading-none">Activate</span>
       </div>
     </button>
   );
