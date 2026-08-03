@@ -131,6 +131,11 @@
   --success-foreground: 220 20% 7%;
   --warning: 38 92% 50%;
   --warning-foreground: 220 20% 7%;
+  --info: 205 90% 54%;
+  --info-foreground: 220 20% 7%;
+  --royal: 258 82% 66%;
+  --royal-foreground: 220 20% 7%;
+
 
   --sidebar-background: 220 18% 10%;
   --sidebar-foreground: 210 40% 98%;
