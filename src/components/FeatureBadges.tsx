@@ -2,9 +2,9 @@ import { Clock, ShieldCheck, MessageSquare, CheckCircle } from "lucide-react";
 
 const features = [
   { icon: ShieldCheck, title: "Verified", color: "text-primary" },
-  { icon: Clock, title: "Instant", color: "text-primary" },
-  { icon: CheckCircle, title: "99.9% Up", color: "text-primary" },
-  { icon: MessageSquare, title: "SMS Receipt", color: "text-primary" },
+  { icon: Clock, title: "Instant", color: "text-warning" },
+  { icon: CheckCircle, title: "99.9% Up", color: "text-info" },
+  { icon: MessageSquare, title: "SMS Receipt", color: "text-royal" },
 ];
 
 const FeatureBadges = () => (

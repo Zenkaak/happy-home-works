@@ -14,10 +14,56 @@ const services: {
   label: string;
   desc: string;
   path: string;
+  tone: {
+    card: string;
+    iconWrap: string;
+    icon: string;
+    label: string;
+    idle: string;
+  };
 }[] = [
-  { id: "data", icon: Wifi, label: "Data Bundles", desc: "All networks", path: "/data" },
-  { id: "kplc", icon: Zap, label: "KPLC Tokens", desc: "Electricity", path: "/kplc" },
-  { id: "loans", icon: TrendingUp, label: "Loan Limits", desc: "Upgrades", path: "/fuliza" },
+  {
+    id: "data",
+    icon: Wifi,
+    label: "Data Bundles",
+    desc: "All networks",
+    path: "/data",
+    tone: {
+      card: "bg-primary/10 border-primary/30",
+      iconWrap: "bg-primary/15 border-primary/30",
+      icon: "text-primary",
+      label: "text-primary",
+      idle: "text-primary/60",
+    },
+  },
+  {
+    id: "kplc",
+    icon: Zap,
+    label: "KPLC Tokens",
+    desc: "Electricity",
+    path: "/kplc",
+    tone: {
+      card: "bg-warning/10 border-warning/30",
+      iconWrap: "bg-warning/15 border-warning/30",
+      icon: "text-warning",
+      label: "text-warning",
+      idle: "text-warning/60",
+    },
+  },
+  {
+    id: "loans",
+    icon: TrendingUp,
+    label: "Loan Limits",
+    desc: "Upgrades",
+    path: "/fuliza",
+    tone: {
+      card: "bg-info/10 border-info/30",
+      iconWrap: "bg-info/15 border-info/30",
+      icon: "text-info",
+      label: "text-info",
+      idle: "text-info/60",
+    },
+  },
 ];
 
 const getBase = () => {
@@ -57,10 +103,8 @@ const ServiceSelector = ({ selected, onChange }: ServiceSelectorProps) => {
           <button
             key={s.id}
             onClick={() => onChange(s.id)}
-            className={`relative rounded-2xl p-3.5 text-center transition-all ${
-              active
-                ? "bg-primary/10 border border-primary/30 shadow-[0_0_20px_hsl(var(--primary)/0.1)]"
-                : "gradient-card hover:border-muted-foreground/20"
+            className={`relative rounded-2xl border p-3.5 text-center transition-all ${
+              active ? s.tone.card : "gradient-card hover:border-muted-foreground/20"
             }`}
           >
             <span
@@ -72,23 +116,21 @@ const ServiceSelector = ({ selected, onChange }: ServiceSelectorProps) => {
               }}
               aria-label={`Copy ${s.label} link`}
               title="Copy share link"
-              className="absolute top-1.5 right-1.5 z-10 p-1.5 rounded-md bg-background/70 backdrop-blur-sm border border-border/50 hover:bg-background hover:border-primary/40 transition-colors cursor-pointer"
+              className="absolute top-1.5 right-1.5 z-10 p-1.5 rounded-md bg-background/70 backdrop-blur-sm border border-border/50 hover:bg-background hover:border-foreground/20 transition-colors cursor-pointer"
             >
               {copied ? (
-                <Check className="w-3 h-3 text-primary" />
+                <Check className={`w-3 h-3 ${s.tone.icon}`} />
               ) : (
                 <Link2 className="w-3 h-3 text-muted-foreground" />
               )}
             </span>
 
-            <div className={`mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
-              active
-                ? "bg-primary/15 border border-primary/30"
-                : "bg-secondary border border-border"
+            <div className={`mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${
+              active ? s.tone.iconWrap : "bg-secondary border-border"
             }`}>
-              <s.icon className={`w-5 h-5 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`} />
+              <s.icon className={`w-5 h-5 transition-colors ${active ? s.tone.icon : s.tone.idle}`} />
             </div>
-            <p className={`font-display font-semibold text-xs transition-colors ${active ? "text-primary" : "text-foreground"}`}>
+            <p className={`font-display font-semibold text-xs transition-colors ${active ? s.tone.label : "text-foreground"}`}>
               {s.label}
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{s.desc}</p>
