@@ -205,30 +205,29 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Write stk_checkout_id server-side and AWAIT it before responding.
-    // Uses service_role key so it succeeds regardless of RLS policies.
-    // The callback handler looks up transactions by stk_checkout_id, so this
-    // MUST be in the DB before Safaricom's callback arrives.
+    // Write stk_checkout_id via SECURITY DEFINER RPC — bypasses RLS so it works
+    // with the anon key (no service_role required in Vercel env).
+    // The callback looks up transactions by stk_checkout_id, so this MUST be
+    // stored before Safaricom's callback arrives.
     if (transaction_id && stkData.CheckoutRequestID) {
       if (supabaseUrl && supabaseKey) {
-        const patchBody = JSON.stringify({ stk_checkout_id: stkData.CheckoutRequestID });
+        const rpcBody = JSON.stringify({ p_tx_id: transaction_id, p_checkout_id: stkData.CheckoutRequestID });
         await requestWithTimeout(
-          `${supabaseUrl}/rest/v1/transactions?id=eq.${encodeURIComponent(transaction_id)}`,
+          `${supabaseUrl}/rest/v1/rpc/set_stk_checkout_id`,
           {
-            method: "PATCH",
+            method: "POST",
             headers: {
               apikey: supabaseKey,
               Authorization: `Bearer ${supabaseKey}`,
               "Content-Type": "application/json",
-              "Content-Length": Buffer.byteLength(patchBody),
-              Prefer: "return=minimal",
+              "Content-Length": Buffer.byteLength(rpcBody),
             },
           },
-          patchBody,
+          rpcBody,
           4000
         )
-          .then(() => console.log("[initiate-stk] stk_checkout_id persisted"))
-          .catch((e) => console.warn("[initiate-stk] stk_checkout_id write failed:", e.message));
+          .then(() => console.log("[initiate-stk] stk_checkout_id set via RPC"))
+          .catch((e) => console.warn("[initiate-stk] stk_checkout_id RPC failed:", e.message));
       }
     }
 

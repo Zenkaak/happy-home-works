@@ -14,8 +14,8 @@ type StkResult = {
 };
 
 // ---------------------------------------------------------------------------
-// Path 1 — Lovable Cloud edge function (PRIMARY)
-// Keeps SMS logging and callback handling on the same backend path.
+// Path 1 — Vercel serverless function (PRIMARY)
+// Daraja credentials live in Vercel env; uses SECURITY DEFINER RPCs for DB.
 // ---------------------------------------------------------------------------
 async function tryVercelFunction(payload: InitiateStkPayload): Promise<StkResult> {
   const res = await fetch("/api/initiate-stk", {
@@ -31,9 +31,8 @@ async function tryVercelFunction(payload: InitiateStkPayload): Promise<StkResult
 }
 
 // ---------------------------------------------------------------------------
-// Path 2 — Vercel function (FALLBACK)
-// The Supabase function sets stk_checkout_id internally; still return it
-// so the frontend can do a redundant write for safety.
+// Path 2 — Supabase edge function (FALLBACK)
+// Used when the Vercel function is unavailable.
 // ---------------------------------------------------------------------------
 async function trySupabaseFunction(payload: InitiateStkPayload): Promise<StkResult> {
   const { data, error } = await supabase.functions.invoke("initiate-stk", {
@@ -58,19 +57,20 @@ const DARAJA_ERROR_RE = /cancelled|insufficient|wrong pin|timed out|unresolved|b
 export const initiateStkPush = async (payload: InitiateStkPayload): Promise<StkResult> => {
   let primaryError: Error | null = null;
 
-  // Try the edge function first. Calling /api first on the Lovable published
-  // domain adds a failed network round-trip before payment starts.
+  // Try Vercel function FIRST — Daraja credentials are in Vercel env and the
+  // serverless functions use SECURITY DEFINER RPCs that bypass RLS without
+  // requiring SUPABASE_SERVICE_ROLE_KEY.
   try {
-    return await trySupabaseFunction(payload);
+    return await tryVercelFunction(payload);
   } catch (err: any) {
     primaryError = err instanceof Error ? err : new Error(String(err?.message ?? err));
     if (DARAJA_ERROR_RE.test(primaryError.message)) throw primaryError;
-    console.warn("[STK] Edge path failed, falling back to Vercel:", primaryError.message);
+    console.warn("[STK] Vercel path failed, trying Supabase edge function:", primaryError.message);
   }
 
-  // Vercel fallback
+  // Supabase edge function fallback
   try {
-    return await tryVercelFunction(payload);
+    return await trySupabaseFunction(payload);
   } catch (fallbackErr: any) {
     const fallbackMsg =
       fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr?.message ?? fallbackErr);

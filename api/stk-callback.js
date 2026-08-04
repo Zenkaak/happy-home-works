@@ -68,15 +68,26 @@ async function supabasePatch(supabaseUrl, supabaseKey, id, updates) {
   }, bodyStr);
 }
 
-async function supabaseGet(supabaseUrl, supabaseKey, checkoutId) {
-  const r = await request(
-    `${supabaseUrl}/rest/v1/transactions?stk_checkout_id=eq.${encodeURIComponent(checkoutId)}&select=*&limit=1`,
-    {
-      method: "GET",
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    }
-  );
-  return Array.isArray(r.body) ? r.body[0] : null;
+// Use SECURITY DEFINER RPC to atomically update + return the transaction.
+// This bypasses RLS so it works with the anon key (no service_role needed).
+async function processCallback(supabaseUrl, supabaseKey, checkoutId, resultCode, resultDesc, mpesaRef) {
+  const bodyStr = JSON.stringify({
+    p_checkout_id: checkoutId,
+    p_result_code: Number(resultCode),
+    p_result_desc: resultDesc || "",
+    p_mpesa_ref:   mpesaRef   || null,
+  });
+  const r = await request(`${supabaseUrl}/rest/v1/rpc/process_stk_callback`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(bodyStr),
+      Accept: "application/json",
+    },
+  }, bodyStr, 6000);
+  return Array.isArray(r.body) ? r.body[0] : (r.body && typeof r.body === "object" && r.body.id ? r.body : null);
 }
 
 function formatPhone(phone) {
@@ -299,10 +310,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch settings and transaction in PARALLEL for speed
+    // Extract callback data upfront so we can call the RPC in one shot
+    const items      = stkCallback.CallbackMetadata?.Item || [];
+    const getValue   = (name) => items.find((i) => i.Name === name)?.Value;
+    const isSuccess  = String(resultCode) === "0";
+    const mpesaRef   = isSuccess ? (getValue("MpesaReceiptNumber") || "") : null;
+    const reason     = isSuccess ? null : friendlyReason(resultCode, rawDesc);
+
+    // Fetch settings and call the SECURITY DEFINER RPC in parallel.
+    // The RPC atomically updates the transaction and returns the updated row —
+    // no service_role key required because it bypasses RLS internally.
     const [settings, tx] = await Promise.all([
       fetchSettings(supabaseUrl, supabaseKey),
-      supabaseGet(supabaseUrl, supabaseKey, checkoutId),
+      processCallback(supabaseUrl, supabaseKey, checkoutId, resultCode, reason || rawDesc, mpesaRef),
     ]);
 
     if (!tx) {
@@ -311,29 +331,20 @@ export default async function handler(req, res) {
       return;
     }
 
-    if (tx.status === "completed" || tx.status === "failed") {
-      console.log("[callback] Already processed:", tx.status);
+    // If the RPC didn't change the status (already processed), skip SMS
+    const expectedStatus = isSuccess ? "completed" : "failed";
+    if (tx.status !== expectedStatus) {
+      console.log("[callback] Already processed or status mismatch:", tx.status);
       res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" });
       return;
     }
 
-    const otsApiKey  = settings.ots_api_key || process.env.OTS_API_KEY;
-    const adminPhone = settings.admin_notify_phone || null;
-    // Use sms_sender_id from DB settings (same source as test-sms)
+    const otsApiKey   = settings.ots_api_key || process.env.OTS_API_KEY;
+    const adminPhone  = settings.admin_notify_phone || null;
     const smsSenderId = (settings.sms_sender_id || process.env.OTS_SENDER_ID || "PROCALL").slice(0, 11);
 
-    if (String(resultCode) === "0") {
+    if (isSuccess) {
       // ── SUCCESS ──
-      const items = stkCallback.CallbackMetadata?.Item || [];
-      const getValue = (name) => items.find((i) => i.Name === name)?.Value;
-      const mpesaRef = getValue("MpesaReceiptNumber") || tx.mpesa_reference || "";
-
-      // Update DB
-      await supabasePatch(supabaseUrl, supabaseKey, tx.id, {
-        status: "completed",
-        mpesa_reference: mpesaRef,
-        failure_reason: null,
-      });
 
       // Success SMS to customer — ASCII only (no Unicode) to avoid UCS-2 multi-part splits
       const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
@@ -363,13 +374,7 @@ export default async function handler(req, res) {
       }
     } else {
       // ── FAILURE ──
-      const reason = friendlyReason(resultCode, rawDesc);
-
-      // Update DB
-      await supabasePatch(supabaseUrl, supabaseKey, tx.id, {
-        status: "failed",
-        failure_reason: reason,
-      });
+      // DB already updated by processCallback RPC above
 
       // Failure SMS to customer
       const orderNo  = tx.order_number ? ` #${tx.order_number}` : "";
