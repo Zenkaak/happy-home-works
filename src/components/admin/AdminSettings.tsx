@@ -234,6 +234,36 @@ const AdminSettings = () => {
         </p>
       </div>
 
+      {/* ── Client visibility ── */}
+      <Section
+        icon={Eye}
+        title="Client-Side Visibility"
+        description="Turn a service off to hide it from customers instantly. Orders for hidden services stop showing on the storefront."
+      >
+        {[
+          { key: "service_data_enabled", label: "Data Bundles", desc: "Safaricom, Airtel & Telkom bundles on the homepage." },
+          { key: "service_kplc_enabled", label: "KPLC Tokens", desc: "Electricity token packages." },
+          { key: "service_loans_enabled", label: "Loan Limits", desc: "Fuliza / loan limit upgrade packages." },
+          { key: "service_cyber_enabled", label: "Cyber Services", desc: "H-TECH Cyber banner and the /cyber catalog." },
+        ].map((t) => (
+          <ToggleField
+            key={t.key}
+            label={t.label}
+            description={t.desc}
+            settingKey={t.key}
+            checked={settings?.[t.key] !== "false"}
+            onToggle={(checked) =>
+              saveSetting.mutate(
+                { key: t.key, value: checked ? "true" : "false" },
+                { onSuccess: () => queryClient.invalidateQueries({ queryKey: ["service-toggles"] }) }
+              )
+            }
+            isSaving={isSaving}
+          />
+        ))}
+      </Section>
+
+
       {/* ── Notifications ── */}
       <Section icon={Bell} title="Order Notifications" description="Receive an SMS on your phone every time a customer completes a payment.">
         <SettingField

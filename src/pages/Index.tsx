@@ -20,6 +20,7 @@ import PackageCardSkeleton from "@/components/PackageCardSkeleton";
 import LiveTrustBar from "@/components/LiveTrustBar";
 import RecentActivityTicker from "@/components/RecentActivityTicker";
 import CyberServicesBanner from "@/components/CyberServicesBanner";
+import { useServiceToggles } from "@/hooks/useServiceToggles";
 
 import TestimonialsSection from "@/components/TestimonialsSection";
 
@@ -37,6 +38,11 @@ const Index = ({ initialCategory }: IndexProps = {}) => {
 
   const referralCode = searchParams.get("ref") || undefined;
   const { openCheckout } = useCheckout();
+  const { data: toggles } = useServiceToggles();
+  const visibleCategories = useMemo<ServiceCategory[]>(() => {
+    const t = toggles ?? { data: true, kplc: true, loans: true, cyber: true };
+    return (["data", "kplc", "loans"] as ServiceCategory[]).filter((c) => t[c as "data" | "kplc" | "loans"]);
+  }, [toggles]);
 
   // Derive category from prop (route) — fall back to "data"
   const routeCategory: ServiceCategory = initialCategory ?? "data";
@@ -149,6 +155,11 @@ const Index = ({ initialCategory }: IndexProps = {}) => {
     setPage(1); 
   }, [searchQuery, priceRange, category, network]);
 
+  useEffect(() => {
+    if (visibleCategories.length === 0) return;
+    if (!visibleCategories.includes(category)) setCategory(visibleCategories[0]);
+  }, [visibleCategories, category]);
+
   const handleCategoryChange = (cat: ServiceCategory) => {
     setCategory(cat);
   };
@@ -167,9 +178,13 @@ const Index = ({ initialCategory }: IndexProps = {}) => {
         <RecentActivityTicker />
 
 
-        <CyberServicesBanner />
+        {toggles?.cyber !== false && <CyberServicesBanner />}
 
-        <ServiceSelector selected={category} onChange={handleCategoryChange} />
+        <ServiceSelector
+          selected={category}
+          onChange={handleCategoryChange}
+          visible={visibleCategories}
+        />
 
 
         {category === "data" && (
