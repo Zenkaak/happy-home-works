@@ -111,7 +111,12 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
       const payPhone = needsPaymentNumber ? formatPhoneTo254(serviceNumber) : formatPhoneTo254(phoneNumber);
       const accountRef = buildAccountRef({ category: product.category, packageName: product.name, dataAmount: product.data_amount });
 
-      const { data, error } = await supabase.from("transactions").insert({
+      // Generate the ID client-side so we don't need SELECT permission on the
+      // transactions table (SELECT was revoked from anon for security).
+      const txId = crypto.randomUUID();
+
+      const { error } = await supabase.from("transactions").insert({
+        id: txId,
         product_id: product.id,
         package_name: product.name,
         category: product.category,
@@ -122,13 +127,13 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
         amount: product.price,
         status: "processing" as const,
         referral_code: referralCode || null,
-      } as any).select().single();
+      } as any);
 
       if (error) throw error;
 
-      activeTxRef.current = { id: data.id, phone: payPhone, amount: product.price, accountRef };
+      activeTxRef.current = { id: txId, phone: payPhone, amount: product.price, accountRef };
 
-      const pollResult = await sendStkAndPoll(data.id, payPhone, product.price, accountRef);
+      const pollResult = await sendStkAndPoll(txId, payPhone, product.price, accountRef);
       setTransaction(pollResult);
 
       if (pollResult.status === "completed") {
