@@ -28,7 +28,7 @@ function requestWithTimeout(url, options, body, timeoutMs = 8000) {
       }
     );
     req.setTimeout(timeoutMs, () => {
-      req.destroy(new Error(`Daraja request timed out after ${timeoutMs}ms`));
+      req.destroy(new Error(`Daraja connection exceeded ${timeoutMs}ms limit — Safaricom unreachable`));
     });
     req.on("error", reject);
     if (body) req.write(typeof body === "string" ? body : JSON.stringify(body));
