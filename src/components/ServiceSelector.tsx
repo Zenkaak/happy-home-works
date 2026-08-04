@@ -6,6 +6,8 @@ import { APP_PUBLIC_URL } from "@/lib/siteUrl";
 interface ServiceSelectorProps {
   selected: ServiceCategory;
   onChange: (cat: ServiceCategory) => void;
+  /** Categories to show. When omitted, all are shown. */
+  visible?: ServiceCategory[];
 }
 
 const services: {
@@ -75,7 +77,7 @@ const getBase = () => {
   return o;
 };
 
-const ServiceSelector = ({ selected, onChange }: ServiceSelectorProps) => {
+const ServiceSelector = ({ selected, onChange, visible }: ServiceSelectorProps) => {
   const [copiedId, setCopiedId] = useState<ServiceCategory | null>(null);
 
   const copy = async (e: React.MouseEvent, s: (typeof services)[number]) => {
@@ -94,9 +96,16 @@ const ServiceSelector = ({ selected, onChange }: ServiceSelectorProps) => {
     setTimeout(() => setCopiedId((c) => (c === s.id ? null : c)), 1500);
   };
 
+  const shown = visible ? services.filter((s) => visible.includes(s.id)) : services;
+  if (shown.length === 0) return null;
+
   return (
-    <div className="grid grid-cols-3 gap-2.5 px-4">
-      {services.map((s) => {
+    <div
+      className={`grid gap-2.5 px-4 ${
+        shown.length === 1 ? "grid-cols-1" : shown.length === 2 ? "grid-cols-2" : "grid-cols-3"
+      }`}
+    >
+      {shown.map((s) => {
         const active = selected === s.id;
         const copied = copiedId === s.id;
         return (
