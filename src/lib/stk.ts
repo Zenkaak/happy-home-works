@@ -28,27 +28,10 @@ export function warmStkEndpoints(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Path 1 — Vercel serverless function (PRIMARY)
-// Pre-warmed token makes this respond in ~1s. Confirmed working with
-// Safaricom's live Daraja API from Vercel's network.
-// ---------------------------------------------------------------------------
-async function tryVercelFunction(payload: InitiateStkPayload): Promise<StkResult> {
-  const res = await fetch("/api/initiate-stk", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data: any = await res.json().catch(() => ({}));
-  if (data?.ok === false) throw new Error(data.error || "STK push failed");
-  if (data?.error)        throw new Error(data.error);
-  if (!data?.success)     throw new Error("STK push failed");
-  return { checkoutId: data.checkoutId };
-}
-
-// ---------------------------------------------------------------------------
-// Path 2 — Supabase edge function (FALLBACK)
-// Slower first call (fetches settings + token), but has service_role access
-// and reliable Deno → Safaricom connectivity.
+// Path 1 — Supabase edge function (PRIMARY)
+// Uses service_role — can update transactions directly, runs its own callback
+// handler at supabase.co/functions/v1/initiate-stk/callback, no extra RPCs
+// needed. Confirmed working with Safaricom live API.
 // ---------------------------------------------------------------------------
 async function trySupabaseFunction(payload: InitiateStkPayload): Promise<StkResult> {
   const { data, error } = await supabase.functions.invoke("initiate-stk", {
@@ -66,28 +49,44 @@ async function trySupabaseFunction(payload: InitiateStkPayload): Promise<StkResu
 }
 
 // ---------------------------------------------------------------------------
+// Path 2 — Vercel serverless function (FALLBACK)
+// Requires set_stk_checkout_id + process_stk_callback RPCs in Supabase DB.
+// Used when the Supabase edge function is unavailable.
+// ---------------------------------------------------------------------------
+async function tryVercelFunction(payload: InitiateStkPayload): Promise<StkResult> {
+  const res = await fetch("/api/initiate-stk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data: any = await res.json().catch(() => ({}));
+  if (data?.ok === false) throw new Error(data.error || "STK push failed");
+  if (data?.error)        throw new Error(data.error);
+  if (!data?.success)     throw new Error("STK push failed");
+  return { checkoutId: data.checkoutId };
+}
+
+// ---------------------------------------------------------------------------
 // Daraja-level errors that come back FROM the user's M-Pesa interaction.
 // Do NOT retry these — they would trigger a second STK prompt on the phone.
-// Network/infra errors (timeouts reaching Safaricom servers, connection
-// refused, etc.) are intentionally excluded so the fallback path is tried.
 // ---------------------------------------------------------------------------
 const DARAJA_ERROR_RE = /cancelled|insufficient|wrong pin|unresolved|blocked/i;
 
 export const initiateStkPush = async (payload: InitiateStkPayload): Promise<StkResult> => {
   let primaryError: Error | null = null;
 
-  // Vercel function — primary path. Pre-warmed token makes this ~1 s.
+  // Supabase edge function — primary path (service_role, self-contained callback).
   try {
-    return await tryVercelFunction(payload);
+    return await trySupabaseFunction(payload);
   } catch (err: any) {
     primaryError = err instanceof Error ? err : new Error(String(err?.message ?? err));
     if (DARAJA_ERROR_RE.test(primaryError.message)) throw primaryError;
-    console.warn("[STK] Vercel path failed, trying Supabase function:", primaryError.message);
+    console.warn("[STK] Supabase path failed, trying Vercel function:", primaryError.message);
   }
 
-  // Supabase edge function — fallback.
+  // Vercel function — fallback.
   try {
-    return await trySupabaseFunction(payload);
+    return await tryVercelFunction(payload);
   } catch (fallbackErr: any) {
     const fallbackMsg =
       fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr?.message ?? fallbackErr);
