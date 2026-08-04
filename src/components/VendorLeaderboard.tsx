@@ -6,13 +6,7 @@ const VendorLeaderboard = () => {
   const { data: vendors } = useQuery({
     queryKey: ["leaderboard"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vendors")
-        .select("name, total_sales, total_revenue")
-        .eq("status", "approved")
-        .gt("total_sales", 0)
-        .order("total_revenue", { ascending: false })
-        .limit(10);
+      const { data, error } = await supabase.rpc("vendor_leaderboard");
       if (error) throw error;
       return data;
     },

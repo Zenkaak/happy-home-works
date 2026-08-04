@@ -45,12 +45,11 @@ const RecentActivityTicker = () => {
           : FALLBACK_PKGS;
       if (products && products.length > 0) FALLBACK_PKGS = pkgPool;
 
-      const { data: txns } = await supabase
-        .from("transactions")
-        .select("package_name, phone_number, created_at")
-        .eq("status", "completed")
-        .order("created_at", { ascending: false })
-        .limit(20);
+      const { data: feed } = await supabase.rpc("recent_orders_feed", { p_limit: 40 });
+      const txns = ((feed as any[]) || [])
+        .filter((r) => r.status === "completed")
+        .slice(0, 20)
+        .map((r) => ({ package_name: r.package_name, phone_number: String(r.phone_seed ?? 0).padStart(3, "0"), created_at: r.created_at }));
       if (cancelled) return;
 
       const valid = new Set(pkgPool);
