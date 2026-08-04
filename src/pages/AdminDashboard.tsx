@@ -29,19 +29,7 @@ import { buildAccountRef } from "@/lib/accountRef";
 import { initiateStkPush } from "@/lib/stk";
 // (notification sound moved to client checkout/order screens)
 
-const getAdminToken = () => localStorage.getItem("dasnet_admin_token");
-
-const adminApi = async (action: string, params: Record<string, any> = {}) => {
-  const token = getAdminToken();
-  if (!token) throw new Error("Not authenticated");
-  const { data, error } = await supabase.functions.invoke("admin-api", {
-    body: { action, ...params },
-    headers: { "x-admin-token": token },
-  });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return data;
-};
+import { adminApi, getAdminToken } from "@/lib/adminApi";
 
 type TabKey = "overview" | "charts" | "products" | "transactions" | "vendors" | "withdrawals" | "manual_pay" | "sms_logs" | "broadcast" | "stk" | "announcements" | "chat" | "paybill" | "settings";
 
@@ -82,13 +70,8 @@ const AdminDashboard = () => {
   const { data: transactions } = useQuery({
     queryKey: ["admin-transactions"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return data as Transaction[];
+      const res = await adminApi("list_transactions", { limit: 200 });
+      return res.transactions as Transaction[];
     },
     refetchInterval: 15000,
   });
@@ -109,12 +92,8 @@ const AdminDashboard = () => {
   const { data: vendors } = useQuery({
     queryKey: ["admin-vendors"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vendors")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      const res = await adminApi("list_vendors");
+      return res.vendors as any[];
     },
   });
 

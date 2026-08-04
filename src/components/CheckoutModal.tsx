@@ -96,8 +96,7 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   const sendStkAndPoll = async (txId: string, phone: string, amount: number, accountRef: string) => {
     const stkResult = await initiateStkPush({ phone, amount, transaction_id: txId, account_ref: accountRef });
     if (stkResult?.checkoutId) {
-      supabase.from("transactions").update({ stk_checkout_id: stkResult.checkoutId }).eq("id", txId)
-        .then(({ error }) => { if (error) console.error("[checkout] stk_checkout_id write failed:", error); });
+      /* stk_checkout_id is stored server-side by the initiate-stk function */
     }
     const pollResult = await pollTransaction(txId);
     return pollResult;
@@ -202,16 +201,14 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
       await new Promise((r) => setTimeout(r, 3000));
       if (!mountedRef.current) return { status: "processing" } as Transaction;
       const { data } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("id", txId)
-        .single();
+        .rpc("get_order", { p_id: txId })
+        .maybeSingle();
       if (data && (data.status === "completed" || data.status === "failed")) {
         return data as Transaction;
       }
     }
     if (!mountedRef.current) return { status: "processing" } as Transaction;
-    const { data } = await supabase.from("transactions").select("*").eq("id", txId).single();
+    const { data } = await supabase.rpc("get_order", { p_id: txId }).maybeSingle();
     return (data || { status: "processing" }) as Transaction;
   };
 

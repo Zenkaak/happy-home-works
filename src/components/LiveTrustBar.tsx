@@ -24,33 +24,14 @@ const LiveTrustBar = () => {
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
 
-        const [todayRes, totalRes, phonesRes] = await Promise.all([
-          supabase
-            .from("transactions")
-            .select("id", { count: "exact", head: true })
-            .eq("status", "completed")
-            .gte("created_at", startOfDay.toISOString()),
-          supabase
-            .from("transactions")
-            .select("id", { count: "exact", head: true })
-            .eq("status", "completed"),
-          supabase
-            .from("transactions")
-            .select("phone_number")
-            .eq("status", "completed")
-            .limit(1000),
-        ]);
-
+        const { data } = await supabase.rpc("public_order_stats");
         if (cancelled) return;
-
-        const unique = new Set(
-          (phonesRes.data || []).map((r: { phone_number: string }) => r.phone_number)
-        ).size;
+        const row = Array.isArray(data) ? data[0] : data;
 
         setStats({
-          completedToday: BASE.completedToday + (todayRes.count || 0),
-          completedTotal: BASE.completedTotal + (totalRes.count || 0),
-          uniqueCustomers: BASE.uniqueCustomers + unique,
+          completedToday: BASE.completedToday + Number(row?.completed_today || 0),
+          completedTotal: BASE.completedTotal + Number(row?.completed_total || 0),
+          uniqueCustomers: BASE.uniqueCustomers + Number(row?.unique_customers || 0),
         });
       } catch {
         // keep baseline

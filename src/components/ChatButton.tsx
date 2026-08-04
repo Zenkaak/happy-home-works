@@ -60,11 +60,7 @@ const ChatButton = () => {
     setLoading(true);
     localStorage.setItem("dasnet_chat_phone", phone);
 
-    const { data } = await supabase
-      .from("chat_conversations")
-      .select("*")
-      .eq("phone_number", phone)
-      .order("last_message_at", { ascending: false });
+    const { data } = await supabase.rpc("get_chat_conversations", { p_phone: phone });
 
     setConversations(data || []);
     setLoading(false);
@@ -79,30 +75,19 @@ const ChatButton = () => {
   const openConversation = async (convo: Conversation) => {
     setActiveConvo(convo);
     setStep("chat");
-    const { data } = await supabase
-      .from("chat_messages")
-      .select("*")
-      .eq("conversation_id", convo.id)
-      .order("created_at", { ascending: true });
+    const { data } = await supabase.rpc("get_chat_messages", { p_conversation_id: convo.id });
     setMessages(data || []);
 
     // Mark as read
-    await supabase
-      .from("chat_messages")
-      .update({ is_read: true })
-      .eq("conversation_id", convo.id)
-      .eq("sender_type", "admin")
-      .eq("is_read", false);
+    await supabase.rpc("mark_chat_read", { p_conversation_id: convo.id });
   };
 
   const createNewConversation = async () => {
     if (!subject.trim()) return;
     setLoading(true);
     const { data, error } = await supabase
-      .from("chat_conversations")
-      .insert({ phone_number: phone, subject })
-      .select()
-      .single();
+      .rpc("start_chat_conversation", { p_phone: phone, p_subject: subject })
+      .maybeSingle();
 
     if (data && !error) {
       setActiveConvo(data);
@@ -123,10 +108,7 @@ const ChatButton = () => {
       message: msg,
     });
 
-    await supabase
-      .from("chat_conversations")
-      .update({ last_message_at: new Date().toISOString() })
-      .eq("id", activeConvo.id);
+    /* conversation timestamp is updated by a database trigger */
 
     // Notify admin via SMS (best-effort)
     try {

@@ -164,7 +164,75 @@ serve(async (req) => {
     const { action: _omitAction, ...params } = (body || {}) as Record<string, unknown>;
 
     switch (action) {
+      // ---------- privileged reads (browser has no direct table access) ----------
+      case "list_transactions": {
+        const limit = Math.min(Number(params.limit) || 200, 500);
+        const { data, error } = await supabase
+          .from("transactions").select("*")
+          .order("created_at", { ascending: false }).limit(limit);
+        if (error) throw error;
+        return json({ transactions: data ?? [] });
+      }
+      case "list_vendors": {
+        const { data, error } = await supabase
+          .from("vendors")
+          .select("id, name, phone, mpesa_payout, status, referral_code, commission_rate, commission_balance, total_sales, total_revenue, approved_at, created_at")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return json({ vendors: data ?? [] });
+      }
+      case "list_withdrawals": {
+        const { data, error } = await supabase
+          .from("withdrawals")
+          .select("*, vendors(name, phone, mpesa_payout)")
+          .order("created_at", { ascending: false }).limit(100);
+        if (error) throw error;
+        return json({ withdrawals: data ?? [] });
+      }
+      case "update_withdrawal": {
+        const { id, updates, refund } = params as any;
+        const { error } = await supabase.from("withdrawals").update(updates || {}).eq("id", id);
+        if (error) throw error;
+        if (refund?.vendor_id && Number(refund.amount) > 0) {
+          const { data: v } = await supabase
+            .from("vendors").select("commission_balance").eq("id", refund.vendor_id).single();
+          const { error: rErr } = await supabase.from("vendors")
+            .update({ commission_balance: Number(v?.commission_balance || 0) + Number(refund.amount) })
+            .eq("id", refund.vendor_id);
+          if (rErr) throw rErr;
+        }
+        await recordAudit(supabase, "update_withdrawal", { id, updates, refund }, adminId);
+        return json({ success: true });
+      }
+      case "list_manual_payments": {
+        let q = supabase.from("manual_payments").select("*")
+          .order("created_at", { ascending: false }).limit(100);
+        if (params.filter === "pending") q = q.eq("status", "pending");
+        const { data, error } = await q;
+        if (error) throw error;
+        return json({ payments: data ?? [] });
+      }
+      case "list_chat_conversations": {
+        const { data, error } = await supabase
+          .from("chat_conversations").select("*")
+          .order("last_message_at", { ascending: false }).limit(200);
+        if (error) throw error;
+        return json({ conversations: data ?? [] });
+      }
+      case "list_chat_messages": {
+        const { data, error } = await supabase
+          .from("chat_messages").select("*")
+          .eq("conversation_id", params.conversation_id)
+          .order("created_at", { ascending: true }).limit(500);
+        if (error) throw error;
+        await supabase.from("chat_messages")
+          .update({ is_read: true })
+          .eq("conversation_id", params.conversation_id)
+          .eq("sender_type", "user").eq("is_read", false);
+        return json({ messages: data ?? [] });
+      }
       case "update_vendor": {
+
         const { id, ...updates } = params;
         const { error } = await supabase.from("vendors").update(updates).eq("id", id);
         if (error) throw error;
