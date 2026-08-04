@@ -223,7 +223,7 @@ const CyberServices = () => {
                 aria-label="Close"
                 className="rounded-lg border border-border p-1 text-muted-foreground hover:text-foreground"
               >
-                <X className="h-3.5 h-3.5 w-3.5" />
+                <X className="h-3.5 w-3.5" />
               </button>
             </div>
 
@@ -259,7 +259,7 @@ const CyberServices = () => {
               </button>
               <button
                 onClick={confirmBooking}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-royal py-2.5 text-xs font-bold text-white"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-royal py-2.5 text-xs font-bold text-royal-foreground"
               >
                 <MessageCircle className="h-3.5 w-3.5" /> Continue
               </button>
