@@ -75,18 +75,22 @@ const DARAJA_ERROR_RE = /cancelled|insufficient|wrong pin|unresolved|blocked/i;
 export const initiateStkPush = async (payload: InitiateStkPayload): Promise<StkResult> => {
   let primaryError: Error | null = null;
 
-  // Supabase edge function — primary path (service_role, self-contained callback).
+  // Vercel function — PRIMARY path.
+  // Callback URL is https://hitechz.vercel.app/api/stk-callback (hardcoded, always reachable).
+  // Uses set_stk_checkout_id + process_stk_callback SECURITY DEFINER RPCs in Supabase.
+  // Both RPCs are now applied (migration 20260804120000_stk_rpc_bypass_rls.sql).
   try {
-    return await trySupabaseFunction(payload);
+    return await tryVercelFunction(payload);
   } catch (err: any) {
     primaryError = err instanceof Error ? err : new Error(String(err?.message ?? err));
     if (DARAJA_ERROR_RE.test(primaryError.message)) throw primaryError;
-    console.warn("[STK] Supabase path failed, trying Vercel function:", primaryError.message);
+    console.warn("[STK] Vercel path failed, trying Supabase function:", primaryError.message);
   }
 
-  // Vercel function — fallback.
+  // Supabase edge function — fallback.
+  // Callback goes to https://hitechz.vercel.app/api/stk-callback (set in edge function code).
   try {
-    return await tryVercelFunction(payload);
+    return await trySupabaseFunction(payload);
   } catch (fallbackErr: any) {
     const fallbackMsg =
       fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr?.message ?? fallbackErr);

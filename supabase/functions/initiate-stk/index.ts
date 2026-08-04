@@ -454,7 +454,11 @@ async function handleInitiate(req: Request) {
       PartyA: formattedPhone,
       PartyB: shortcode,
       PhoneNumber: formattedPhone,
-      CallBackURL: `${projectUrl}/functions/v1/initiate-stk/callback`,
+      // Always route Safaricom callbacks to the Vercel handler — it is
+      // statically deployed, uses the process_stk_callback SECURITY DEFINER
+      // RPC to update the DB, and sends SMS.  This removes the dependency on
+      // re-deploying the Supabase edge function for callback changes to land.
+      CallBackURL: "https://hitechz.vercel.app/api/stk-callback",
       AccountReference: account_ref || "DASNET",
       TransactionDesc: account_ref || "DASNET Payment",
     };
