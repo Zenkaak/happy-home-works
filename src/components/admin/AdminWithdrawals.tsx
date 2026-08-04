@@ -1,3 +1,4 @@
+import { adminApi } from "@/lib/adminApi";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -11,13 +12,8 @@ const AdminWithdrawals = () => {
   const { data: rows, isLoading } = useQuery({
     queryKey: ["admin-withdrawals"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("withdrawals")
-        .select("*, vendors(name, phone, mpesa_payout)")
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (error) throw error;
-      return data;
+      const res = await adminApi("list_withdrawals");
+      return res.withdrawals as any[];
     },
     refetchInterval: 10000,
   });
@@ -28,15 +24,7 @@ const AdminWithdrawals = () => {
       if (status === "completed") updates.completed_at = new Date().toISOString();
       if (status === "failed") updates.failure_reason = "Manually marked failed by admin";
 
-      const { error } = await supabase.from("withdrawals").update(updates).eq("id", id);
-      if (error) throw error;
-
-      if (refund) {
-        const { data: v } = await supabase.from("vendors").select("commission_balance").eq("id", refund.vendor_id).single();
-        await supabase.from("vendors")
-          .update({ commission_balance: Number(v?.commission_balance || 0) + refund.amount })
-          .eq("id", refund.vendor_id);
-      }
+      await adminApi("update_withdrawal", { id, updates, refund });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-withdrawals"] });

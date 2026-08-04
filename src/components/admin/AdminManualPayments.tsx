@@ -1,3 +1,4 @@
+import { adminApi } from "@/lib/adminApi";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,11 +14,8 @@ const AdminManualPayments = () => {
   const { data: rows, isLoading } = useQuery({
     queryKey: ["admin-manual-payments", filter],
     queryFn: async () => {
-      let q = supabase.from("manual_payments").select("*").order("created_at", { ascending: false }).limit(100);
-      if (filter === "pending") q = q.eq("status", "pending");
-      const { data, error } = await q;
-      if (error) throw error;
-      return data;
+      const res = await adminApi("list_manual_payments", { filter });
+      return res.payments as any[];
     },
     refetchInterval: 8000,
   });

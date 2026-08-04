@@ -1,3 +1,4 @@
+import { adminApi } from "@/lib/adminApi";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,12 +39,8 @@ const AdminChat = () => {
   const { data: conversations } = useQuery({
     queryKey: ["admin-chat-conversations"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("chat_conversations")
-        .select("*")
-        .order("last_message_at", { ascending: false });
-      if (error) throw error;
-      return data as Conversation[];
+      const res = await adminApi("list_chat_conversations");
+      return res.conversations as Conversation[];
     },
     refetchInterval: 10000,
   });
@@ -77,20 +74,8 @@ const AdminChat = () => {
 
   const openConvo = async (convo: Conversation) => {
     setActiveConvo(convo);
-    const { data } = await supabase
-      .from("chat_messages")
-      .select("*")
-      .eq("conversation_id", convo.id)
-      .order("created_at", { ascending: true });
-    setMessages(data || []);
-
-    // Mark user messages as read
-    await supabase
-      .from("chat_messages")
-      .update({ is_read: true })
-      .eq("conversation_id", convo.id)
-      .eq("sender_type", "user")
-      .eq("is_read", false);
+    const res = await adminApi("list_chat_messages", { conversation_id: convo.id });
+    setMessages(res.messages || []);
   };
 
   const sendReply = async () => {
@@ -99,16 +84,7 @@ const AdminChat = () => {
     const msg = reply.trim();
     setReply("");
 
-    await supabase.from("chat_messages").insert({
-      conversation_id: activeConvo.id,
-      sender_type: "admin",
-      message: msg,
-    });
-
-    await supabase
-      .from("chat_conversations")
-      .update({ last_message_at: new Date().toISOString() })
-      .eq("id", activeConvo.id);
+    await adminApi("send_chat_reply", { conversation_id: activeConvo.id, message: msg });
 
     // Notify user via SMS
     const token = getAdminToken();
