@@ -23,12 +23,13 @@ const OrderStatus = () => {
     let mounted = true;
 
     const fetchTx = async () => {
-      const { data } = await supabase.from("transactions").select("*").eq("id", id).maybeSingle();
+      const { data } = await supabase.rpc("get_order", { p_id: id }).maybeSingle();
       if (mounted && data) setTx(data as Transaction);
       if (mounted) setLoading(false);
     };
 
     fetchTx();
+    const poll = setInterval(fetchTx, 4000);
 
     const channel = supabase
       .channel(`tx-${id}`)
@@ -54,6 +55,7 @@ const OrderStatus = () => {
 
     return () => {
       mounted = false;
+      clearInterval(poll);
       supabase.removeChannel(channel);
     };
   }, [id]);

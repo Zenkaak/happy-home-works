@@ -60,20 +60,15 @@ const History = () => {
   const { data: transactions, isLoading } = useQuery({
     queryKey: ["transactions"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
+      const { data, error } = await supabase.rpc("recent_orders_feed", { p_limit: 50 });
       if (error) throw error;
-      return data as Transaction[];
+      return ((data as any[]) || []).map((r) => ({ ...r, phone_number: r.masked_phone || "" })) as unknown as Transaction[];
     },
   });
 
   const deleteTx = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("transactions").delete().eq("id", id);
-      if (error) throw error;
+      throw new Error("Orders can only be removed by support");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
