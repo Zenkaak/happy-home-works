@@ -1,6 +1,6 @@
 // Vercel serverless function — M-Pesa STK push (ES module)
+// Daraja credentials come ONLY from Vercel env vars — no Supabase DB lookup.
 // Daraja access token is cached at module level — valid 1h, reused on warm instances.
-// On a warm instance this function takes ~2-3s (just the STK push).
 // Callback URL → /api/stk-callback.
 import https from "https";
 
@@ -27,7 +27,6 @@ function requestWithTimeout(url, options, body, timeoutMs = 8000) {
         });
       }
     );
-    // Hard abort after timeoutMs to stay within Vercel's 10s function limit
     req.setTimeout(timeoutMs, () => {
       req.destroy(new Error(`Daraja request timed out after ${timeoutMs}ms`));
     });
@@ -35,25 +34,6 @@ function requestWithTimeout(url, options, body, timeoutMs = 8000) {
     if (body) req.write(typeof body === "string" ? body : JSON.stringify(body));
     req.end();
   });
-}
-
-// ── Fetch admin settings from Supabase so DB overrides take effect immediately ──
-// This mirrors the Supabase edge function's credential priority:
-//   DB app_settings → Vercel env vars
-async function fetchSettings(supabaseUrl, supabaseKey) {
-  if (!supabaseUrl || !supabaseKey) return {};
-  try {
-    const r = await requestWithTimeout(
-      `${supabaseUrl}/rest/v1/app_settings?select=key,value`,
-      { method: "GET", headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
-      null,
-      3000
-    );
-    if (!Array.isArray(r.body)) return {};
-    const map = {};
-    r.body.forEach((row) => { if (row.key) map[row.key] = row.value; });
-    return map;
-  } catch { return {}; }
 }
 
 async function getDarajaToken(consumerKey, consumerSecret) {
@@ -73,7 +53,7 @@ async function getDarajaToken(consumerKey, consumerSecret) {
   const token = resp.body?.access_token;
   if (!token) throw new Error(`Daraja token error: ${JSON.stringify(resp.body)}`);
   _cachedToken = token;
-  _tokenExpiry = now + 55 * 60 * 1000; // 55 min cache (token valid for 60 min)
+  _tokenExpiry = now + 55 * 60 * 1000;
   console.log("[initiate-stk] token: fetched and cached");
   return token;
 }
@@ -96,20 +76,20 @@ export default async function handler(req, res) {
 
   if (req.method === "OPTIONS") { res.status(200).end(); return; }
 
+  // Supabase anon key — used for SECURITY DEFINER RPCs only (no service_role needed).
+  // Falls back to VITE_-prefixed variant which Vercel sets for the React build.
   const supabaseUrl = process.env.SUPABASE_URL || "https://wxkvrdkbqkwkhbdunsvb.supabase.co";
   const supabaseKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY;
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
   // GET → pre-warm: fetch and cache the Daraja token so the next POST is instant.
-  // Called by the frontend when the checkout modal opens (before the user hits Pay).
   if (req.method === "GET") {
     const ck = process.env.DARAJA_CONSUMER_KEY;
     const cs = process.env.DARAJA_CONSUMER_SECRET;
-    if (ck && cs) {
-      getDarajaToken(ck, cs).catch(() => {});
-    }
+    if (ck && cs) getDarajaToken(ck, cs).catch(() => {});
     res.status(200).json({ ok: true, warm: true });
     return;
   }
@@ -126,20 +106,16 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Fetch DB settings — these override env vars so admin dashboard changes take effect immediately
-  const settings = await fetchSettings(supabaseUrl, supabaseKey);
-
-  const consumerKey    = settings.daraja_consumer_key    || process.env.DARAJA_CONSUMER_KEY;
-  const consumerSecret = settings.daraja_consumer_secret || process.env.DARAJA_CONSUMER_SECRET;
-  const passkey        = settings.daraja_passkey         || process.env.DARAJA_PASSKEY;
-  const shortcode      = settings.mpesa_shortcode        || process.env.MPESA_SHORTCODE;
-  // Use DB-configured transaction type so PayBill/Till toggle works immediately
-  const transactionType =
-    settings.transaction_type ||
-    process.env.DARAJA_TRANSACTION_TYPE ||
-    "CustomerPayBillOnline";
+  // All Daraja credentials come exclusively from Vercel env vars.
+  // No DB lookup — the app_settings RLS only exposes service toggle keys anyway.
+  const consumerKey     = process.env.DARAJA_CONSUMER_KEY;
+  const consumerSecret  = process.env.DARAJA_CONSUMER_SECRET;
+  const passkey         = process.env.DARAJA_PASSKEY;
+  const shortcode       = process.env.MPESA_SHORTCODE;
+  const transactionType = process.env.DARAJA_TRANSACTION_TYPE || "CustomerPayBillOnline";
 
   if (!consumerKey || !consumerSecret || !passkey || !shortcode) {
+    console.error("[initiate-stk] missing Daraja credentials in Vercel env");
     res.status(500).json({ ok: false, error: "Daraja credentials not configured" });
     return;
   }
@@ -150,11 +126,8 @@ export default async function handler(req, res) {
   const t0 = Date.now();
 
   try {
-    // 1. Token — cached on warm instances (0ms), fetched on cold (~2-3s)
-    // Clear token cache if credentials changed (different key than what was used to get token)
     const accessToken = await getDarajaToken(consumerKey, consumerSecret);
 
-    // 2. Timestamp + password
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     const ts  = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
@@ -191,7 +164,6 @@ export default async function handler(req, res) {
     console.log(`[initiate-stk] done in ${Date.now()-t0}ms — code:${stkData?.ResponseCode}`);
 
     if (!stkData || stkData.ResponseCode !== "0") {
-      // If the token we had is expired/revoked, clear the cache so next call fetches fresh
       if (stkData?.errorCode === "400.002.02" || /invalid.*token|expired/i.test(stkData?.errorMessage || "")) {
         _cachedToken = null;
         _tokenExpiry = 0;
@@ -205,30 +177,33 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Write stk_checkout_id via SECURITY DEFINER RPC — bypasses RLS so it works
-    // with the anon key (no service_role required in Vercel env).
-    // The callback looks up transactions by stk_checkout_id, so this MUST be
-    // stored before Safaricom's callback arrives.
-    if (transaction_id && stkData.CheckoutRequestID) {
-      if (supabaseUrl && supabaseKey) {
-        const rpcBody = JSON.stringify({ p_tx_id: transaction_id, p_checkout_id: stkData.CheckoutRequestID });
-        await requestWithTimeout(
-          `${supabaseUrl}/rest/v1/rpc/set_stk_checkout_id`,
-          {
-            method: "POST",
-            headers: {
-              apikey: supabaseKey,
-              Authorization: `Bearer ${supabaseKey}`,
-              "Content-Type": "application/json",
-              "Content-Length": Buffer.byteLength(rpcBody),
-            },
+    // Store stk_checkout_id via SECURITY DEFINER RPC so the callback can match it.
+    // Requires migration 20260804120000_stk_rpc_bypass_rls to be applied in Supabase.
+    // Fire-and-forget — a failure here does NOT cancel the STK push.
+    if (transaction_id && stkData.CheckoutRequestID && supabaseKey) {
+      const rpcBody = JSON.stringify({ p_tx_id: transaction_id, p_checkout_id: stkData.CheckoutRequestID });
+      requestWithTimeout(
+        `${supabaseUrl}/rest/v1/rpc/set_stk_checkout_id`,
+        {
+          method: "POST",
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${supabaseKey}`,
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(rpcBody),
           },
-          rpcBody,
-          4000
-        )
-          .then(() => console.log("[initiate-stk] stk_checkout_id set via RPC"))
-          .catch((e) => console.warn("[initiate-stk] stk_checkout_id RPC failed:", e.message));
-      }
+        },
+        rpcBody,
+        4000
+      )
+        .then((r) => {
+          if (r.status >= 400) {
+            console.warn("[initiate-stk] set_stk_checkout_id RPC HTTP", r.status, "— migration may not be applied yet");
+          } else {
+            console.log("[initiate-stk] stk_checkout_id set via RPC ✓");
+          }
+        })
+        .catch((e) => console.warn("[initiate-stk] set_stk_checkout_id RPC failed:", e.message));
     }
 
     res.status(200).json({
@@ -237,7 +212,6 @@ export default async function handler(req, res) {
       data:       stkData,
     });
   } catch (err) {
-    // Clear token cache on network errors so next call retries fresh
     _cachedToken = null;
     _tokenExpiry = 0;
     console.error(`[initiate-stk] error after ${Date.now()-t0}ms:`, err.message);
