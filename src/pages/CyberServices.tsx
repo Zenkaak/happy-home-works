@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useServiceToggles } from "@/hooks/useServiceToggles";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import {
@@ -21,6 +22,7 @@ import {
 
 const CyberServices = () => {
   const navigate = useNavigate();
+  const { data: toggles } = useServiceToggles();
   const [query, setQuery] = useState("");
   const [activeGroup, setActiveGroup] = useState<string>("all");
   const [pending, setPending] = useState<{ service: CyberService; group: string } | null>(null);
@@ -47,6 +49,24 @@ const CyberServices = () => {
     window.open(buildCyberWhatsAppLink(pending.service, pending.group), "_blank", "noopener");
     setPending(null);
   };
+
+  if (toggles && !toggles.cyber) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="px-4 py-24 text-center">
+          <p className="text-sm font-semibold text-foreground">Cyber Services are temporarily unavailable.</p>
+          <button
+            onClick={() => navigate("/")}
+            className="mt-3 text-xs font-bold text-primary underline"
+          >
+            Back to store
+          </button>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
