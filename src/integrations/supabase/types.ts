@@ -589,8 +589,125 @@ export type Database = {
     }
     Functions: {
       check_stk_rate_limit: { Args: { p_phone: string }; Returns: boolean }
+      get_chat_conversations: {
+        Args: { p_phone: string }
+        Returns: {
+          created_at: string
+          id: string
+          last_message_at: string
+          phone_number: string
+          status: string
+          subject: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "chat_conversations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_chat_messages: {
+        Args: { p_conversation_id: string }
+        Returns: {
+          conversation_id: string
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          sender_type: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "chat_messages"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_order: {
+        Args: { p_id: string }
+        Returns: {
+          amount: number
+          category: string
+          created_at: string
+          failure_reason: string | null
+          id: string
+          kplc_token: string | null
+          meter_number: string | null
+          mpesa_reference: string | null
+          network: string | null
+          order_number: number
+          package_name: string
+          phone_number: string
+          product_id: string | null
+          referral_code: string | null
+          service_number: string | null
+          status: string
+          stk_checkout_id: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "transactions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       hash_password: { Args: { p_password: string }; Returns: string }
       is_banned: { Args: { p_phone: string }; Returns: boolean }
+      mark_chat_read: {
+        Args: { p_conversation_id: string }
+        Returns: undefined
+      }
+      public_order_stats: {
+        Args: never
+        Returns: {
+          completed_today: number
+          completed_total: number
+          unique_customers: number
+        }[]
+      }
+      recent_orders_feed: {
+        Args: { p_limit?: number }
+        Returns: {
+          amount: number
+          category: string
+          created_at: string
+          id: string
+          masked_phone: string
+          network: string
+          order_number: number
+          package_name: string
+          phone_seed: number
+          status: string
+        }[]
+      }
+      start_chat_conversation: {
+        Args: { p_phone: string; p_subject: string }
+        Returns: {
+          created_at: string
+          id: string
+          last_message_at: string
+          phone_number: string
+          status: string
+          subject: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "chat_conversations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      vendor_leaderboard: {
+        Args: never
+        Returns: {
+          name: string
+          total_revenue: number
+          total_sales: number
+        }[]
+      }
       vendor_login_status: {
         Args: { p_password: string; p_phone: string }
         Returns: {
