@@ -4,6 +4,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { fetchProducts } from "@/hooks/useProducts";
 import { registerAppServiceWorker } from "@/lib/registerSW";
+import { warmStkEndpoints } from "@/lib/stk";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,11 +43,15 @@ function bootstrap() {
     </QueryClientProvider>
   );
 
-  // Defer cache warming until the browser is idle so it never blocks first paint.
+  // Defer warming until browser is idle so it never blocks first paint.
   const schedule =
     (window as any).requestIdleCallback ||
     ((cb: () => void) => setTimeout(cb, 200));
-  schedule(() => warmProductCache());
+  schedule(() => {
+    warmProductCache();
+    // Pre-warm Daraja token cache so the first STK push is instant.
+    warmStkEndpoints();
+  });
 
   registerAppServiceWorker();
 }

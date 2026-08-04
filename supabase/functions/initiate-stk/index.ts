@@ -496,5 +496,23 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const { pathname } = new URL(req.url);
   if (pathname.endsWith("/callback")) return handleCallback(req);
+
+  // GET → pre-warm: fetch and cache the Daraja token so the next POST is instant.
+  // Called by the frontend on page load and when the checkout modal opens.
+  if (req.method === "GET") {
+    try {
+      const supabase = createAdminClient();
+      const settings = await getSettings(supabase);
+      const consumerKey = settings.daraja_consumer_key || Deno.env.get("DARAJA_CONSUMER_KEY");
+      const consumerSecret = settings.daraja_consumer_secret || Deno.env.get("DARAJA_CONSUMER_SECRET");
+      if (consumerKey && consumerSecret) {
+        getDarajaToken(consumerKey, consumerSecret).catch(() => {});
+      }
+    } catch { /* silently ignore warm-up errors */ }
+    return new Response(JSON.stringify({ ok: true, warm: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   return handleInitiate(req);
 });

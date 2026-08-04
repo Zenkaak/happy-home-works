@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { buildAccountRef } from "@/lib/accountRef";
 import { playSuccess, playFailure } from "@/lib/notifySound";
-import { initiateStkPush } from "@/lib/stk";
+import { initiateStkPush, warmStkEndpoints } from "@/lib/stk";
 
 interface CheckoutModalProps {
   product: Product;
@@ -47,6 +47,10 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
     const t = setTimeout(() => setShowRetry(true), 8000);
     return () => clearTimeout(t);
   }, [step, retrySeed]);
+
+  // Pre-warm Daraja token the moment the checkout modal opens so it's cached
+  // by the time the user fills the form and clicks Pay.
+  useEffect(() => { warmStkEndpoints(); }, []);
 
   useEffect(() => {
     // Set height immediately on mount so the modal sizes correctly before any keyboard event
