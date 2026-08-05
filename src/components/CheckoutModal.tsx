@@ -206,7 +206,10 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
   const pollTransaction = async (txId: string): Promise<Transaction> => {
-    for (let i = 0; i < 30; i++) {
+    // Poll the order for up to ~2 minutes. Every 5th round (≈15s) we also ask
+    // the backend to reconcile directly with M-Pesa, so a lost or delayed
+    // callback can never leave the customer spinning after entering their PIN.
+    for (let i = 1; i <= 40; i++) {
       await new Promise((r) => setTimeout(r, 3000));
       if (!mountedRef.current) return { status: "processing" } as Transaction;
       const { data } = await supabase
@@ -215,10 +218,20 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
       if (data && (data.status === "completed" || data.status === "failed")) {
         return data as Transaction;
       }
+      if (i >= 5 && i % 5 === 0) {
+        const q = await queryStkStatus(txId);
+        if (!mountedRef.current) return { status: "processing" } as Transaction;
+        if (q?.status === "completed" || q?.status === "failed") {
+          const { data: fresh } = await supabase.rpc("get_order", { p_id: txId }).maybeSingle();
+          return (fresh || { ...(data || {}), status: q.status, failure_reason: q.failure_reason }) as Transaction;
+        }
+      }
     }
     if (!mountedRef.current) return { status: "processing" } as Transaction;
+    const final = await queryStkStatus(txId);
     const { data } = await supabase.rpc("get_order", { p_id: txId }).maybeSingle();
-    return (data || { status: "processing" }) as Transaction;
+    return (data ||
+      { status: final?.status || "failed", failure_reason: final?.failure_reason || "Payment timed out. Please try again." }) as Transaction;
   };
 
   if (step === "processing") {
