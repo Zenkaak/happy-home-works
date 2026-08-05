@@ -12,6 +12,8 @@ const DARAJA_AUTH_URL =
   "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
 const DARAJA_STK_URL =
   "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
+const DARAJA_QUERY_URL =
+  "https://api.safaricom.co.ke/mpesa/stkpushquery/v1/query";
 
 let cachedDarajaToken: string | null = null;
 let cachedDarajaTokenExpiry = 0;
