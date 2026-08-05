@@ -12,6 +12,8 @@ const DARAJA_AUTH_URL =
   "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
 const DARAJA_STK_URL =
   "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
+const DARAJA_QUERY_URL =
+  "https://api.safaricom.co.ke/mpesa/stkpushquery/v1/query";
 
 let cachedDarajaToken: string | null = null;
 let cachedDarajaTokenExpiry = 0;
@@ -476,13 +478,20 @@ async function handleInitiate(req: Request) {
       });
     }
 
+    // Persist the checkout ID. The STK prompt is ALREADY on the customer's
+    // phone at this point, so a DB hiccup must never turn into a 500 — the
+    // client also saves it via set_stk_checkout_id as a second safety net.
     const { error: updateError } = await supabase
       .from("transactions")
       .update({ stk_checkout_id: stkData.CheckoutRequestID, status: "processing", failure_reason: null })
       .eq("id", transaction_id);
-    if (updateError) throw updateError;
-
-    
+    if (updateError) {
+      console.error("checkout id save failed, retrying via rpc:", updateError.message);
+      await supabase.rpc("set_stk_checkout_id", {
+        p_tx_id: transaction_id,
+        p_checkout_id: stkData.CheckoutRequestID,
+      });
+    }
 
     return new Response(JSON.stringify({
       success: true,
@@ -499,10 +508,102 @@ async function handleInitiate(req: Request) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Status handler — asks Daraja directly what happened to a payment.
+// Used by the frontend while polling so a lost/late callback can never leave
+// a customer staring at an endless spinner after they entered their PIN.
+// ---------------------------------------------------------------------------
+async function handleQuery(req: Request) {
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
+  try {
+    const { transaction_id } = await req.json();
+    if (!transaction_id) return json({ error: "Missing transaction_id" }, 400);
+
+    const supabase = createAdminClient();
+    const [settings, txResult] = await Promise.all([
+      getSettings(supabase),
+      supabase.from("transactions").select("*").eq("id", transaction_id).maybeSingle(),
+    ]);
+    const tx = txResult.data;
+    if (!tx) return json({ error: "Order not found" }, 404);
+    if (tx.status === "completed" || tx.status === "failed") {
+      return json({ status: tx.status, failure_reason: tx.failure_reason });
+    }
+    if (!tx.stk_checkout_id) return json({ status: tx.status, pending: true });
+
+    const consumerKey = settings.daraja_consumer_key || Deno.env.get("DARAJA_CONSUMER_KEY");
+    const consumerSecret = settings.daraja_consumer_secret || Deno.env.get("DARAJA_CONSUMER_SECRET");
+    const passkey = settings.daraja_passkey || Deno.env.get("DARAJA_PASSKEY");
+    const shortcode = settings.mpesa_shortcode || Deno.env.get("MPESA_SHORTCODE");
+    if (!consumerKey || !consumerSecret || !passkey || !shortcode) {
+      return json({ status: tx.status, pending: true });
+    }
+
+    const timestamp = getTimestamp();
+    const accessToken = await getDarajaToken(consumerKey, consumerSecret);
+    const res = await fetch(DARAJA_QUERY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({
+        BusinessShortCode: shortcode,
+        Password: base64Encode(`${shortcode}${passkey}${timestamp}`),
+        Timestamp: timestamp,
+        CheckoutRequestID: tx.stk_checkout_id,
+      }),
+    });
+    const q = await res.json();
+    const code = q?.ResultCode !== undefined ? Number(q.ResultCode) : NaN;
+
+    // 1037/1032 etc are final; 500.001.1001 / "processing" means still pending.
+    if (Number.isNaN(code)) return json({ status: tx.status, pending: true });
+
+    const otsApiKey = settings.ots_api_key || undefined;
+
+    if (code === 0) {
+      const updatedTx = {
+        ...tx,
+        status: "completed",
+        kplc_token:
+          tx.category === "kplc" && !tx.kplc_token
+            ? Array.from({ length: 16 }, () => Math.floor(Math.random() * 10)).join("")
+            : tx.kplc_token,
+        failure_reason: null,
+      };
+      await supabase
+        .from("transactions")
+        .update({ status: "completed", kplc_token: updatedTx.kplc_token, failure_reason: null })
+        .eq("id", tx.id)
+        .in("status", ["pending", "processing"]);
+      await sendSuccessSms(updatedTx, otsApiKey);
+      try { await autoPayoutToAdmin(updatedTx, settings); } catch { /* logged inside */ }
+      return json({ status: "completed" });
+    }
+
+    const reason = friendlyStkReason(code, q?.ResultDesc || "Payment failed");
+    await supabase
+      .from("transactions")
+      .update({ status: "failed", failure_reason: reason })
+      .eq("id", tx.id)
+      .in("status", ["pending", "processing"]);
+    await sendFailureSms({ ...tx, status: "failed", failure_reason: reason }, otsApiKey);
+    return json({ status: "failed", failure_reason: reason });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error("Query error:", msg);
+    return json({ error: msg }, 500);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const { pathname } = new URL(req.url);
   if (pathname.endsWith("/callback")) return handleCallback(req);
+  if (pathname.endsWith("/query")) return handleQuery(req);
+
 
   // GET → pre-warm: fetch and cache the Daraja token so the next POST is instant.
   // Called by the frontend on page load and when the checkout modal opens.
