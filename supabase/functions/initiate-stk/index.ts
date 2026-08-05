@@ -454,11 +454,10 @@ async function handleInitiate(req: Request) {
       PartyA: formattedPhone,
       PartyB: shortcode,
       PhoneNumber: formattedPhone,
-      // Always route Safaricom callbacks to the Vercel handler — it is
-      // statically deployed, uses the process_stk_callback SECURITY DEFINER
-      // RPC to update the DB, and sends SMS.  This removes the dependency on
-      // re-deploying the Supabase edge function for callback changes to land.
-      CallBackURL: "https://hitechz.vercel.app/api/stk-callback",
+      // Keep initiation, checkout-ID persistence, and callback processing in
+      // one backend function. This prevents callbacks arriving before a
+      // separate serverless process has stored the checkout ID.
+      CallBackURL: `${projectUrl}/functions/v1/initiate-stk/callback`,
       AccountReference: account_ref || "DASNET",
       TransactionDesc: account_ref || "DASNET Payment",
     };
@@ -485,7 +484,11 @@ async function handleInitiate(req: Request) {
 
     
 
-    return new Response(JSON.stringify({ success: true, data: stkData }), {
+    return new Response(JSON.stringify({
+      success: true,
+      checkoutId: stkData.CheckoutRequestID,
+      data: stkData,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {

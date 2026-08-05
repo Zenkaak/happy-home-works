@@ -28,7 +28,7 @@ export function warmStkEndpoints(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Path 1 — Supabase edge function (PRIMARY)
+// Path 1 — backend edge function (PRIMARY)
 // Uses service_role — can update transactions directly, runs its own callback
 // handler at supabase.co/functions/v1/initiate-stk/callback, no extra RPCs
 // needed. Confirmed working with Safaricom live API.
@@ -75,22 +75,20 @@ const DARAJA_ERROR_RE = /cancelled|insufficient|wrong pin|unresolved|blocked/i;
 export const initiateStkPush = async (payload: InitiateStkPayload): Promise<StkResult> => {
   let primaryError: Error | null = null;
 
-  // Vercel function — PRIMARY path.
-  // Callback URL is https://hitechz.vercel.app/api/stk-callback (hardcoded, always reachable).
-  // Uses set_stk_checkout_id + process_stk_callback SECURITY DEFINER RPCs in Supabase.
-  // Both RPCs are now applied (migration 20260804120000_stk_rpc_bypass_rls.sql).
+  // Backend function — PRIMARY path. It saves the checkout ID before returning
+  // and receives the payment callback itself, so polling cannot lose the link
+  // between the M-Pesa request and the transaction.
   try {
-    return await tryVercelFunction(payload);
+    return await trySupabaseFunction(payload);
   } catch (err: any) {
     primaryError = err instanceof Error ? err : new Error(String(err?.message ?? err));
     if (DARAJA_ERROR_RE.test(primaryError.message)) throw primaryError;
-    console.warn("[STK] Vercel path failed, trying Supabase function:", primaryError.message);
+    console.warn("[STK] Backend path failed, trying fallback:", primaryError.message);
   }
 
-  // Supabase edge function — fallback.
-  // Callback goes to https://hitechz.vercel.app/api/stk-callback (set in edge function code).
+  // Vercel function — fallback for temporary backend function outages.
   try {
-    return await trySupabaseFunction(payload);
+    return await tryVercelFunction(payload);
   } catch (fallbackErr: any) {
     const fallbackMsg =
       fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr?.message ?? fallbackErr);
