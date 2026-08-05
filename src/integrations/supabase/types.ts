@@ -659,6 +659,40 @@ export type Database = {
         Args: { p_conversation_id: string }
         Returns: undefined
       }
+      process_stk_callback: {
+        Args: {
+          p_checkout_id: string
+          p_mpesa_ref?: string
+          p_result_code: number
+          p_result_desc?: string
+        }
+        Returns: {
+          amount: number
+          category: string
+          created_at: string
+          failure_reason: string | null
+          id: string
+          kplc_token: string | null
+          meter_number: string | null
+          mpesa_reference: string | null
+          network: string | null
+          order_number: number
+          package_name: string
+          phone_number: string
+          product_id: string | null
+          referral_code: string | null
+          service_number: string | null
+          status: string
+          stk_checkout_id: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "transactions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       public_order_stats: {
         Args: never
         Returns: {
@@ -681,6 +715,10 @@ export type Database = {
           phone_seed: number
           status: string
         }[]
+      }
+      set_stk_checkout_id: {
+        Args: { p_checkout_id: string; p_tx_id: string }
+        Returns: undefined
       }
       start_chat_conversation: {
         Args: { p_phone: string; p_subject: string }
