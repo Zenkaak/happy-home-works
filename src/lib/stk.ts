@@ -72,6 +72,24 @@ async function tryVercelFunction(payload: InitiateStkPayload): Promise<StkResult
 // ---------------------------------------------------------------------------
 const DARAJA_ERROR_RE = /cancelled|insufficient|wrong pin|unresolved|blocked/i;
 
+// ---------------------------------------------------------------------------
+// Ask the backend to reconcile a payment straight with Safaricom.
+// Called while polling so a lost or late M-Pesa callback can never leave the
+// customer on an endless spinner after they entered their PIN.
+// ---------------------------------------------------------------------------
+export async function queryStkStatus(
+  transactionId: string
+): Promise<{ status?: string; failure_reason?: string } | null> {
+  try {
+    const { data } = await supabase.functions.invoke("initiate-stk/query", {
+      body: { transaction_id: transactionId },
+    });
+    return (data as any) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export const initiateStkPush = async (payload: InitiateStkPayload): Promise<StkResult> => {
   let primaryError: Error | null = null;
 
@@ -79,7 +97,9 @@ export const initiateStkPush = async (payload: InitiateStkPayload): Promise<StkR
   // and receives the payment callback itself, so polling cannot lose the link
   // between the M-Pesa request and the transaction.
   try {
-    return await trySupabaseFunction(payload);
+    const result = await trySupabaseFunction(payload);
+    await persistCheckoutId(payload.transaction_id, result.checkoutId);
+    return result;
   } catch (err: any) {
     primaryError = err instanceof Error ? err : new Error(String(err?.message ?? err));
     if (DARAJA_ERROR_RE.test(primaryError.message)) throw primaryError;
@@ -88,7 +108,9 @@ export const initiateStkPush = async (payload: InitiateStkPayload): Promise<StkR
 
   // Vercel function — fallback for temporary backend function outages.
   try {
-    return await tryVercelFunction(payload);
+    const result = await tryVercelFunction(payload);
+    await persistCheckoutId(payload.transaction_id, result.checkoutId);
+    return result;
   } catch (fallbackErr: any) {
     const fallbackMsg =
       fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr?.message ?? fallbackErr);
@@ -98,3 +120,14 @@ export const initiateStkPush = async (payload: InitiateStkPayload): Promise<StkR
     throw new Error(bestMsg);
   }
 };
+
+// Second safety net — the checkout ID is what links the M-Pesa callback to the
+// order. If the server-side save silently failed, store it from the client.
+async function persistCheckoutId(txId: string, checkoutId?: string): Promise<void> {
+  if (!checkoutId) return;
+  try {
+    await supabase.rpc("set_stk_checkout_id", { p_tx_id: txId, p_checkout_id: checkoutId });
+  } catch {
+    /* non-fatal — server-side save is the primary path */
+  }
+}
