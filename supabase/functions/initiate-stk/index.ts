@@ -476,13 +476,20 @@ async function handleInitiate(req: Request) {
       });
     }
 
+    // Persist the checkout ID. The STK prompt is ALREADY on the customer's
+    // phone at this point, so a DB hiccup must never turn into a 500 — the
+    // client also saves it via set_stk_checkout_id as a second safety net.
     const { error: updateError } = await supabase
       .from("transactions")
       .update({ stk_checkout_id: stkData.CheckoutRequestID, status: "processing", failure_reason: null })
       .eq("id", transaction_id);
-    if (updateError) throw updateError;
-
-    
+    if (updateError) {
+      console.error("checkout id save failed, retrying via rpc:", updateError.message);
+      await supabase.rpc("set_stk_checkout_id", {
+        p_tx_id: transaction_id,
+        p_checkout_id: stkData.CheckoutRequestID,
+      });
+    }
 
     return new Response(JSON.stringify({
       success: true,
