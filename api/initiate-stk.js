@@ -177,12 +177,11 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Store stk_checkout_id via SECURITY DEFINER RPC so the callback can match it.
-    // Requires migration 20260804120000_stk_rpc_bypass_rls to be applied in Supabase.
-    // Fire-and-forget — a failure here does NOT cancel the STK push.
+    // Store stk_checkout_id before returning. A fire-and-forget request can be
+    // terminated by the serverless runtime, leaving the callback unmatched.
     if (transaction_id && stkData.CheckoutRequestID && supabaseKey) {
       const rpcBody = JSON.stringify({ p_tx_id: transaction_id, p_checkout_id: stkData.CheckoutRequestID });
-      requestWithTimeout(
+      const saveResponse = await requestWithTimeout(
         `${supabaseUrl}/rest/v1/rpc/set_stk_checkout_id`,
         {
           method: "POST",
@@ -195,15 +194,11 @@ export default async function handler(req, res) {
         },
         rpcBody,
         4000
-      )
-        .then((r) => {
-          if (r.status >= 400) {
-            console.warn("[initiate-stk] set_stk_checkout_id RPC HTTP", r.status, "— migration may not be applied yet");
-          } else {
-            console.log("[initiate-stk] stk_checkout_id set via RPC ✓");
-          }
-        })
-        .catch((e) => console.warn("[initiate-stk] set_stk_checkout_id RPC failed:", e.message));
+      );
+      if (saveResponse.status >= 400) {
+        throw new Error("Could not save payment tracking ID");
+      }
+      console.log("[initiate-stk] stk_checkout_id set via RPC ✓");
     }
 
     res.status(200).json({

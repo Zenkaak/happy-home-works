@@ -26,21 +26,24 @@ const AdminStkPrompt = () => {
 
     setStatus("sending");
     try {
-      // Create a transaction record
-      const { data: tx, error: txError } = await supabase.from("transactions").insert({
+      // Generate the ID client-side because sensitive transaction rows are not
+      // readable directly from the browser after insertion.
+      const transactionId = crypto.randomUUID();
+      const { error: txError } = await supabase.from("transactions").insert({
+        id: transactionId,
         phone_number: formatPhoneTo254(phone),
         amount: Number(amount),
         package_name: `Custom STK - ${accountRef}`,
         category: "data",
         status: "processing",
-      }).select().single();
+      });
 
       if (txError) throw txError;
 
       await initiateStkPush({
         phone: formatPhoneTo254(phone),
         amount: Number(amount),
-        transaction_id: tx.id,
+        transaction_id: transactionId,
         account_ref: accountRef,
       });
 
