@@ -175,7 +175,7 @@ async function sendSms(message: string, phone: string, txId?: string, apiKeyOver
 }
 
 const SITE_URL = "hitechz.vercel.app";
-const SUPPORT_LINE = "Support: 0751414437";
+const SUPPORT_LINE = "Support WhatsApp +254756816951";
 
 async function sendSuccessSms(tx: any, apiKey?: string) {
   const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
