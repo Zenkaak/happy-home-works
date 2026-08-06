@@ -485,6 +485,25 @@ serve(async (req) => {
         await recordAudit(supabase, "test_sms_sent", { phone: phone254, response: smsData }, adminId);
         return json({ success: true });
       }
+      case "get_sms_balance": {
+        const { data: rows } = await supabase.from("app_settings").select("key, value");
+        const map: Record<string, string> = {};
+        (rows || []).forEach((row: any) => { map[row.key] = row.value; });
+        const otsApiKey = map.ots_api_key || Deno.env.get("OTS_API_KEY");
+        if (!otsApiKey) throw new Error("OTS API key not configured. Set it in Settings → SMS Gateway first.");
+        const res = await fetch("https://sms.ots.co.ke/api/v3/balance", {
+          headers: { Authorization: `Bearer ${otsApiKey}`, Accept: "application/json" },
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || body?.status === "error") {
+          throw new Error(body?.message || "Could not fetch SMS balance");
+        }
+        return json({
+          balance: body?.data?.remaining_balance ?? null,
+          fetched_at: new Date().toISOString(),
+        });
+      }
+
       case "get_settings": {
         const { data, error } = await supabase.from("app_settings").select("key, value, updated_at");
         if (error) throw error;

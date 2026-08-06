@@ -143,6 +143,47 @@ function Section({ icon: Icon, title, description, children }: {
 }
 
 // ---------------------------------------------------------------------------
+// OTS SMS balance card
+// ---------------------------------------------------------------------------
+function SmsBalanceCard() {
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
+    queryKey: ["ots-sms-balance"],
+    queryFn: async () => (await adminApi("get_sms_balance")) as { balance: string | null; fetched_at: string },
+    refetchInterval: 120000,
+  });
+
+  return (
+    <div className="rounded-xl border border-border bg-secondary/60 p-4 flex items-center justify-between gap-4">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">OTS SMS Balance</p>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+          </p>
+        ) : error ? (
+          <p className="text-sm font-semibold text-destructive mt-1">{(error as Error).message}</p>
+        ) : (
+          <>
+            <p className="text-2xl font-extrabold text-primary mt-0.5">{data?.balance ?? "—"}</p>
+            <p className="text-[11px] text-muted-foreground">
+              Updated {data?.fetched_at ? new Date(data.fetched_at).toLocaleTimeString() : "—"} · auto-refreshes every 2 min
+            </p>
+          </>
+        )}
+      </div>
+      <button
+        onClick={() => refetch()}
+        disabled={isFetching}
+        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 shrink-0"
+      >
+        <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} /> Refresh
+      </button>
+    </div>
+  );
+}
+
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 const AdminSettings = () => {
@@ -417,6 +458,8 @@ const AdminSettings = () => {
 
       {/* ── SMS Gateway ── */}
       <Section icon={MessageSquare} title="SMS Gateway (OTS)" description="OTS API key and sender ID used to send confirmation, failure, and notification SMS messages.">
+        <SmsBalanceCard />
+
         <SettingField
           label="OTS API Key"
           description="Get your key from sms.ots.co.ke. Overrides the server environment variable."
