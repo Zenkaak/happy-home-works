@@ -417,6 +417,8 @@ const AdminSettings = () => {
 
       {/* ── SMS Gateway ── */}
       <Section icon={MessageSquare} title="SMS Gateway (OTS)" description="OTS API key and sender ID used to send confirmation, failure, and notification SMS messages.">
+        <SmsBalanceCard />
+
         <SettingField
           label="OTS API Key"
           description="Get your key from sms.ots.co.ke. Overrides the server environment variable."
