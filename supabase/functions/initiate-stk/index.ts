@@ -200,6 +200,7 @@ async function sendFailureSms(tx: any, apiKey?: string) {
     `${tx.package_name} | KSH ${amount}`,
     reason,
     `No charge. Retry: ${SITE_URL}`,
+    SUPPORT_LINE,
   ];
   await sendSms(lines.join("\n"), tx.phone_number, tx.id, apiKey);
 }
