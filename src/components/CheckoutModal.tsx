@@ -438,9 +438,49 @@ const CheckoutModal = ({ product: baseProduct, onClose, referralCode }: Checkout
                 </div>
               )}
             </div>
+
+            {winBack && (
+              <div className="relative overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/12 via-card to-card p-4 mb-4 animate-in fade-in slide-in-from-bottom-2">
+                <div className="absolute -top-12 -right-10 w-32 h-32 rounded-full bg-primary/20 blur-3xl" />
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-primary">Exclusive comeback offer</span>
+                  </div>
+                  <h3 className="font-display text-base font-bold text-foreground">We're sad to see you go 😔</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Budget a little tight? Here's a lighter bundle at half the price — same instant delivery.
+                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-secondary/50 border border-border/60 px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="font-display font-bold text-sm truncate">{winBack.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Instead of {product.name} @ KSH {product.price}
+                      </p>
+                    </div>
+                    <p className="font-display text-xl font-extrabold text-primary leading-none shrink-0">
+                      <span className="text-[10px] text-primary/80 font-bold mr-0.5">KSH</span>{winBack.price}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setOfferProduct(winBack);
+                      setTransaction(null);
+                      setStep("confirm");
+                    }}
+                    className="mt-3 w-full py-3 rounded-xl gradient-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Grab this offer — KSH {winBack.price}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground text-center mb-4">
               No charges were made. Try again with M-PESA or pay manually via Till.
             </p>
+
             <div className="space-y-2">
               <button
                 onClick={() => setShowManual(true)}
