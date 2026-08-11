@@ -383,6 +383,9 @@ const CheckoutModal = ({ product: baseProduct, onClose, referralCode }: Checkout
       "Payment timeout": { label: "Payment Timeout", icon: "⏱️" },
     };
     const mapped = failureReasonMap[failureReason] || { label: failureReason, icon: "⚠️" };
+    const wasCancelled = /cancel/i.test(failureReason);
+    const winBack = wasCancelled && !offerProduct ? buildHalfOffer(product) : null;
+
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
