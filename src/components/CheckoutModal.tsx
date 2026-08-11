@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { buildAccountRef } from "@/lib/accountRef";
 import { playSuccess, playFailure } from "@/lib/notifySound";
 import { initiateStkPush, warmStkEndpoints, queryStkStatus } from "@/lib/stk";
+import { buildHalfOffer } from "@/lib/halfOffer";
+
 
 interface CheckoutModalProps {
   product: Product;
@@ -17,7 +19,7 @@ interface CheckoutModalProps {
 
 type Step = "form" | "confirm" | "processing" | "success" | "failed" | "banned";
 
-const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) => {
+const CheckoutModal = ({ product: baseProduct, onClose, referralCode }: CheckoutModalProps) => {
   const { toast } = useToast();
   const [step, setStep] = useState<Step>("form");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -30,7 +32,11 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   const [showRetry, setShowRetry] = useState(false);
   const [retrySeed, setRetrySeed] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [offerProduct, setOfferProduct] = useState<Product | null>(null);
   const activeTxRef = useRef<{ id: string; phone: string; amount: number; accountRef: string } | null>(null);
+
+  const product = offerProduct ?? baseProduct;
+
 
   const isSafaricomData = product.category === "data" && product.network === "safaricom";
   const needsPaymentNumber =
@@ -379,10 +385,14 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
       "Payment timeout": { label: "Payment Timeout", icon: "⏱️" },
     };
     const mapped = failureReasonMap[failureReason] || { label: failureReason, icon: "⚠️" };
+    const wasCancelled = /cancel/i.test(failureReason);
+    const winBack = wasCancelled && !offerProduct ? buildHalfOffer(product) : null;
+
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-        <div className="w-full max-w-md bg-card rounded-2xl overflow-hidden">
+        <div className="w-full max-w-md bg-card rounded-2xl overflow-y-auto overscroll-contain max-h-[calc(100dvh-2rem)] shadow-2xl shadow-black/40">
+
           <div className="bg-destructive/90 p-8 text-center">
             <XCircle className="w-14 h-14 text-destructive-foreground mx-auto mb-3" />
             <h2 className="font-display text-2xl font-bold text-destructive-foreground">Transaction Failed</h2>
@@ -429,9 +439,49 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
                 </div>
               )}
             </div>
+
+            {winBack && (
+              <div className="relative overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/12 via-card to-card p-4 mb-4 animate-in fade-in slide-in-from-bottom-2">
+                <div className="absolute -top-12 -right-10 w-32 h-32 rounded-full bg-primary/20 blur-3xl" />
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-primary">Exclusive comeback offer</span>
+                  </div>
+                  <h3 className="font-display text-base font-bold text-foreground">We're sad to see you go 😔</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Budget a little tight? Here's a lighter bundle at half the price — same instant delivery.
+                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-secondary/50 border border-border/60 px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="font-display font-bold text-sm truncate">{winBack.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Instead of {product.name} @ KSH {product.price}
+                      </p>
+                    </div>
+                    <p className="font-display text-xl font-extrabold text-primary leading-none shrink-0">
+                      <span className="text-[10px] text-primary/80 font-bold mr-0.5">KSH</span>{winBack.price}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setOfferProduct(winBack);
+                      setTransaction(null);
+                      setStep("confirm");
+                    }}
+                    className="mt-3 w-full py-3 rounded-xl gradient-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Grab this offer — KSH {winBack.price}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground text-center mb-4">
               No charges were made. Try again with M-PESA or pay manually via Till.
             </p>
+
             <div className="space-y-2">
               <button
                 onClick={() => setShowManual(true)}
