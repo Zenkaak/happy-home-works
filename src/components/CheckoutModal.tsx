@@ -391,7 +391,8 @@ const CheckoutModal = ({ product: baseProduct, onClose, referralCode }: Checkout
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-        <div className="w-full max-w-md bg-card rounded-2xl overflow-hidden">
+        <div className="w-full max-w-md bg-card rounded-2xl overflow-y-auto overscroll-contain max-h-[calc(100dvh-2rem)] shadow-2xl shadow-black/40">
+
           <div className="bg-destructive/90 p-8 text-center">
             <XCircle className="w-14 h-14 text-destructive-foreground mx-auto mb-3" />
             <h2 className="font-display text-2xl font-bold text-destructive-foreground">Transaction Failed</h2>
