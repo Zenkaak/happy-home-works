@@ -17,7 +17,7 @@ interface CheckoutModalProps {
 
 type Step = "form" | "confirm" | "processing" | "success" | "failed" | "banned";
 
-const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) => {
+const CheckoutModal = ({ product: baseProduct, onClose, referralCode }: CheckoutModalProps) => {
   const { toast } = useToast();
   const [step, setStep] = useState<Step>("form");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -30,7 +30,11 @@ const CheckoutModal = ({ product, onClose, referralCode }: CheckoutModalProps) =
   const [showRetry, setShowRetry] = useState(false);
   const [retrySeed, setRetrySeed] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [offerProduct, setOfferProduct] = useState<Product | null>(null);
   const activeTxRef = useRef<{ id: string; phone: string; amount: number; accountRef: string } | null>(null);
+
+  const product = offerProduct ?? baseProduct;
+
 
   const isSafaricomData = product.category === "data" && product.network === "safaricom";
   const needsPaymentNumber =
