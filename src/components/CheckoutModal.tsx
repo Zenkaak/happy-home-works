@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { buildAccountRef } from "@/lib/accountRef";
 import { playSuccess, playFailure } from "@/lib/notifySound";
 import { initiateStkPush, warmStkEndpoints, queryStkStatus } from "@/lib/stk";
+import { buildHalfOffer } from "@/lib/halfOffer";
+
 
 interface CheckoutModalProps {
   product: Product;
