@@ -402,38 +402,58 @@ const CheckoutModal = ({ product: baseProduct, onClose, referralCode }: Checkout
           </div>
           <div className="p-6">
             {winBack && (
-              <div className="relative overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/12 via-card to-card p-4 mb-5 animate-in fade-in slide-in-from-bottom-2">
-                <div className="absolute -top-12 -right-10 w-32 h-32 rounded-full bg-primary/20 blur-3xl" />
-                <div className="relative">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                    <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-primary">Exclusive comeback offer</span>
-                  </div>
-                  <h3 className="font-display text-base font-bold text-foreground">We're sad to see you go 😔</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                    Budget a little tight? Here's a lighter bundle at half the price — same instant delivery.
-                  </p>
-                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-secondary/50 border border-border/60 px-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="font-display font-bold text-sm truncate">{winBack.name}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Instead of {product.name} @ KSH {product.price}
-                      </p>
+              <div className="relative overflow-hidden rounded-2xl border-2 border-primary/50 bg-gradient-to-br from-primary/15 via-card to-card mb-5 animate-in zoom-in-95 fade-in slide-in-from-bottom-5 duration-500 glow-primary">
+                {/* Animated shimmer sweep */}
+                <div className="pointer-events-none absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-primary/15 to-transparent" />
+                {/* Soft orb accents */}
+                <div className="pointer-events-none absolute -top-14 -right-10 w-36 h-36 rounded-full bg-primary/25 blur-3xl animate-pulse-glow" />
+                <div className="pointer-events-none absolute -bottom-10 -left-8 w-28 h-28 rounded-full bg-accent/15 blur-3xl animate-pulse-glow" />
+
+                <div className="relative p-4">
+                  {/* Header row */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/20 border border-primary/40 animate-bounce-subtle">
+                      <Sparkles className="w-3 h-3 text-primary" />
+                      <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-primary">Comeback Offer</span>
                     </div>
-                    <p className="font-display text-xl font-extrabold text-primary leading-none shrink-0">
-                      <span className="text-[10px] text-primary/80 font-bold mr-0.5">KSH</span>{winBack.price}
-                    </p>
+                    <div className="px-2.5 py-1 rounded-full bg-accent/15 border border-accent/30">
+                      <span className="text-[10px] font-extrabold text-accent tracking-wide">SAVE 50%</span>
+                    </div>
                   </div>
+
+                  <h3 className="font-display text-lg font-bold text-foreground mb-1">Still interested?</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    We saved a lighter bundle just for you. Same instant delivery, half the cost.
+                  </p>
+
+                  {/* Offer comparison card */}
+                  <div className="rounded-xl bg-secondary/60 border border-border/60 p-3 mb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-display font-bold text-base text-foreground truncate">{winBack.name}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Was {product.name} at KSH {product.price}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] text-primary font-extrabold uppercase tracking-wider">Now only</p>
+                        <p className="font-display text-2xl font-extrabold text-primary leading-none">
+                          <span className="text-[11px] text-primary/80 font-bold mr-0.5">KSH</span>{winBack.price}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <button
                     onClick={() => {
                       setOfferProduct(winBack);
                       setTransaction(null);
                       setStep("confirm");
                     }}
-                    className="mt-3 w-full py-3 rounded-xl gradient-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                    className="relative overflow-hidden w-full py-3.5 rounded-xl gradient-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 hover:shadow-[0_0_30px_-6px_hsl(var(--primary)/0.5)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
                   >
                     <Zap className="w-4 h-4" />
-                    Grab this offer — KSH {winBack.price}
+                    Claim Offer — KSH {winBack.price}
                   </button>
                 </div>
               </div>

@@ -69,6 +69,8 @@
   --animate-slide-up: slide-up 0.3s ease-out;
   --animate-marquee: marquee 28s linear infinite;
   --animate-reveal: reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-shimmer: shimmer 2.5s infinite;
+  --animate-bounce-subtle: bounce-subtle 2s ease-in-out infinite;
 
   @keyframes accordion-down {
     from { height: 0; }
@@ -93,6 +95,13 @@
   @keyframes reveal {
     from { transform: translateY(24px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+  @keyframes bounce-subtle {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
   }
 }
 
@@ -205,6 +214,14 @@
 
   .glow-accent {
     box-shadow: 0 0 24px hsl(348 100% 56% / 0.35);
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2.5s infinite;
+  }
+
+  .animate-bounce-subtle {
+    animation: bounce-subtle 2s ease-in-out infinite;
   }
 
   .text-gradient {
