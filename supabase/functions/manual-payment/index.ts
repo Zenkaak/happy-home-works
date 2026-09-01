@@ -123,7 +123,7 @@ serve(async (req) => {
         await supabase.functions.invoke("send-sms", {
           body: {
             phone: mp.phone_number,
-            message: `DASNET — Payment Verified\n\nDear Customer, your payment (Ref: ${mp.mpesa_code}) has been confirmed.\n\n${mp.package_name || "Your order"} is now being delivered to your line.\n\nThank you for choosing DASNET.\nSupport WhatsApp +254756816951`,
+            message: `DASNET — Payment Verified\n\nDear Customer, your payment (Ref: ${mp.mpesa_code}) has been confirmed.\n\n${mp.package_name || "Your order"} is now being delivered to your line.\n\nThank you for choosing DASNET.`,
           },
         });
       } catch (_) {}
@@ -148,7 +148,7 @@ serve(async (req) => {
           await supabase.functions.invoke("send-sms", {
             body: {
               phone: mp.phone_number,
-              message: `DASNET — Payment Not Verified\n\nWe could not verify your payment (Ref: ${mp.mpesa_code}).\nReason: ${admin_notes || "The M-Pesa code provided is invalid"}.\n\nPlease confirm the code and try again:\nhttps://hitechz.vercel.app\nSupport WhatsApp +254756816951`,
+              message: `DASNET — Payment Not Verified\n\nWe could not verify your payment (Ref: ${mp.mpesa_code}).\nReason: ${admin_notes || "The M-Pesa code provided is invalid"}.\n\nPlease confirm the code and try again:\nhttps://hitechz.vercel.app`,
             },
           });
         } catch (_) {}
