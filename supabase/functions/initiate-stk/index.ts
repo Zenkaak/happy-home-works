@@ -177,9 +177,49 @@ async function sendSms(message: string, phone: string, txId?: string, apiKeyOver
 const SITE_URL = "hitechz.vercel.app";
 const SUPPORT_LINE = "Support WhatsApp +254756816951";
 
+// Extract loan limit (in KES) from a package name like "Up to 5K limit" / "20,000 limit"
+function parseLoanLimit(name: string): string | null {
+  if (!name) return null;
+  const k = name.match(/(\d+(?:[.,]\d+)?)\s*k\b/i);
+  if (k) {
+    const v = Math.round(parseFloat(k[1].replace(",", ".")) * 1000);
+    return v.toLocaleString("en-KE");
+  }
+  const n = name.match(/(\d[\d,]{2,})/);
+  if (n) return Number(n[1].replace(/,/g, "")).toLocaleString("en-KE");
+  return null;
+}
+
+// Data package quantity, e.g. "PROMO 13GB + 200MINS" -> "13GB + 200MINS"
+function dataQuantity(name: string): string {
+  return String(name || "").replace(/\b(promo|offer|bundle|deal)\b/gi, "").trim() || String(name || "");
+}
+
 async function sendSuccessSms(tx: any, apiKey?: string) {
+  const amount = Number(tx.amount).toLocaleString("en-KE");
+
+  // ── DATA ──
+  if (tx.category === "data" || tx.network) {
+    const msg =
+      `You have received Sh${amount} = ${dataQuantity(tx.package_name)} no expiry from DASNET VENTURES. ` +
+      `Dial *444*9# to check balance. Visit ${SITE_URL} for other exciting offers.`;
+    await sendSms(msg, tx.phone_number, tx.id, apiKey);
+    return;
+  }
+
+  // ── LOANS / FULIZA UPGRADE ──
+  if (tx.category === "loans") {
+    const limit = parseLoanLimit(tx.package_name);
+    const activation = Math.ceil(Number(tx.amount) / 2).toLocaleString("en-KE");
+    const msg =
+      `Dear Customer, your fuliza upgrade upto KES ${limit || tx.package_name} has been approved. ` +
+      `To activate, Pay KES ${activation} via Till 8448104.`;
+    await sendSms(msg, tx.phone_number, tx.id, apiKey);
+    return;
+  }
+
+  // ── KPLC / OTHERS — unchanged ──
   const orderNo = tx.order_number ? ` #${tx.order_number}` : "";
-  const amount = Number(tx.amount).toLocaleString();
   const lines: string[] = [
     `DASNET${orderNo} Delivered ✓`,
     `${tx.package_name} | KSH ${amount}`,
