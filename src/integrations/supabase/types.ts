@@ -251,6 +251,54 @@ export type Database = {
           },
         ]
       }
+      customer_otps: {
+        Row: {
+          attempts: number
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          phone_number: string
+        }
+        Insert: {
+          attempts?: number
+          code: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone_number: string
+        }
+        Update: {
+          attempts?: number
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone_number?: string
+        }
+        Relationships: []
+      }
+      customer_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          phone_number: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone_number: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone_number?: string
+        }
+        Relationships: []
+      }
       manual_payments: {
         Row: {
           admin_notes: string | null
