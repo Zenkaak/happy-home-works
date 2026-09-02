@@ -16,6 +16,7 @@ const OrderStatus = lazy(() => import("./pages/OrderStatus"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const TestPackages = lazy(() => import("./pages/TestPackages"));
 const CyberServices = lazy(() => import("./pages/CyberServices"));
+const Account = lazy(() => import("./pages/Account"));
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/order/:id" element={<OrderStatus />} />
               <Route path="/test" element={<TestPackages />} />
               <Route path="/cyber" element={<CyberServices />} />
+              <Route path="/account" element={<Account />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
