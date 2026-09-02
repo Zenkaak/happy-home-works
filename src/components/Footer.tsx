@@ -1,4 +1,4 @@
-import { ShieldCheck, MessageCircle, Mail, MapPin } from "lucide-react";
+import { ShieldCheck, MessageCircle, Mail, MapPin, Store } from "lucide-react";
 
 const Footer = () => (
   <footer className="mt-6 border-t border-border/60 bg-card/60 backdrop-blur-sm">
@@ -43,6 +43,21 @@ const Footer = () => (
           <span className="text-[10px] font-semibold text-foreground">Nairobi, KE</span>
         </div>
       </div>
+
+      {/* Vendor program */}
+      <a
+        href="/vendor"
+        className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl bg-primary/10 border border-primary/25 hover:bg-primary/15 transition-colors"
+      >
+        <div>
+          <p className="text-xs font-bold text-foreground">Become a DASNET Vendor</p>
+          <p className="text-[10px] text-muted-foreground">Register free and earn 10% commission on every sale</p>
+        </div>
+        <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider">
+          <Store className="w-3 h-3" /> Join
+        </span>
+      </a>
+
 
       <div className="flex items-center justify-between pt-3 border-t border-border/40 text-[10px] text-muted-foreground">
         <span>© {new Date().getFullYear()} DASNET. All rights reserved.</span>
