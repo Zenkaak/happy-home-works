@@ -1,4 +1,4 @@
-import { ShieldCheck, MessageCircle, Mail, MapPin } from "lucide-react";
+import { ShieldCheck, MessageCircle, Mail, MapPin, Store } from "lucide-react";
 
 const Footer = () => (
   <footer className="mt-6 border-t border-border/60 bg-card/60 backdrop-blur-sm">
