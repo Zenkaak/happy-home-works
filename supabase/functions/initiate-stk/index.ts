@@ -359,7 +359,8 @@ async function handleCallback(req: Request) {
         .maybeSingle(),
     ]);
     const otsApiKey = settings.ots_api_key || undefined;
-    const adminNotifyPhone = settings.admin_notify_phone || null;
+    const adminNotifyEnabled = settings.admin_sms_notify_enabled !== "false";
+    const adminNotifyPhone = adminNotifyEnabled ? (settings.admin_notify_phone || null) : null;
     const { data: tx, error: txError } = txResult;
 
     if (txError) throw txError;
