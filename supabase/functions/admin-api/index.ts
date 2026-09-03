@@ -305,8 +305,18 @@ serve(async (req) => {
         return json({ logs: data ?? [] });
       }
       case "broadcast_sms": {
-        const { data: contacts, error: cErr } = await supabase.from("broadcast_contacts").select("phone_number");
-        if (cErr) throw cErr;
+        const audience = params.audience === "vendors" ? "vendors" : "all";
+        let contacts: { phone_number: string }[] = [];
+        if (audience === "vendors") {
+          const { data, error } = await supabase.from("vendors").select("phone").eq("status", "approved");
+          if (error) throw error;
+          contacts = (data || []).map((v: any) => ({ phone_number: v.phone }));
+        } else {
+          const { data, error } = await supabase.from("broadcast_contacts").select("phone_number");
+          if (error) throw error;
+          contacts = data || [];
+        }
+
 
         const batchId = `broadcast-${Date.now()}`;
         let successCount = 0;
