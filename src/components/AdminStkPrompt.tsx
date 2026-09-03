@@ -33,7 +33,7 @@ const AdminStkPrompt = () => {
         id: transactionId,
         phone_number: formatPhoneTo254(phone),
         amount: Number(amount),
-        package_name: `Custom STK - ${accountRef}`,
+        package_name: accountRef?.trim() || "DASNET Payment",
         category: "data",
         status: "processing",
       });
