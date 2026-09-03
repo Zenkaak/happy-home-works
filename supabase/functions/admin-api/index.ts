@@ -290,6 +290,16 @@ serve(async (req) => {
         if (error) throw error;
         return json({ contacts: data ?? [] });
       }
+      case "list_vendor_contacts": {
+        const { data, error } = await supabase
+          .from("vendors")
+          .select("id, name, phone, created_at")
+          .eq("status", "approved")
+          .order("created_at", { ascending: false })
+          .limit(500);
+        if (error) throw error;
+        return json({ contacts: (data ?? []).map((v: any) => ({ id: v.id, phone_number: v.phone, name: v.name, created_at: v.created_at })) });
+      }
       case "delete_broadcast_contact": {
         const { error } = await supabase.from("broadcast_contacts").delete().eq("id", params.id);
         if (error) throw error;
@@ -305,8 +315,18 @@ serve(async (req) => {
         return json({ logs: data ?? [] });
       }
       case "broadcast_sms": {
-        const { data: contacts, error: cErr } = await supabase.from("broadcast_contacts").select("phone_number");
-        if (cErr) throw cErr;
+        const audience = params.audience === "vendors" ? "vendors" : "all";
+        let contacts: { phone_number: string }[] = [];
+        if (audience === "vendors") {
+          const { data, error } = await supabase.from("vendors").select("phone").eq("status", "approved");
+          if (error) throw error;
+          contacts = (data || []).map((v: any) => ({ phone_number: v.phone }));
+        } else {
+          const { data, error } = await supabase.from("broadcast_contacts").select("phone_number");
+          if (error) throw error;
+          contacts = data || [];
+        }
+
 
         const batchId = `broadcast-${Date.now()}`;
         let successCount = 0;

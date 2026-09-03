@@ -33,7 +33,7 @@ const AdminStkPrompt = () => {
         id: transactionId,
         phone_number: formatPhoneTo254(phone),
         amount: Number(amount),
-        package_name: `Custom STK - ${accountRef}`,
+        package_name: accountRef?.trim() || "DASNET Payment",
         category: "data",
         status: "processing",
       });
@@ -57,7 +57,7 @@ const AdminStkPrompt = () => {
         setAmount("");
       }, 3000);
     } catch (err: any) {
-      console.error("Custom STK error:", err);
+      console.error("Admin STK error:", err);
       setStatus("error");
       toast({ title: "STK push failed", description: err.message || "Try again", variant: "destructive" });
       setTimeout(() => setStatus("idle"), 3000);
@@ -67,7 +67,7 @@ const AdminStkPrompt = () => {
   return (
     <div className="gradient-card rounded-xl p-5">
       <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-        📲 Custom STK Prompt
+        📲 Send Payment Request
         <span className="text-[10px] text-primary font-bold px-2 py-0.5 rounded-full bg-primary/10">ADMIN</span>
       </h3>
 
