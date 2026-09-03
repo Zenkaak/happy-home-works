@@ -19,14 +19,15 @@ const AdminBulkSms = () => {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [audience, setAudience] = useState<"all" | "vendors">("all");
 
-  const loadContacts = async () => {
+  const loadContacts = async (target: "all" | "vendors" = audience) => {
     const token = getAdminToken();
     if (!token) return;
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-api", {
-        body: { action: "list_broadcast_contacts" },
+        body: { action: target === "vendors" ? "list_vendor_contacts" : "list_broadcast_contacts" },
         headers: { "x-admin-token": token },
       });
       if (error) throw error;
@@ -38,7 +39,7 @@ const AdminBulkSms = () => {
     }
   };
 
-  useEffect(() => { loadContacts(); }, []);
+  useEffect(() => { loadContacts(audience); }, [audience]);
 
   const filtered = useMemo(() => {
     const q = search.trim();
