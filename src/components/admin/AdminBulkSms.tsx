@@ -93,11 +93,35 @@ const AdminBulkSms = () => {
     <div className="space-y-4">
       <div className="gradient-card rounded-xl p-4 space-y-3">
         <h3 className="font-bold text-sm text-primary flex items-center gap-2">
-          <Send className="w-4 h-4" /> Broadcast to All Customers
+          <Send className="w-4 h-4" /> Broadcast SMS
         </h3>
 
+        <div>
+          <label className="text-[10px] text-muted-foreground uppercase font-bold">Send to</label>
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            {([
+              { key: "all", label: "All Customers" },
+              { key: "vendors", label: "Vendors Only" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => { setAudience(opt.key); setSearch(""); }}
+                disabled={sending}
+                className={`py-2 rounded-lg text-xs font-bold border transition-all ${
+                  audience === opt.key
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-secondary text-muted-foreground border-border hover:border-primary/40"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="text-xs text-muted-foreground">
-          📱 Recipients: <span className="font-bold text-foreground">{contacts.length}</span> contacts
+          📱 Recipients: <span className="font-bold text-foreground">{contacts.length}</span>{" "}
+          {audience === "vendors" ? "approved vendors" : "contacts"}
         </div>
 
         <div>
