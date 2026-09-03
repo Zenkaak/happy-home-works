@@ -73,7 +73,7 @@ const AdminBulkSms = () => {
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-api", {
-        body: { action: "broadcast_sms", message: message.trim() },
+        body: { action: "broadcast_sms", message: message.trim(), audience },
         headers: { "x-admin-token": token },
       });
       if (error) throw error;
