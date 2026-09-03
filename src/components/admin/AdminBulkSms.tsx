@@ -178,18 +178,20 @@ const AdminBulkSms = () => {
             {filtered.map((c) => (
               <div key={c.id} className="flex items-center justify-between bg-secondary/60 rounded-lg px-3 py-2">
                 <span className="text-sm font-mono">{c.phone_number}</span>
-                <button
-                  onClick={() => removeContact(c.id, c.phone_number)}
-                  disabled={removingId === c.id}
-                  className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive disabled:opacity-50"
-                  aria-label={`Remove ${c.phone_number}`}
-                >
-                  {removingId === c.id ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-3.5 h-3.5" />
-                  )}
-                </button>
+                {audience === "all" && (
+                  <button
+                    onClick={() => removeContact(c.id, c.phone_number)}
+                    disabled={removingId === c.id}
+                    className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive disabled:opacity-50"
+                    aria-label={`Remove ${c.phone_number}`}
+                  >
+                    {removingId === c.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
               </div>
             ))}
           </div>
