@@ -144,13 +144,13 @@ const AdminBulkSms = () => {
           className="w-full py-3 rounded-lg gradient-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          {sending ? "Broadcasting..." : `Send to ${contacts.length} Customers`}
+          {sending ? "Broadcasting..." : `Send to ${contacts.length} ${audience === "vendors" ? "Vendors" : "Customers"}`}
         </button>
       </div>
 
       <div className="gradient-card rounded-xl p-4 space-y-3">
         <h3 className="font-bold text-sm flex items-center justify-between">
-          <span>Broadcast Contacts</span>
+          <span>{audience === "vendors" ? "Vendor Contacts" : "Broadcast Contacts"}</span>
           <span className="text-[10px] text-muted-foreground font-normal">{filtered.length}/{contacts.length}</span>
         </h3>
 
