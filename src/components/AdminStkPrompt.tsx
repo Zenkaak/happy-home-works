@@ -57,7 +57,7 @@ const AdminStkPrompt = () => {
         setAmount("");
       }, 3000);
     } catch (err: any) {
-      console.error("Custom STK error:", err);
+      console.error("Admin STK error:", err);
       setStatus("error");
       toast({ title: "STK push failed", description: err.message || "Try again", variant: "destructive" });
       setTimeout(() => setStatus("idle"), 3000);
