@@ -307,6 +307,14 @@ const AdminSettings = () => {
 
       {/* ── Notifications ── */}
       <Section icon={Bell} title="Order Notifications" description="Receive an SMS on your phone every time a customer completes a payment.">
+        <ToggleField
+          label="Admin SMS Notifications"
+          description="When off, no order alerts are sent to the admin notify phone. Customer SMS is unaffected."
+          settingKey="admin_sms_notify_enabled"
+          checked={settings?.admin_sms_notify_enabled !== "false"}
+          onToggle={(checked) => save("admin_sms_notify_enabled", checked ? "true" : "false")}
+          isSaving={isSaving}
+        />
         <SettingField
           label="Admin Notify Phone"
           description="This number gets an SMS — 'Order completed KSH X' — the moment any order is paid."
