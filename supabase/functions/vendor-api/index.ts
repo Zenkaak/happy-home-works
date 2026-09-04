@@ -433,7 +433,24 @@ serve(async (req) => {
                   completed_at: new Date().toISOString(),
                 })
                 .eq("id", withdrawalId);
+
+              // Congratulate the vendor — only after money actually lands
+              try {
+                const { data: pv } = await supabase
+                  .from("vendors")
+                  .select("name, phone, mpesa_payout")
+                  .eq("id", w.vendor_id)
+                  .single();
+                if (pv) {
+                  await sendOts(
+                    supabase,
+                    pv.mpesa_payout || pv.phone,
+                    `Congratulations ${pv.name}! You have been paid KES ${Number(w.amount).toLocaleString()} from DASNET VENTURES. Keep selling, earn more.`,
+                  );
+                }
+              } catch (_) { /* ignore */ }
             } else {
+
               // Mark failed AND REFUND vendor balance
               await supabase
                 .from("withdrawals")
