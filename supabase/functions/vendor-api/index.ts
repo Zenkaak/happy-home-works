@@ -199,7 +199,117 @@ serve(async (req) => {
         );
       }
 
+      // ================= PASSWORD RESET =================
+      case "request_password_reset": {
+        const phoneFmt = formatPhone(params.phone || "");
+        const { data: vendor } = await supabase
+          .from("vendors")
+          .select("id, name, phone, status")
+          .eq("phone", phoneFmt)
+          .maybeSingle();
+
+        // Always respond ok to avoid leaking which numbers are registered
+        if (!vendor || vendor.status === "banned") {
+          return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders });
+        }
+
+        // Rate limit: max 3 codes per 15 minutes
+        const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+        const { count } = await supabase
+          .from("vendor_password_resets")
+          .select("id", { count: "exact", head: true })
+          .eq("phone", phoneFmt)
+          .gt("created_at", since);
+        if ((count ?? 0) >= 3) {
+          return new Response(
+            JSON.stringify({ ok: false, error: "Too many reset requests. Try again in a few minutes." }),
+            { status: 200, headers: corsHeaders },
+          );
+        }
+
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        await supabase.from("vendor_password_resets").insert({
+          vendor_id: vendor.id,
+          phone: phoneFmt,
+          code,
+        });
+
+        try {
+          await sendOts(
+            supabase,
+            phoneFmt,
+            `DASNET VENTURES: Your vendor password reset code is ${code}. It expires in 5 minutes. Do not share it.`,
+          );
+        } catch (e: any) {
+          return new Response(
+            JSON.stringify({ ok: false, error: e?.message || "Could not send reset code" }),
+            { status: 200, headers: corsHeaders },
+          );
+        }
+
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders });
+      }
+
+      case "reset_password": {
+        const phoneFmt = formatPhone(params.phone || "");
+        const code = String(params.code || "").trim();
+        const newPassword = String(params.new_password || "");
+
+        if (newPassword.length < 4) {
+          return new Response(
+            JSON.stringify({ ok: false, error: "Password must be at least 4 characters" }),
+            { status: 200, headers: corsHeaders },
+          );
+        }
+
+        const { data: reset } = await supabase
+          .from("vendor_password_resets")
+          .select("id, vendor_id, code, attempts, used, expires_at")
+          .eq("phone", phoneFmt)
+          .eq("used", false)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!reset || new Date(reset.expires_at) < new Date()) {
+          return new Response(
+            JSON.stringify({ ok: false, error: "Code expired. Request a new one." }),
+            { status: 200, headers: corsHeaders },
+          );
+        }
+
+        if (reset.attempts >= 5) {
+          return new Response(
+            JSON.stringify({ ok: false, error: "Too many wrong attempts. Request a new code." }),
+            { status: 200, headers: corsHeaders },
+          );
+        }
+
+        if (reset.code !== code) {
+          await supabase
+            .from("vendor_password_resets")
+            .update({ attempts: reset.attempts + 1 })
+            .eq("id", reset.id);
+          return new Response(
+            JSON.stringify({ ok: false, error: "Incorrect code" }),
+            { status: 200, headers: corsHeaders },
+          );
+        }
+
+        const { data: hashData } = await supabase.rpc("hash_password", { p_password: newPassword });
+        const { error: updErr } = await supabase
+          .from("vendors")
+          .update({ password_hash: hashData })
+          .eq("id", reset.vendor_id);
+        if (updErr) throw updErr;
+
+        await supabase.from("vendor_password_resets").update({ used: true }).eq("id", reset.id);
+
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders });
+      }
+
       // ================= DASHBOARD =================
+
       case "get_dashboard": {
         const { vendor_id } = params;
 
