@@ -367,10 +367,107 @@ const VendorPortal = () => {
                     <>Sign in</>
                   )}
                 </button>
+                <button
+                  onClick={() => { setResetPhone(loginPhone); setResetStep("phone"); setView("forgot"); }}
+                  className="w-full text-center text-xs font-semibold text-primary hover:underline"
+                >
+                  Forgot password?
+                </button>
               </div>
             </section>
           </>
         )}
+
+        {view === "forgot" && (
+          <>
+            <button
+              onClick={() => setView("signin")}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to sign in
+            </button>
+
+            <section className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+              <div className="px-5 pt-5 pb-4 border-b border-border/60">
+                <h2 className="font-display text-xl font-extrabold text-foreground">Reset Password</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {resetStep === "phone"
+                    ? "We'll send a 6-digit reset code by SMS."
+                    : `Enter the code sent to ${resetPhone} and choose a new password.`}
+                </p>
+              </div>
+              <div className="p-5 space-y-4">
+                {resetStep === "phone" ? (
+                  <>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-foreground/80 mb-1.5 uppercase tracking-wider">
+                        Registered phone number
+                      </label>
+                      <input
+                        type="tel"
+                        value={resetPhone}
+                        onChange={(e) => setResetPhone(e.target.value)}
+                        placeholder="07XX XXX XXX"
+                        className="w-full px-4 py-3 rounded-xl bg-secondary/60 border border-border/60 text-sm font-medium placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/40 transition-all"
+                      />
+                    </div>
+                    <button
+                      onClick={handleRequestReset}
+                      disabled={loading}
+                      className="w-full py-3.5 rounded-xl gradient-primary font-bold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending code...</> : <>Send reset code</>}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-foreground/80 mb-1.5 uppercase tracking-wider">
+                        Reset code
+                      </label>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={resetCode}
+                        onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ""))}
+                        placeholder="123456"
+                        className="w-full px-4 py-3 rounded-xl bg-secondary/60 border border-border/60 text-center text-lg font-bold tracking-[0.4em] focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-foreground/80 mb-1.5 uppercase tracking-wider">
+                        New password
+                      </label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Create a new password"
+                        className="w-full px-4 py-3 rounded-xl bg-secondary/60 border border-border/60 text-sm font-medium placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                      />
+                    </div>
+                    <button
+                      onClick={handleResetPassword}
+                      disabled={loading}
+                      className="w-full py-3.5 rounded-xl gradient-primary font-bold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Updating...</> : <>Set new password</>}
+                    </button>
+                    <button
+                      onClick={handleRequestReset}
+                      disabled={loading}
+                      className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    >
+                      Resend code
+                    </button>
+                  </>
+                )}
+              </div>
+            </section>
+          </>
+        )}
+
 
         {view === "banned" && bannedInfo && (
           <>

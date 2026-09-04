@@ -554,7 +554,113 @@ serve(async (req) => {
         await recordAudit(supabase, "update_setting", { key, value }, adminId);
         return json({ success: true, value });
       }
+      case "payout_all_vendors": {
+        const accessToken = await requestDarajaToken();
+        const shortcode = Deno.env.get("MPESA_SHORTCODE");
+        const initiatorName = Deno.env.get("MPESA_INITIATOR_NAME");
+        const securityCredential = Deno.env.get("MPESA_SECURITY_CREDENTIAL");
+        const baseUrl = Deno.env.get("SUPABASE_URL");
+        if (!shortcode || !initiatorName || !securityCredential || !baseUrl) {
+          throw new Error("M-Pesa payout settings are not configured");
+        }
+
+        const { data: vendors, error: vErr } = await supabase
+          .from("vendors")
+          .select("id, name, phone, mpesa_payout, commission_balance, status")
+          .eq("status", "approved");
+        if (vErr) throw vErr;
+
+        const eligible = (vendors || []).filter((v: any) => Math.floor(Number(v.commission_balance || 0)) >= 10);
+        const results: any[] = [];
+
+        for (const v of eligible) {
+          const amount = Math.floor(Number(v.commission_balance));
+          const payoutPhone = formatPhone(v.mpesa_payout || v.phone);
+
+          // Atomic balance deduction — skip if balance moved meanwhile
+          const { data: deducted } = await supabase
+            .from("vendors")
+            .update({ commission_balance: Number(v.commission_balance) - amount })
+            .eq("id", v.id)
+            .eq("commission_balance", v.commission_balance)
+            .select("id");
+          if (!deducted?.length) {
+            results.push({ vendor: v.name, amount, status: "skipped", reason: "Balance changed" });
+            continue;
+          }
+
+          const { data: withdrawal } = await supabase
+            .from("withdrawals")
+            .insert({ vendor_id: v.id, amount, phone: payoutPhone, status: "processing" })
+            .select()
+            .single();
+
+          const refund = async (reason: string) => {
+            await supabase.from("withdrawals")
+              .update({ status: "failed", failure_reason: reason })
+              .eq("id", withdrawal.id);
+            const { data: cur } = await supabase
+              .from("vendors").select("commission_balance").eq("id", v.id).single();
+            await supabase.from("vendors")
+              .update({ commission_balance: Number(cur?.commission_balance || 0) + amount })
+              .eq("id", v.id);
+          };
+
+          try {
+            const payload = {
+              InitiatorName: initiatorName,
+              SecurityCredential: securityCredential,
+              CommandID: "BusinessPayment",
+              Amount: amount,
+              PartyA: shortcode,
+              PartyB: payoutPhone,
+              Remarks: "Vendor commission payout",
+              QueueTimeOutURL: `${baseUrl}/functions/v1/vendor-api?action=b2c_timeout&withdrawal_id=${withdrawal.id}`,
+              ResultURL: `${baseUrl}/functions/v1/vendor-api?action=b2c_result&withdrawal_id=${withdrawal.id}`,
+              Occasion: "BulkVendorPayout",
+            };
+
+            const response = await fetch("https://api.safaricom.co.ke/mpesa/b2c/v1/paymentrequest", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const data = await response.json();
+            if (!response.ok || data?.ResponseCode !== "0") {
+              const reason = data?.errorMessage || data?.ResponseDescription || "B2C request rejected";
+              await refund(reason);
+              results.push({ vendor: v.name, amount, status: "failed", reason });
+              continue;
+            }
+            results.push({ vendor: v.name, amount, status: "processing" });
+          } catch (e: any) {
+            await refund(e?.message || "Unknown error");
+            results.push({ vendor: v.name, amount, status: "failed", reason: e?.message });
+          }
+        }
+
+        const paidTotal = results
+          .filter((r) => r.status === "processing")
+          .reduce((sum, r) => sum + r.amount, 0);
+
+        await recordAudit(supabase, "payout_all_vendors", {
+          created_at: new Date().toISOString(),
+          count: results.filter((r) => r.status === "processing").length,
+          total: paidTotal,
+          results,
+        }, adminId);
+
+        return json({
+          success: true,
+          sent: results.filter((r) => r.status === "processing").length,
+          failed: results.filter((r) => r.status === "failed").length,
+          skipped: results.filter((r) => r.status === "skipped").length,
+          total: paidTotal,
+          results,
+        });
+      }
       default:
+
         return json({ error: "Unknown action" }, 400);
     }
   } catch (error: unknown) {
