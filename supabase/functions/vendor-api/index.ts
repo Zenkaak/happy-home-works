@@ -22,6 +22,43 @@ function formatPhone(phone: string): string {
   return cleaned;
 }
 
+// Direct OTS delivery (used for password reset codes / payout alerts)
+async function sendOts(supabase: any, phone: string, message: string) {
+  let apiKey = Deno.env.get("OTS_API_KEY");
+  try {
+    const { data } = await supabase.from("app_settings").select("value").eq("key", "ots_api_key").maybeSingle();
+    if (data?.value) apiKey = data.value;
+  } catch (_) { /* ignore */ }
+  if (!apiKey) throw new Error("SMS gateway not configured");
+
+  const res = await fetch("https://sms.ots.co.ke/api/v3/sms/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      recipient: formatPhone(phone),
+      sender_id: "PROCALL",
+      type: "plain",
+      message,
+    }),
+  });
+  const body = await res.json().catch(() => ({}));
+  const ok = res.ok && body?.status !== "error";
+  try {
+    await supabase.from("sms_logs").insert({
+      phone_number: formatPhone(phone),
+      message,
+      status: ok ? "sent" : "failed",
+    });
+  } catch (_) { /* ignore */ }
+  if (!ok) throw new Error(body?.message || "SMS delivery failed");
+  return body;
+}
+
+
 // ---------------- MAIN SERVER ----------------
 
 serve(async (req) => {
