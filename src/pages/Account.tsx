@@ -15,6 +15,7 @@ import {
   Zap,
   Wallet,
   Repeat,
+  Sparkles,
 } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +38,7 @@ interface Order {
   meter_number: string | null;
   service_number: string | null;
   failure_reason: string | null;
+  activation_amount: number | null;
   created_at: string;
 }
 
@@ -72,6 +74,8 @@ const categoryMeta = (category: string) => {
 const statusMeta = (status: string) => {
   if (status === "completed")
     return { label: "Active", cls: "text-primary bg-primary/10 border-primary/30", Icon: CheckCircle2 };
+  if (status === "awaiting_activation")
+    return { label: "Activation Ready", cls: "text-warning bg-warning/10 border-warning/40", Icon: Sparkles };
   if (status === "failed")
     return { label: "Failed", cls: "text-destructive bg-destructive/10 border-destructive/30", Icon: XCircle };
   return { label: "Pending", cls: "text-muted-foreground bg-secondary border-border", Icon: Clock };
@@ -165,11 +169,15 @@ const Account = () => {
   };
 
   const retry = async (order: Order) => {
+    const payAmount =
+      order.status === "awaiting_activation" && order.activation_amount
+        ? order.activation_amount
+        : order.amount;
     setRetryingId(order.id);
     try {
       await initiateStkPush({
         phone: accountPhone,
-        amount: order.amount,
+        amount: payAmount,
         transaction_id: order.id,
         account_ref: buildAccountRef({ category: order.category, packageName: order.package_name }),
       });
@@ -362,19 +370,39 @@ const Account = () => {
                         <p className="mt-2 text-[11px] text-destructive">{o.failure_reason}</p>
                       )}
 
-                      {o.status !== "completed" && (
-                        <button
-                          onClick={() => retry(o)}
-                          disabled={retryingId === o.id}
-                          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary/40 py-2 text-xs font-bold text-primary disabled:opacity-60"
-                        >
-                          {retryingId === o.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Repeat className="h-3.5 w-3.5" />
-                          )}
-                          {o.category === "loans" ? "Complete activation" : "Try again"}
-                        </button>
+                      {o.status === "awaiting_activation" ? (
+                        <div className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-3">
+                          <p className="text-[11px] font-semibold text-warning">
+                            Your order is approved and ready. Pay KES {o.activation_amount ?? o.amount} to activate it now.
+                          </p>
+                          <button
+                            onClick={() => retry(o)}
+                            disabled={retryingId === o.id}
+                            className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg gradient-primary py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-60"
+                          >
+                            {retryingId === o.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-3.5 w-3.5" />
+                            )}
+                            Activate for KES {o.activation_amount ?? o.amount}
+                          </button>
+                        </div>
+                      ) : (
+                        o.status !== "completed" && (
+                          <button
+                            onClick={() => retry(o)}
+                            disabled={retryingId === o.id}
+                            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary/40 py-2 text-xs font-bold text-primary disabled:opacity-60"
+                          >
+                            {retryingId === o.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Repeat className="h-3.5 w-3.5" />
+                            )}
+                            {o.category === "loans" ? "Complete activation" : "Try again"}
+                          </button>
+                        )
                       )}
                     </div>
                   );
