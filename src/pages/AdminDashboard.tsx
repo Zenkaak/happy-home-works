@@ -375,7 +375,7 @@ const AdminDashboard = () => {
             onViewTx={(tx) => setViewTx(tx)}
             onSendSms={(tx) => openSmsEditor(tx)}
             onDeleteTx={(id) => deleteTx.mutate(id)}
-            onUpdateStatus={(id, status) => updateTxStatus.mutate({ id, status })}
+            onUpdateStatus={(id, status, activation_amount) => updateTxStatus.mutate({ id, status, activation_amount })}
           />
         )}
         {tab === "vendors" && (
