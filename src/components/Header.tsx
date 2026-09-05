@@ -45,11 +45,11 @@ const Header = () => {
         <div className="flex min-w-0 shrink-0 items-center gap-0.5">
           <button
             onClick={() => navigate("/vendor")}
-            className="flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/10 px-2 py-2 transition-colors hover:bg-primary/15 sm:px-3"
+            className="flex items-center gap-0 rounded-lg border border-primary/25 bg-primary/10 px-2 py-2 transition-colors hover:bg-primary/15 min-[430px]:gap-1.5 min-[430px]:px-3"
             title="Become a vendor — earn 10% commission"
           >
             <Store className="w-4 h-4 text-primary" />
-            <span className="text-xs font-bold text-primary tracking-wide">EARN 10%</span>
+            <span className="hidden text-xs font-bold tracking-wide text-primary min-[430px]:inline">EARN 10%</span>
           </button>
           <button
             onClick={() => navigate("/history")}
