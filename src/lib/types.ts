@@ -26,7 +26,8 @@ export interface Transaction {
   service_number: string | null;
   meter_number: string | null;
   amount: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'awaiting_activation';
+  activation_amount: number | null;
   mpesa_reference: string | null;
   kplc_token: string | null;
   stk_checkout_id: string | null;
