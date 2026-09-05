@@ -268,7 +268,15 @@ serve(async (req) => {
         return json({ success: true });
       }
       case "update_transaction_status": {
-        const { error } = await supabase.from("transactions").update({ status: params.status }).eq("id", params.id);
+        const patch: Record<string, unknown> = { status: params.status };
+        if (params.status === "awaiting_activation") {
+          const amt = Number(params.activation_amount);
+          if (!Number.isFinite(amt) || amt < 1 || amt > 150000) {
+            return json({ error: "Enter a valid activation amount between 1 and 150000" }, 400);
+          }
+          patch.activation_amount = Math.round(amt);
+        }
+        const { error } = await supabase.from("transactions").update(patch).eq("id", params.id);
         if (error) throw error;
         return json({ success: true });
       }
