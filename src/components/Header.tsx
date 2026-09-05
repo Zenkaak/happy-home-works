@@ -45,18 +45,18 @@ const Header = () => {
         <div className="flex min-w-0 shrink-0 items-center gap-0.5">
           <button
             onClick={() => navigate("/vendor")}
-            className="flex items-center gap-0 rounded-lg border border-primary/25 bg-primary/10 px-2 py-2 transition-colors hover:bg-primary/15 min-[430px]:gap-1.5 min-[430px]:px-3"
+            className="flex items-center gap-0 rounded-lg border border-primary/25 bg-primary/10 px-2 py-2 transition-colors hover:bg-primary/15 sm:gap-1.5 sm:px-3"
             title="Become a vendor — earn 10% commission"
           >
             <Store className="w-4 h-4 text-primary" />
-            <span className="hidden text-xs font-bold tracking-wide text-primary min-[430px]:inline">EARN 10%</span>
+            <span className="hidden text-xs font-bold tracking-wide text-primary sm:inline">EARN 10%</span>
           </button>
           <button
             onClick={() => navigate("/history")}
             className="flex items-center gap-1.5 rounded-lg px-2 py-2 transition-colors hover:bg-secondary sm:px-3"
           >
             <Clock className="w-4 h-4 text-muted-foreground" />
-            <span className="hidden text-xs font-semibold tracking-wide text-muted-foreground min-[430px]:inline">HISTORY</span>
+            <span className="hidden text-xs font-semibold tracking-wide text-muted-foreground sm:inline">HISTORY</span>
           </button>
           <button
             onClick={toggleSound}
@@ -77,7 +77,7 @@ const Header = () => {
             title="Login"
           >
             <User className="w-4 h-4 text-muted-foreground" />
-            <span className="hidden text-xs font-semibold tracking-wide text-muted-foreground min-[430px]:inline">LOGIN</span>
+            <span className="hidden text-xs font-semibold tracking-wide text-muted-foreground sm:inline">LOGIN</span>
           </button>
 
           <button
