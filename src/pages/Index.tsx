@@ -165,7 +165,7 @@ const Index = ({ initialCategory }: IndexProps = {}) => {
   };
 
   return (
-    <div className="min-h-screen bg-background transition-colors duration-300">
+    <div className="min-h-screen w-full min-w-0 overflow-x-clip bg-background transition-colors duration-300">
       <div className={`fixed top-0 left-0 w-full h-[2px] z-50 transition-opacity duration-300 ${isFetching ? "opacity-100" : "opacity-0"}`}>
         <div className="h-full bg-primary animate-pulse w-full" />
       </div>
@@ -173,7 +173,7 @@ const Index = ({ initialCategory }: IndexProps = {}) => {
       <Header />
       <TrustStrip />
 
-      <main className="space-y-3 pb-8 pt-3">
+      <main className="w-full min-w-0 space-y-3 overflow-x-clip pb-8 pt-3">
         <LiveTrustBar />
         <RecentActivityTicker />
 
@@ -205,15 +205,15 @@ const Index = ({ initialCategory }: IndexProps = {}) => {
           />
         </div>
 
-        <div className="px-4 relative min-h-[400px]">
+        <div className="relative min-h-[400px] w-full min-w-0 px-4">
           {isFetching && (!products || products.length === 0) ? (
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid min-w-0 grid-cols-2 gap-2.5">
               {Array.from({ length: 8 }).map((_, i) => (
                 <PackageCardSkeleton key={i} />
               ))}
             </div>
           ) : (
-            <div className={`grid grid-cols-2 gap-2.5 transition-all duration-300 ${isFetching ? "opacity-60" : "opacity-100"}`}>
+            <div className={`grid min-w-0 grid-cols-2 gap-2.5 transition-all duration-300 ${isFetching ? "opacity-60" : "opacity-100"}`}>
               {paginatedProducts.map((p) => {
                 const handleSelect = (prod: Product) => openCheckout(prod);
                 if (category === "data") return <PackageCard key={p.id} product={p} onSelect={handleSelect} />;

@@ -101,7 +101,7 @@ const ServiceSelector = ({ selected, onChange, visible }: ServiceSelectorProps) 
 
   return (
     <div
-      className={`grid gap-2.5 px-4 ${
+    className={`grid w-full min-w-0 gap-2.5 px-4 ${
         shown.length === 1 ? "grid-cols-1" : shown.length === 2 ? "grid-cols-2" : "grid-cols-3"
       }`}
     >
@@ -112,7 +112,7 @@ const ServiceSelector = ({ selected, onChange, visible }: ServiceSelectorProps) 
           <button
             key={s.id}
             onClick={() => onChange(s.id)}
-            className={`relative rounded-2xl border p-3.5 text-center transition-all ${
+            className={`relative min-w-0 overflow-hidden rounded-2xl border p-2.5 text-center transition-all sm:p-3.5 ${
               active ? s.tone.card : "gradient-card hover:border-muted-foreground/20"
             }`}
           >
@@ -125,7 +125,7 @@ const ServiceSelector = ({ selected, onChange, visible }: ServiceSelectorProps) 
               }}
               aria-label={`Copy ${s.label} link`}
               title="Copy share link"
-              className="absolute top-1.5 right-1.5 z-10 p-1.5 rounded-md bg-background/70 backdrop-blur-sm border border-border/50 hover:bg-background hover:border-foreground/20 transition-colors cursor-pointer"
+              className="absolute right-1.5 top-1.5 z-10 cursor-pointer rounded-md border border-border/50 bg-background/70 p-1.5 backdrop-blur-sm transition-colors hover:border-foreground/20 hover:bg-background"
             >
               {copied ? (
                 <Check className={`w-3 h-3 ${s.tone.icon}`} />
@@ -139,7 +139,7 @@ const ServiceSelector = ({ selected, onChange, visible }: ServiceSelectorProps) 
             }`}>
               <s.icon className={`w-5 h-5 transition-colors ${active ? s.tone.icon : s.tone.idle}`} />
             </div>
-            <p className={`font-display font-semibold text-xs transition-colors ${active ? s.tone.label : "text-foreground"}`}>
+            <p className={`truncate font-display font-semibold text-xs transition-colors ${active ? s.tone.label : "text-foreground"}`}>
               {s.label}
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{s.desc}</p>

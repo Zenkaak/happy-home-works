@@ -161,6 +161,14 @@
     border-color: hsl(var(--border));
   }
 
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
@@ -169,6 +177,7 @@
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     letter-spacing: -0.01em;
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {

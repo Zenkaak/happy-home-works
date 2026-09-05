@@ -32,13 +32,13 @@ const networks: {
 ];
 
 const NetworkTabs = ({ selected, onChange }: NetworkTabsProps) => (
-  <div className="flex items-center gap-1.5 px-4">
-    <div className="inline-flex rounded-xl bg-secondary/60 border border-border/50 p-1 gap-0.5">
+  <div className="flex w-full min-w-0 items-center gap-1.5 overflow-x-auto px-4 scrollbar-none">
+    <div className="inline-flex shrink-0 gap-0.5 rounded-xl border border-border/50 bg-secondary/60 p-1">
       {networks.map((n) => (
         <button
           key={n.id}
           onClick={() => onChange(n.id)}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all ${
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold tracking-wide transition-all sm:px-4 ${
             selected === n.id
               ? n.activeClass
               : "text-muted-foreground hover:text-foreground hover:bg-secondary"
