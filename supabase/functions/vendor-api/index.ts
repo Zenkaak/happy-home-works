@@ -555,7 +555,7 @@ serve(async (req) => {
                   await sendOts(
                     supabase,
                     pv.mpesa_payout || pv.phone,
-                    `Congratulations ${pv.name}! You have been paid KES ${Number(w.amount).toLocaleString()} from DASNET VENTURES. Keep selling, earn more.`,
+                    `Congratulations ${pv.name}! You have been paid KES ${Number(w.amount).toLocaleString()} from DASNET VENTURES. Keep selling, earn more. hitechz.vercel.app`,
                   );
                 }
               } catch (_) { /* ignore */ }
