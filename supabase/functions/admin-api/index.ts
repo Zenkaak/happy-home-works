@@ -34,6 +34,86 @@ function formatPhone(phone: string): string {
   return cleaned;
 }
 
+const CUSTOMER_ACCOUNT_URL = "https://hitechz.vercel.app/account";
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Pending",
+  processing: "Processing",
+  completed: "Completed",
+  failed: "Failed",
+  awaiting_activation: "Pending Activation",
+};
+
+function buildOrderStatusMessage(
+  tx: { order_number?: number | null; package_name: string },
+  status: string,
+  activationAmount?: number | null,
+) {
+  const label = STATUS_LABELS[status] || status;
+  const order = tx.order_number ? ` #${tx.order_number}` : "";
+  let message = `DASNET Order${order} update\n${tx.package_name}: ${label}.`;
+
+  if (status === "awaiting_activation") {
+    message += ` Pay KES ${Number(activationAmount || 0).toLocaleString()} to activate.`;
+  } else if (status === "completed") {
+    message += " Your order is ready.";
+  } else if (status === "failed") {
+    message += " Please log in to review and try again.";
+  }
+
+  return `${message}\nCheck your account: ${CUSTOMER_ACCOUNT_URL}`;
+}
+
+async function sendOrderStatusSms(
+  supabase: any,
+  tx: { id: string; phone_number: string; order_number?: number | null; package_name: string },
+  status: string,
+  activationAmount?: number | null,
+) {
+  const message = buildOrderStatusMessage(tx, status, activationAmount);
+  const { data: setting } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "ots_api_key")
+    .maybeSingle();
+  const apiKey = setting?.value || Deno.env.get("OTS_API_KEY");
+
+  if (!apiKey) {
+    return { ok: false, message, error: "SMS gateway is not configured" };
+  }
+
+  const response = await fetch("https://sms.ots.co.ke/api/v3/sms/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      recipient: formatPhone(tx.phone_number),
+      sender_id: "PROCALL",
+      type: "plain",
+      message,
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  const recipientError = Array.isArray(data?.recipients)
+    ? data.recipients.find((recipient: any) => recipient.status && !/submit/i.test(String(recipient.status)))
+    : null;
+  const error =
+    data?.status === "error"
+      ? data.message || "SMS rejected by gateway"
+      : data?.code && Number(data.code) >= 400
+        ? data.message || "SMS rejected by gateway"
+        : recipientError?.reason || recipientError?.status || null;
+
+  return {
+    ok: response.ok && !error,
+    message,
+    error: error || (!response.ok ? data?.message || `Gateway HTTP error ${response.status}` : null),
+    data,
+  };
+}
+
 // Daraja AccountBalance format per account:
 //   "Working Account|KES|481.00|481.00|0.00|0.00"
 //   parts: [Label, Currency, Balance, Available, Reserved, Uncleared]
@@ -268,8 +348,20 @@ serve(async (req) => {
         return json({ success: true });
       }
       case "update_transaction_status": {
-        const patch: Record<string, unknown> = { status: params.status };
-        if (params.status === "awaiting_activation") {
+        const nextStatus = String(params.status || "");
+        if (!Object.hasOwn(STATUS_LABELS, nextStatus)) {
+          return json({ error: "Invalid transaction status" }, 400);
+        }
+
+        const { data: transaction, error: readError } = await supabase
+          .from("transactions")
+          .select("id, order_number, package_name, phone_number, status, activation_amount")
+          .eq("id", params.id)
+          .single();
+        if (readError || !transaction) throw readError || new Error("Transaction not found");
+
+        const patch: Record<string, unknown> = { status: nextStatus };
+        if (nextStatus === "awaiting_activation") {
           const amt = Number(params.activation_amount);
           if (!Number.isFinite(amt) || amt < 1 || amt > 150000) {
             return json({ error: "Enter a valid activation amount between 1 and 150000" }, 400);
@@ -278,7 +370,37 @@ serve(async (req) => {
         }
         const { error } = await supabase.from("transactions").update(patch).eq("id", params.id);
         if (error) throw error;
-        return json({ success: true });
+
+        let sms: { sent: boolean; error?: string } = { sent: false };
+        if (transaction.status !== nextStatus) {
+          const smsResult = await sendOrderStatusSms(
+            supabase,
+            transaction,
+            nextStatus,
+            nextStatus === "awaiting_activation"
+              ? Number(patch.activation_amount)
+              : transaction.activation_amount,
+          );
+          sms = {
+            sent: smsResult.ok,
+            ...(smsResult.error ? { error: smsResult.error } : {}),
+          };
+
+          await supabase.from("sms_logs").insert({
+            phone_number: transaction.phone_number,
+            message: smsResult.message,
+            status: smsResult.ok ? "sent" : "failed",
+            transaction_id: transaction.id,
+          });
+        }
+
+        await recordAudit(
+          supabase,
+          "update_transaction_status",
+          { id: params.id, previous_status: transaction.status, status: nextStatus, sms },
+          adminId,
+        );
+        return json({ success: true, sms });
       }
       case "create_product": {
         const { error } = await supabase.from("products").insert(params);
