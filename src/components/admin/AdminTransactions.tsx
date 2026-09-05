@@ -40,13 +40,17 @@ const AdminTransactions = ({ transactions, onViewTx, onSendSms, onDeleteTx, onUp
               <p className="font-bold">KES {tx.amount}</p>
               <select 
                 value={tx.status} 
-                onChange={(e) => onUpdateStatus(tx.id, e.target.value)}
+                onChange={(e) => handleStatusChange(tx, e.target.value)}
                 className={`text-[10px] font-bold uppercase rounded border border-border bg-secondary/50 px-1 py-0.5 ${tx.status === "completed" ? "text-primary" : tx.status === "failed" ? "text-destructive" : "text-warning"}`}
               >
                 <option value="pending">Pending</option>
                 <option value="completed">Completed</option>
                 <option value="failed">Failed</option>
+                <option value="awaiting_activation">Pending Activation</option>
               </select>
+              {tx.status === "awaiting_activation" && (tx as any).activation_amount && (
+                <p className="mt-1 text-[10px] font-semibold text-warning">Activate @ KES {(tx as any).activation_amount}</p>
+              )}
             </div>
           </div>
           {tx.mpesa_reference && (
