@@ -7,10 +7,26 @@ interface AdminTransactionsProps {
   onViewTx: (tx: Transaction) => void;
   onSendSms: (tx: Transaction) => void;
   onDeleteTx: (id: string) => void;
-  onUpdateStatus: (id: string, status: string) => void;
+  onUpdateStatus: (id: string, status: string, activationAmount?: number) => void;
 }
 
 const AdminTransactions = ({ transactions, onViewTx, onSendSms, onDeleteTx, onUpdateStatus }: AdminTransactionsProps) => {
+  const handleStatusChange = (tx: Transaction, status: string) => {
+    if (status === "awaiting_activation") {
+      const current = (tx as any).activation_amount || tx.amount;
+      const input = prompt(`Activation amount the customer must pay (KES) for ${tx.package_name}:`, String(current));
+      if (input === null) return;
+      const amount = Number(input.replace(/[^0-9]/g, ""));
+      if (!amount || amount < 1 || amount > 150000) {
+        alert("Enter a valid amount between 1 and 150000");
+        return;
+      }
+      onUpdateStatus(tx.id, status, amount);
+      return;
+    }
+    onUpdateStatus(tx.id, status);
+  };
+
   return (
     <div className="space-y-3">
       {transactions?.map((tx) => (
@@ -24,13 +40,17 @@ const AdminTransactions = ({ transactions, onViewTx, onSendSms, onDeleteTx, onUp
               <p className="font-bold">KES {tx.amount}</p>
               <select 
                 value={tx.status} 
-                onChange={(e) => onUpdateStatus(tx.id, e.target.value)}
+                onChange={(e) => handleStatusChange(tx, e.target.value)}
                 className={`text-[10px] font-bold uppercase rounded border border-border bg-secondary/50 px-1 py-0.5 ${tx.status === "completed" ? "text-primary" : tx.status === "failed" ? "text-destructive" : "text-warning"}`}
               >
                 <option value="pending">Pending</option>
                 <option value="completed">Completed</option>
                 <option value="failed">Failed</option>
+                <option value="awaiting_activation">Pending Activation</option>
               </select>
+              {tx.status === "awaiting_activation" && (tx as any).activation_amount && (
+                <p className="mt-1 text-[10px] font-semibold text-warning">Activate @ KES {(tx as any).activation_amount}</p>
+              )}
             </div>
           </div>
           {tx.mpesa_reference && (

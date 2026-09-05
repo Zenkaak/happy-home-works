@@ -461,6 +461,7 @@ export type Database = {
       }
       transactions: {
         Row: {
+          activation_amount: number | null
           amount: number
           category: string
           created_at: string
@@ -481,6 +482,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          activation_amount?: number | null
           amount: number
           category: string
           created_at?: string
@@ -501,6 +503,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          activation_amount?: number | null
           amount?: number
           category?: string
           created_at?: string
@@ -716,6 +719,7 @@ export type Database = {
       get_order: {
         Args: { p_id: string }
         Returns: {
+          activation_amount: number | null
           amount: number
           category: string
           created_at: string
@@ -756,6 +760,7 @@ export type Database = {
           p_result_desc?: string
         }
         Returns: {
+          activation_amount: number | null
           amount: number
           category: string
           created_at: string

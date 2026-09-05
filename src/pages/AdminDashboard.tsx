@@ -145,7 +145,8 @@ const AdminDashboard = () => {
   });
 
   const updateTxStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => await adminApi("update_transaction_status", { id, status }),
+    mutationFn: async ({ id, status, activation_amount }: { id: string; status: string; activation_amount?: number }) =>
+      await adminApi("update_transaction_status", { id, status, activation_amount }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin-transactions"] }); toast({ title: "Status updated" }); },
     onError: handleError,
   });
@@ -374,7 +375,7 @@ const AdminDashboard = () => {
             onViewTx={(tx) => setViewTx(tx)}
             onSendSms={(tx) => openSmsEditor(tx)}
             onDeleteTx={(id) => deleteTx.mutate(id)}
-            onUpdateStatus={(id, status) => updateTxStatus.mutate({ id, status })}
+            onUpdateStatus={(id, status, activation_amount) => updateTxStatus.mutate({ id, status, activation_amount })}
           />
         )}
         {tab === "vendors" && (
