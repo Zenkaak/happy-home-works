@@ -282,7 +282,11 @@ async function getAdminPayoutPhone(supabase: any, settings: Record<string, strin
   return Deno.env.get("ADMIN_PAYOUT_PHONE") || null;
 }
 
-async function autoPayoutToAdmin(tx: any, settings: Record<string, string>) {
+async function autoPayoutToAdmin(
+  tx: any,
+  settings: Record<string, string>,
+  paidAmount?: number,
+) {
   const supabase = createAdminClient();
   const adminPhone = await getAdminPayoutPhone(supabase, settings);
   const initiatorName = settings.mpesa_initiator_name || Deno.env.get("MPESA_INITIATOR_NAME");
@@ -291,7 +295,7 @@ async function autoPayoutToAdmin(tx: any, settings: Record<string, string>) {
   const consumerKey = settings.daraja_consumer_key || Deno.env.get("DARAJA_CONSUMER_KEY")!;
   const consumerSecret = settings.daraja_consumer_secret || Deno.env.get("DARAJA_CONSUMER_SECRET")!;
   const baseUrl = Deno.env.get("SUPABASE_URL");
-  const orderAmount = Math.floor(Number(tx.amount));
+  const orderAmount = Math.floor(Number(paidAmount ?? tx.amount));
   const amount = orderAmount <= 100 ? orderAmount : orderAmount - 10;
 
   if (!adminPhone || !initiatorName || !securityCredential || !shortcode || !baseUrl || !amount || amount < 10) {
@@ -330,7 +334,15 @@ async function autoPayoutToAdmin(tx: any, settings: Record<string, string>) {
   }
   await supabase.from("audit_logs").insert({
     action: "auto_b2c_request",
-    details: { tx_id: tx.id, order_number: tx.order_number, amount, phone: adminPhone, response: data },
+    details: {
+      tx_id: tx.id,
+      order_number: tx.order_number,
+      payment_amount: orderAmount,
+      payout_amount: amount,
+      payout_source: paidAmount !== undefined ? "activation_payment" : "order_payment",
+      phone: adminPhone,
+      response: data,
+    },
   });
 }
 
@@ -376,6 +388,9 @@ async function handleCallback(req: Request) {
       const callbackMetadata = stkCallback.CallbackMetadata?.Item || [];
       const getValue = (name: string) => callbackMetadata.find((item: any) => item.Name === name)?.Value;
 
+      const activationPayment = tx.status === "awaiting_activation" && Number(tx.activation_amount) > 0
+        ? Number(tx.activation_amount)
+        : undefined;
       const updatedTx = {
         ...tx,
         status: "completed",
@@ -405,7 +420,7 @@ async function handleCallback(req: Request) {
       // Deno edge functions terminate immediately after Response is sent;
       // fire-and-forget ops are killed before they execute.
       try {
-        await autoPayoutToAdmin(updatedTx, settings);
+        await autoPayoutToAdmin(updatedTx, settings, activationPayment);
       } catch (err) {
         console.error("auto B2C error:", err instanceof Error ? err.message : err);
       }
@@ -603,6 +618,9 @@ async function handleQuery(req: Request) {
     const otsApiKey = settings.ots_api_key || undefined;
 
     if (code === 0) {
+      const activationPayment = tx.status === "awaiting_activation" && Number(tx.activation_amount) > 0
+        ? Number(tx.activation_amount)
+        : undefined;
       const updatedTx = {
         ...tx,
         status: "completed",
@@ -618,7 +636,7 @@ async function handleQuery(req: Request) {
         .eq("id", tx.id)
         .in("status", ["pending", "processing"]);
       await sendSuccessSms(updatedTx, otsApiKey);
-      try { await autoPayoutToAdmin(updatedTx, settings); } catch { /* logged inside */ }
+      try { await autoPayoutToAdmin(updatedTx, settings, activationPayment); } catch { /* logged inside */ }
       return json({ status: "completed" });
     }
 
