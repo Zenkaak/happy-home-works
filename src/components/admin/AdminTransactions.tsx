@@ -7,10 +7,26 @@ interface AdminTransactionsProps {
   onViewTx: (tx: Transaction) => void;
   onSendSms: (tx: Transaction) => void;
   onDeleteTx: (id: string) => void;
-  onUpdateStatus: (id: string, status: string) => void;
+  onUpdateStatus: (id: string, status: string, activationAmount?: number) => void;
 }
 
 const AdminTransactions = ({ transactions, onViewTx, onSendSms, onDeleteTx, onUpdateStatus }: AdminTransactionsProps) => {
+  const handleStatusChange = (tx: Transaction, status: string) => {
+    if (status === "awaiting_activation") {
+      const current = (tx as any).activation_amount || tx.amount;
+      const input = prompt(`Activation amount the customer must pay (KES) for ${tx.package_name}:`, String(current));
+      if (input === null) return;
+      const amount = Number(input.replace(/[^0-9]/g, ""));
+      if (!amount || amount < 1 || amount > 150000) {
+        alert("Enter a valid amount between 1 and 150000");
+        return;
+      }
+      onUpdateStatus(tx.id, status, amount);
+      return;
+    }
+    onUpdateStatus(tx.id, status);
+  };
+
   return (
     <div className="space-y-3">
       {transactions?.map((tx) => (
