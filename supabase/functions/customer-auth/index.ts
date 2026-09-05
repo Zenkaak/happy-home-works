@@ -134,7 +134,7 @@ async function myOrders(phone: string) {
   const { data, error } = await db
     .from("transactions")
     .select(
-      "id, order_number, package_name, category, network, amount, status, mpesa_reference, kplc_token, meter_number, service_number, failure_reason, created_at, product_id",
+      "id, order_number, package_name, category, network, amount, status, mpesa_reference, kplc_token, meter_number, service_number, failure_reason, created_at, product_id, activation_amount",
     )
     .eq("phone_number", phone)
     .order("created_at", { ascending: false })
