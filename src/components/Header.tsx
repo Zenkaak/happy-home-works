@@ -1,4 +1,4 @@
-import { Clock, User, ShieldCheck, Volume2, VolumeX } from "lucide-react";
+import { Clock, User, ShieldCheck, Volume2, VolumeX, Store } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { isNotifySoundEnabled, setNotifySoundEnabled } from "@/lib/notifySound";
@@ -43,6 +43,14 @@ const Header = () => {
         </button>
 
         <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => navigate("/vendor")}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 border border-primary/25 hover:bg-primary/15 transition-colors"
+            title="Become a vendor — earn 10% commission"
+          >
+            <Store className="w-4 h-4 text-primary" />
+            <span className="text-xs font-bold text-primary tracking-wide">EARN 10%</span>
+          </button>
           <button
             onClick={() => navigate("/history")}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-secondary transition-colors"

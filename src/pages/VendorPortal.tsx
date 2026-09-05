@@ -8,7 +8,7 @@ import Footer from "@/components/Footer";
 import VendorDashboard from "@/components/VendorDashboard";
 import { Loader2, UserPlus, LogIn, ArrowLeft, TrendingUp, Wallet, BarChart3, CheckCircle2, ShieldAlert } from "lucide-react";
 
-type View = "menu" | "apply" | "signin" | "dashboard" | "banned";
+type View = "menu" | "apply" | "signin" | "dashboard" | "banned" | "forgot";
 
 const VendorPortal = () => {
   const { toast } = useToast();
@@ -31,6 +31,51 @@ const VendorPortal = () => {
 
   // Banned state
   const [bannedInfo, setBannedInfo] = useState<{ name?: string; phone: string } | null>(null);
+
+  // Password reset state
+  const [resetPhone, setResetPhone] = useState("");
+  const [resetStep, setResetStep] = useState<"phone" | "code">("phone");
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  const handleRequestReset = async () => {
+    if (!isValidKenyanPhone(resetPhone)) return toast({ title: "Invalid phone number", variant: "destructive" });
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("vendor-api", {
+        body: { action: "request_password_reset", phone: resetPhone },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setResetStep("code");
+      toast({ title: "Code sent", description: "Check your SMS for the reset code." });
+    } catch (err: any) {
+      toast({ title: "Could not send code", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetCode.trim()) return toast({ title: "Enter the code", variant: "destructive" });
+    if (newPassword.length < 4) return toast({ title: "Password must be at least 4 characters", variant: "destructive" });
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("vendor-api", {
+        body: { action: "reset_password", phone: resetPhone, code: resetCode.trim(), new_password: newPassword },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Password updated", description: "Sign in with your new password." });
+      setLoginPhone(resetPhone);
+      setResetCode(""); setNewPassword(""); setResetStep("phone");
+      setView("signin");
+    } catch (err: any) {
+      toast({ title: "Reset failed", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem("vendor_session");
