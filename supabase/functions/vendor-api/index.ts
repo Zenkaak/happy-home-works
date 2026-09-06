@@ -462,7 +462,7 @@ ${refLink}
             .update({ status: "failed", failure_reason: reason })
             .eq("id", withdrawal.id);
           // Refund vendor balance
-          await supabase.rpc("hash_password", { p_password: "x" }).then(() => {}).catch(() => {});
+          
           const { data: v } = await supabase
             .from("vendors")
             .select("commission_balance")
