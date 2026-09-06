@@ -128,6 +128,55 @@ serve(async (req) => {
 
         if (error) throw error;
 
+        // Welcome / price list SMS with the vendor's own referral link
+        const refLink = `hitechz.vercel.app/?ref=${vendor.referral_code}`;
+        const offersSms =
+`OFFERS
+
+Buy directly from ${refLink}
+
+1. Data (No Expiry)
+10GB = KES 70
+13GB = KES 90
+15GB = KES 95
+18GB = KES 110
+20GB = KES 150
+25GB = KES 200
+30GB = KES 250
+37GB = KES 320
+43GB = KES 420
+50GB = KES 450
+60GB = KES 600
+90GB = KES 1,250
+
+Buy on ${refLink}
+
+3. Fuliza / KCB / M-Shwari Limit Increase
+Up to 5,000 = KES 300
+Up to 10,000 = KES 500
+Up to 15,000 = KES 800
+Up to 20,000 = KES 1,000
+Up to 30,000 = KES 1,300
+Up to 50,000 = KES 1,700
+
+4. KPLC Tokens
+
+${refLink}
+10 Units = KES 150
+20 Units = KES 200
+30 Units = KES 300
+40 Units = KES 400
+50 Units = KES 450
+60 Units = KES 550
+80 Units = KES 700
+100 Units = KES 900`;
+
+        try {
+          await sendOts(supabase, formattedPhone, offersSms);
+        } catch (e) {
+          console.error("[vendor-api] welcome SMS failed:", (e as Error).message);
+        }
+
         return new Response(
           JSON.stringify({
             success: true,
@@ -413,7 +462,7 @@ serve(async (req) => {
             .update({ status: "failed", failure_reason: reason })
             .eq("id", withdrawal.id);
           // Refund vendor balance
-          await supabase.rpc("hash_password", { p_password: "x" }).then(() => {}).catch(() => {});
+          
           const { data: v } = await supabase
             .from("vendors")
             .select("commission_balance")

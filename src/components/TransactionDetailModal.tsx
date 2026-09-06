@@ -57,10 +57,16 @@ const TransactionDetailModal = ({
       color: "text-warning",
       bg: "bg-warning/10",
       label: "Pending"
+    },
+    awaiting_activation: {
+      icon: Loader2,
+      color: "text-warning",
+      bg: "bg-warning/10",
+      label: "Pending Activation"
     }
   };
 
-  const status = statusConfig[tx.status] || statusConfig.pending;
+  const status = statusConfig[tx.status as keyof typeof statusConfig] || statusConfig.pending;
   const StatusIcon = status.icon;
 
   return (
