@@ -43,29 +43,70 @@ const STATUS_LABELS: Record<string, string> = {
   awaiting_activation: "Pending Activation",
 };
 
+function dataQuantity(packageName: string) {
+  const m = String(packageName || "").match(/(\d+(?:\.\d+)?)\s*(GB|MB)/i);
+  return m ? `${m[1]}${m[2].toUpperCase()}` : String(packageName || "");
+}
+
+function parseLoanLimit(packageName: string) {
+  const m = String(packageName || "").match(/(\d[\d,]*)\s*K?/i);
+  if (!m) return "";
+  const raw = m[1].replace(/,/g, "");
+  const isK = /k/i.test(packageName.slice(packageName.indexOf(m[1]) + m[1].length, packageName.indexOf(m[1]) + m[1].length + 1));
+  const value = isK ? Number(raw) * 1000 : Number(raw);
+  return value.toLocaleString("en-KE");
+}
+
 function buildOrderStatusMessage(
-  tx: { order_number?: number | null; package_name: string },
+  tx: any,
   status: string,
   activationAmount?: number | null,
 ) {
-  const label = STATUS_LABELS[status] || status;
   const order = tx.order_number ? ` #${tx.order_number}` : "";
-  let message = `DASNET Order${order} update\n${tx.package_name}: ${label}.`;
+  const amount = Number(tx.amount || 0).toLocaleString("en-KE");
 
-  if (status === "awaiting_activation") {
-    message += ` Pay KES ${Number(activationAmount || 0).toLocaleString()} to activate.`;
-  } else if (status === "completed") {
-    message += " Your order is ready.";
-  } else if (status === "failed") {
-    message += " Please log in to review and try again.";
+  if (status === "completed") {
+    if (tx.category === "data" || tx.network) {
+      return `You have received Sh${amount} = ${dataQuantity(tx.package_name)} no expiry from DASNET VENTURES. ` +
+        `Dial *444*9# to check balance. Visit https://hitechz.vercel.app for other exciting offers.`;
+    }
+    if (tx.category === "loans") {
+      const limit = parseLoanLimit(tx.package_name) || tx.package_name;
+      const activation = Math.ceil(Number(tx.amount || 0) / 2).toLocaleString("en-KE");
+      return `Dear Customer, your fuliza upgrade upto KES ${limit} has been approved. ` +
+        `To activate, Pay KES ${activation} via Till 8448104.`;
+    }
+    const lines = [`DASNET${order} Delivered ✓`, `${tx.package_name} | KSH ${amount}`];
+    if (tx.mpesa_reference) lines.push(`M-Pesa: ${tx.mpesa_reference}`);
+    if (tx.category === "kplc" && tx.meter_number) lines.push(`Meter: ${tx.meter_number}`);
+    if (tx.category === "kplc" && tx.kplc_token) lines.push(`Token: ${tx.kplc_token}`);
+    return lines.join("\n");
   }
 
-  return `${message}\nCheck your account: ${CUSTOMER_ACCOUNT_URL}`;
+  if (status === "failed") {
+    return [
+      `DASNET${order} Failed`,
+      `${tx.package_name} | KSH ${amount}`,
+      tx.failure_reason || "Payment not completed",
+      `No charge. Retry: https://hitechz.vercel.app`,
+    ].join("\n");
+  }
+
+  if (status === "awaiting_activation") {
+    return [
+      `DASNET${order}: ${tx.package_name} approved.`,
+      `Pay KES ${Number(activationAmount || 0).toLocaleString("en-KE")} to activate.`,
+      `Activate here: ${CUSTOMER_ACCOUNT_URL}`,
+    ].join("\n");
+  }
+
+  const label = STATUS_LABELS[status] || status;
+  return `DASNET${order}: ${tx.package_name} is ${label}.`;
 }
 
 async function sendOrderStatusSms(
   supabase: any,
-  tx: { id: string; phone_number: string; order_number?: number | null; package_name: string },
+  tx: any,
   status: string,
   activationAmount?: number | null,
 ) {
@@ -355,7 +396,7 @@ serve(async (req) => {
 
         const { data: transaction, error: readError } = await supabase
           .from("transactions")
-          .select("id, order_number, package_name, phone_number, status, activation_amount")
+          .select("id, order_number, package_name, phone_number, status, activation_amount, category, network, amount, mpesa_reference, meter_number, kplc_token, failure_reason")
           .eq("id", params.id)
           .single();
         if (readError || !transaction) throw readError || new Error("Transaction not found");
