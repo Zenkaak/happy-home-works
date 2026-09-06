@@ -209,10 +209,9 @@ async function sendSuccessSms(tx: any, apiKey?: string) {
   // ── LOANS / FULIZA UPGRADE ──
   if (tx.category === "loans") {
     const limit = parseLoanLimit(tx.package_name);
-    const activation = Math.ceil(Number(tx.amount) / 2).toLocaleString("en-KE");
     const msg =
       `Dear Customer, your fuliza upgrade upto KES ${limit || tx.package_name} has been approved. ` +
-      `To activate, Pay KES ${activation} via Till 8448104.`;
+      `Status: Pending activation.`;
     await sendSms(msg, tx.phone_number, tx.id, apiKey);
     return;
   }
@@ -611,17 +610,9 @@ async function handleQuery(req: Request) {
     });
     const q = await res.json();
     const code = q?.ResultCode !== undefined ? Number(q.ResultCode) : NaN;
-    const desc = String(q?.ResultDesc || q?.errorMessage || "");
 
     // 1037/1032 etc are final; 500.001.1001 / "processing" means still pending.
     if (Number.isNaN(code)) return json({ status: tx.status, pending: true });
-
-    // Safaricom sometimes answers "The transaction is still under processing"
-    // while the customer is still on the PIN screen — that is NOT a failure.
-    if (/still under process|being process|under process|in process/i.test(desc) ||
-        String(q?.errorCode || "") === "500.001.1001") {
-      return json({ status: tx.status, pending: true });
-    }
 
     const otsApiKey = settings.ots_api_key || undefined;
 
