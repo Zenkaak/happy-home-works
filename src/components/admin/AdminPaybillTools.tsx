@@ -16,10 +16,26 @@ interface BalanceSnapshot {
   items: BalanceItem[];
 }
 
+interface PayoutHistoryItem {
+  id: string;
+  action: "auto_b2c_request" | "admin_b2c_request";
+  details: {
+    phone?: string;
+    amount?: number;
+    payment_amount?: number;
+    payout_amount?: number;
+    order_number?: number;
+    payout_source?: string;
+  } | null;
+  created_at: string;
+}
+
 const AdminPaybillTools = () => {
   const { toast } = useToast();
   const [snapshot, setSnapshot] = useState<BalanceSnapshot | null>(null);
+  const [history, setHistory] = useState<PayoutHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
   const [phone, setPhone] = useState("");
@@ -45,20 +61,33 @@ const AdminPaybillTools = () => {
     return data?.snapshot ?? null;
   };
 
+  const fetchHistory = async () => {
+    const data = await invokeAdmin("get_paybill_history");
+    setHistory((data?.history ?? []) as PayoutHistoryItem[]);
+    return data?.history ?? [];
+  };
+
   useEffect(() => {
     let mounted = true;
     let timer: ReturnType<typeof setInterval> | null = null;
 
     const load = async (silent: boolean) => {
       try {
-        const data = await invokeAdmin("get_paybill_balance");
-        if (mounted) setSnapshot(data?.snapshot ?? null);
+        const [balanceData, historyData] = await Promise.all([
+          invokeAdmin("get_paybill_balance"),
+          invokeAdmin("get_paybill_history"),
+        ]);
+        if (mounted) {
+          setSnapshot(balanceData?.snapshot ?? null);
+          setHistory((historyData?.history ?? []) as PayoutHistoryItem[]);
+        }
       } catch (err: any) {
         if (mounted && !silent) {
           toast({ title: "Balance unavailable", description: err.message, variant: "destructive" });
         }
       } finally {
         if (mounted) setLoading(false);
+        if (mounted) setHistoryLoading(false);
       }
     };
 
@@ -121,6 +150,7 @@ const AdminPaybillTools = () => {
 
     try {
       await invokeAdmin("initiate_admin_b2c", { phone, amount: parsedAmount });
+      await fetchHistory();
       toast({ title: "B2C initiated", description: `KSH ${parsedAmount} is being sent to ${phone}.` });
       setPhone("");
       setAmount("");
@@ -217,6 +247,70 @@ const AdminPaybillTools = () => {
           </div>
         </section>
       </div>
+
+      <section className="gradient-card rounded-2xl border border-border/60 p-4">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.15em] text-primary font-bold">Payout ledger</p>
+            <h2 className="font-display font-bold text-lg">B2C transaction history</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Automatic order payouts and manual payments sent from this dashboard.
+            </p>
+          </div>
+          <button
+            onClick={() => fetchHistory().catch((err: any) => toast({ title: "History unavailable", description: err.message, variant: "destructive" }))}
+            className="inline-flex items-center gap-2 rounded-xl bg-secondary px-3 py-2 text-xs font-bold hover:bg-muted"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </button>
+        </div>
+
+        {historyLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          </div>
+        ) : history.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            No B2C payouts recorded yet.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {history.map((item) => {
+              const details = item.details || {};
+              const isAutomatic = item.action === "auto_b2c_request";
+              const payoutAmount = Number(details.payout_amount ?? details.amount ?? 0);
+              return (
+                <div key={item.id} className="rounded-xl border border-border/60 bg-secondary/20 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-sm">{details.phone || "Unknown recipient"}</p>
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                          {isAutomatic ? "Automatic B2C" : "Manual B2C"}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {details.order_number ? `Order #${details.order_number} · ` : ""}
+                        {new Date(item.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-display font-bold">KSH {payoutAmount.toLocaleString()}</p>
+                      <p className="text-[10px] font-semibold text-primary">B2C accepted</p>
+                    </div>
+                  </div>
+                  {isAutomatic && details.payment_amount && details.payment_amount !== payoutAmount && (
+                    <p className="mt-2 text-[10px] text-muted-foreground">
+                      Based on payment of KSH {Number(details.payment_amount).toLocaleString()}
+                      {details.payout_source === "activation_payment" ? " · Activation payment" : ""}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 };

@@ -563,6 +563,16 @@ serve(async (req) => {
         if (error) throw error;
         return json({ snapshot: data ? { created_at: data.created_at, ...(data.details as Record<string, unknown>) } : null });
       }
+      case "get_paybill_history": {
+        const { data, error } = await supabase
+          .from("audit_logs")
+          .select("id, action, details, created_at")
+          .in("action", ["auto_b2c_request", "admin_b2c_request"])
+          .order("created_at", { ascending: false })
+          .limit(200);
+        if (error) throw error;
+        return json({ history: data ?? [] });
+      }
       case "refresh_paybill_balance": {
         const accessToken = await requestDarajaToken();
         const shortcode = Deno.env.get("MPESA_SHORTCODE");
