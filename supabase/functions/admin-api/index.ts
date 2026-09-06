@@ -106,7 +106,7 @@ function buildOrderStatusMessage(
 
 async function sendOrderStatusSms(
   supabase: any,
-  tx: { id: string; phone_number: string; order_number?: number | null; package_name: string },
+  tx: any,
   status: string,
   activationAmount?: number | null,
 ) {
@@ -396,7 +396,7 @@ serve(async (req) => {
 
         const { data: transaction, error: readError } = await supabase
           .from("transactions")
-          .select("id, order_number, package_name, phone_number, status, activation_amount")
+          .select("id, order_number, package_name, phone_number, status, activation_amount, category, network, amount, mpesa_reference, meter_number, kplc_token, failure_reason")
           .eq("id", params.id)
           .single();
         if (readError || !transaction) throw readError || new Error("Transaction not found");
