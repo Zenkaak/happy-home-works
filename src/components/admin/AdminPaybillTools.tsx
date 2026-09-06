@@ -36,6 +36,7 @@ const AdminPaybillTools = () => {
   const [history, setHistory] = useState<PayoutHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
   const [phone, setPhone] = useState("");
@@ -72,23 +73,31 @@ const AdminPaybillTools = () => {
     let timer: ReturnType<typeof setInterval> | null = null;
 
     const load = async (silent: boolean) => {
-      try {
-        const [balanceData, historyData] = await Promise.all([
-          invokeAdmin("get_paybill_balance"),
-          invokeAdmin("get_paybill_history"),
-        ]);
-        if (mounted) {
-          setSnapshot(balanceData?.snapshot ?? null);
-          setHistory((historyData?.history ?? []) as PayoutHistoryItem[]);
-        }
-      } catch (err: any) {
-        if (mounted && !silent) {
-          toast({ title: "Balance unavailable", description: err.message, variant: "destructive" });
-        }
-      } finally {
-        if (mounted) setLoading(false);
-        if (mounted) setHistoryLoading(false);
+      const [balanceResult, historyResult] = await Promise.allSettled([
+        invokeAdmin("get_paybill_balance"),
+        invokeAdmin("get_paybill_history"),
+      ]);
+
+      if (!mounted) return;
+
+      if (balanceResult.status === "fulfilled") {
+        setSnapshot(balanceResult.value?.snapshot ?? null);
+      } else if (!silent) {
+        const message = balanceResult.reason instanceof Error
+          ? balanceResult.reason.message
+          : "Could not load the paybill balance";
+        toast({ title: "Balance unavailable", description: message, variant: "destructive" });
       }
+
+      if (historyResult.status === "fulfilled") {
+        setHistory((historyResult.value?.history ?? []) as PayoutHistoryItem[]);
+        setHistoryError(false);
+      } else {
+        setHistoryError(true);
+      }
+
+      setLoading(false);
+      setHistoryLoading(false);
     };
 
     const triggerRefresh = async () => {
@@ -99,7 +108,7 @@ const AdminPaybillTools = () => {
     // Trigger a fresh balance request on mount, then every 60s
     triggerRefresh();
     const refreshTimer = setInterval(triggerRefresh, 60000);
-    // Poll snapshot every 5s to pick up the async callback result
+    // Poll snapshot and payout history every 5s
     timer = setInterval(() => load(true), 5000);
 
     return () => {
@@ -150,7 +159,11 @@ const AdminPaybillTools = () => {
 
     try {
       await invokeAdmin("initiate_admin_b2c", { phone, amount: parsedAmount });
-      await fetchHistory();
+      try {
+        await fetchHistory();
+      } catch {
+        setHistoryError(true);
+      }
       toast({ title: "B2C initiated", description: `KSH ${parsedAmount} is being sent to ${phone}.` });
       setPhone("");
       setAmount("");
@@ -268,6 +281,10 @@ const AdminPaybillTools = () => {
         {historyLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          </div>
+        ) : historyError ? (
+          <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            Payout history is temporarily unavailable. The balance and B2C tools are still usable.
           </div>
         ) : history.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
